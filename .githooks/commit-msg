@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+# RE15pc — Conventional Commits v1.0.0 enforcement.
+#
+# Activated by:  git config core.hooksPath .githooks
+# See CONTRIBUTING.md for the type and scope vocabulary.
+# Bypass with:   git commit --no-verify
+
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+types='feat|fix|build|chore|ci|docs|style|refactor|perf|test|revert'
+
+# Ignore comment lines; take the first remaining non-blank line as the header.
+body=$(grep -v '^[[:space:]]*#' "$msg_file")
+subject=$(printf '%s\n' "$body" | sed '/^[[:space:]]*$/d' | head -n 1)
+
+# Nothing to validate (git aborts on an empty message anyway).
+[ -n "$subject" ] || exit 0
+
+# git generates these itself.
+case "$subject" in
+    Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
+esac
+
+header_pattern="^($types)(\([a-z0-9._/-]+\))?!?: .+"
+
+if ! printf '%s' "$subject" | grep -Eq "$header_pattern"; then
+    {
+        echo "commit-msg: header does not follow Conventional Commits v1.0.0."
+        echo
+        echo "  got:      $subject"
+        echo "  expected: <type>[(scope)][!]: <description>"
+        echo "  types:    feat fix build chore ci docs style refactor perf test revert"
+        echo "  example:  feat(host): add RE15pc host application"
+        echo
+        echo "See CONTRIBUTING.md for the scope vocabulary."
+    } >&2
+    exit 1
+fi
+
+# Header length.
+len=$(printf '%s' "$subject" | wc -c | tr -d '[:space:]')
+if [ "$len" -gt 100 ]; then
+    echo "commit-msg: header is $len characters; the limit is 100." >&2
+    exit 1
+fi
+
+# BREAKING CHANGE must be uppercase, per the specification.
+if printf '%s\n' "$body" | grep -qi 'breaking[ -]change' &&
+   ! printf '%s\n' "$body" | grep -q 'BREAKING CHANGE'; then
+    echo "commit-msg: 'BREAKING CHANGE' must be uppercase (Conventional Commits v1.0.0)." >&2
+    exit 1
+fi
+
+# Description: not capitalised, no trailing period.
+desc=$(printf '%s' "$subject" | sed -E "s/^($types)(\([a-z0-9._/-]+\))?!?: //")
+first=$(printf '%s' "$desc" | cut -c1)
+
+case "$first" in
+    [A-Z])
+        echo "commit-msg: description must not start with a capital letter." >&2
+        echo "            got: $desc" >&2
+        exit 1
+        ;;
+esac
+
+case "$desc" in
+    *.)
+        echo "commit-msg: description must not end with a period." >&2
+        echo "            got: $desc" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

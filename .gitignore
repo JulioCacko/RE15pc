@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# RE15pc
+#
+# Two rules here are load bearing and must stay ahead of any `git add`:
+#   1. Bio2Nov96.bin is 124.3 MB, above GitHub's 100 MB per-file limit, and is
+#      copyrighted prototype data. It can never be committed or pushed.
+#   2. RecompOne/ carries its own .git. Staging it would make git record an
+#      embedded gitlink that clones as an empty directory. bootstrap.ps1
+#      restores it at a pinned commit instead.
+# ---------------------------------------------------------------------------
+
+# --- disc images: never commit ---
+Bio2Nov96.bin
+*.bin
+*.iso
+*.img
+*.chd
+*.mdf
+*.toc
+
+# --- separate upstream working clone (see bootstrap.ps1) ---
+/RecompOne/
+
+# --- recompiler output; regenerated deterministically from disc + config ---
+/generated/
+
+# --- scratch: probe JSON, RAM/VRAM dumps, logs, smoke artifacts ---
+/out/
+
+# --- .NET build output ---
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# --- runtime user state (machine specific) ---
+settings.json
+interface.ini
+carda.sav
+cardb.sav
+
+# --- OS noise ---
+Thumbs.db
+desktop.ini
+.DS_Store
