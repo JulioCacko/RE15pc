@@ -322,7 +322,11 @@ try {
         files        = ($files | Select-Object path, lba, size, kind)
     }
 
-    $json = $manifest | ConvertTo-Json -Depth 8
+    # LF line endings and UTF-8 without a BOM, so the file is byte-stable across
+    # platforms and every JSON parser reads it identically. ConvertTo-Json
+    # emits CRLF on Windows, which would otherwise differ from the committed blob.
+    $json = ($manifest | ConvertTo-Json -Depth 8) -replace "`r`n", "`n"
+    if (-not $json.EndsWith("`n")) { $json += "`n" }
 
     if ($Check) {
         if (-not (Test-Path -LiteralPath $Out)) {

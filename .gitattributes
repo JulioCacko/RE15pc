@@ -1,12 +1,8 @@
-# Normalise line endings on commit; keep working trees native.
+# Normalise line endings on commit. LF everywhere, including in the working
+# tree, so the checkout matches the committed blob byte for byte and git stops
+# reporting "CRLF will be replaced by LF" on every commit. PowerShell, Visual
+# Studio and VS Code all read LF scripts correctly on Windows.
 * text=auto eol=lf
-
-# Windows-only project files stay CRLF so Visual Studio is happy.
-*.sln    text eol=crlf
-*.csproj text eol=crlf
-*.props  text eol=crlf
-*.targets text eol=crlf
-*.ps1    text eol=crlf
 
 # POSIX hooks and patches must keep LF or they break on clone.
 .githooks/* text eol=lf
