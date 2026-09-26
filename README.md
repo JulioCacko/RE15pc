@@ -1,6 +1,6 @@
 # RE15pc
 
-A native PC port of the **Biohazard 2 (November 6, 1996) prototype** — the
+A native PC port of the **Biohazard 1.5 (November 6, 1996) prototype** — the
 abandoned Resident Evil 2 build commonly known as *Resident Evil 1.5* — produced
 by statically recompiling the original PlayStation executable rather than
 emulating it.
