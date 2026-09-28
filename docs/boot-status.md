@@ -1170,17 +1170,87 @@ this document out before.
 
 This is the fifth premise here to be withdrawn, and the second in two rounds.
 
+#### The room renders. It is composited before it is drawn, about half the time
+
+Measuring the target inside `Writeback` - the moment it is composited into VRAM, where drawn content is
+unambiguous and cannot be VRAM's - gives the most informative result of this investigation:
+
+```
+                                   samples   entirely black   mean of 10240   best of 10240
+DEFAULT        origin (0,0)           295       133  (45%)          -            9248  (90.3%)
+               origin (0,240)         296       136  (46%)          -            9248  (90.3%)
+--skip-draws flat  origin (0,0)       226         0   (0%)         7388           9248  (90.3%)
+                   origin (0,240)     224         0   (0%)          -            9248  (90.3%)
+```
+
+Three things follow, and the first is the important one.
+
+**The room renders.** Both configurations reach a best of 9,248 of 10,240 - **90.3%** - at writeback time.
+Whatever else is wrong, the draws, the texture sampling, the rasterisation and the compositing all
+work, and have been working throughout. Every measurement before this one that concluded the room was
+not drawn was measuring something that could not distinguish drawn content from VRAM's contents.
+
+**It is not one double-buffer target failing.** Both origins behave identically in each configuration,
+45% and 46% black against 0% and 0%. The room reaches both buffers or neither, so this is not a
+buffer-selection or classification problem.
+
+**It is temporal.** In the failing configuration roughly 45% of writebacks composite an empty target;
+in the working configuration none ever do. A writeback that composites nothing can only be one that
+happens *before* the frame's draws - after the sync that seeds the target from a freshly cleared VRAM,
+and before anything has been drawn into it. So in about half the frames the compositing precedes the
+drawing, and in the other half it follows it.
+
+That order is not the guest's to get wrong: the guest issues its commands in a fixed sequence. What
+varies is when the deferred layer gets to replay them. `InterpBackend` records draws into a frame graph
+and replays it on `Publish`, driven by the guest's `VSync`, feeding `_ready` and then `_current` through
+`Acquire`. A guest readback arriving between `Publish` and the next replay therefore flushes targets
+that do not yet contain the current frame's draws - and `InterpBackend.ReadVram` does call `Settle()`,
+but `Settle` replays `_current`, which is the *previously published* graph, not the one still being
+recorded.
+
+That is the shape of the defect: a mid-frame flush racing the replay, decided by timing, which is also
+why removing a class of primitives changes it. Flat primitives change when in the frame the drawing
+finishes relative to the flush without changing the ordering that is actually at fault.
+
+Read the two functions together and it is more specific than that. `InterpBackend.ReadVram` settles
+first, and `Settle` begins by returning early if the graph is empty:
+
+```csharp
+public void ReadVram(int x, int y, int w, int h, Span<ushort> px)
+{
+    Settle();
+    _inner.ReadVram(x, y, w, h, px);      // which flushes dirty targets
+}
+
+private void Settle()
+{
+    lock (_gate)
+    {
+        if (!_active) return;
+        if (_current.IsEmpty) return;     // nothing to replay
+        Replay(_current, null, 1f);
+        _current.Clear();                 // and now it IS empty
+    }
+}
+```
+
+So the **first** readback in a frame replays `_current` - the graph published at the last `VSync` -
+and clears it; the **second** readback in the same frame finds it empty, replays nothing, and flushes
+targets that the current frame's still-in-flight `_recording` has not been drawn into yet. Those
+flushes composite an empty target, which is exactly the 45% of writebacks measured as entirely black.
+
+That accounts for every part of the observation at once: why the room renders at 90.3% and still shows
+black, why the split is near half rather than total, why both double-buffer targets behave identically,
+and why removing a class of primitives - changing when in the frame the draws finish - changes the
+outcome without addressing the cause.
+
 #### Next probe
 
-Measure drawn content where it is unambiguous: **at `Writeback`**, the moment a target is composited
-into VRAM. Whatever a target holds at that instant has been drawn into it, because the sync that
-otherwise makes the two agree has already happened and any subsequent drawing has not been overwritten
-yet. Counting the target's non-black pixels inside `Writeback` therefore answers the question the
-target read was meant to answer, and cannot silently be measuring VRAM instead.
-
-`Writeback` is already instrumented from the patch set, so this is a small addition: read the target's
-own pixels at that point, or - cheaper and sufficient - count what the blit is about to copy by reading
-the bytes the target holds, and compare that against what VRAM held before the blit.
+Instrument `Settle` to count how often it finds `_current` empty, and correlate those with the
+writebacks that composite black. If the two line up, the mechanism is confirmed rather than inferred,
+and the fix is narrow: a readback should not flush targets whose content for this frame is still being
+recorded, which means settling the in-flight graph as well as the published one, or not flushing
+targets that the current frame has yet to draw into.
 
 
 #### Where thirty rounds of measurement leave this

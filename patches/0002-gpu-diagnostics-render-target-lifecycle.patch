@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..09f0ed9 100644
+index 45a0f96..83e952c 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -24,7 +24,7 @@ index 45a0f96..09f0ed9 100644
          }
  
          var fresh = new GlDisplayRt
-@@ -302,11 +307,17 @@ public sealed class GlCore : IGpuBackend
+@@ -302,11 +307,18 @@ public sealed class GlCore : IGpuBackend
          fresh.Create(_gl);
          _rts[slot] = fresh;
          SyncRtFromVram(fresh, fbX, fbY, fbW, fbH);
@@ -39,10 +39,11 @@ index 45a0f96..09f0ed9 100644
      private void Writeback(GlDisplayRt rt)
      {
 +        GpuGlAccess.WritebackCalls++;
++        GpuGlAccess.SampleWriteback(rt.Fbo, rt.TexW, rt.TexH, rt.X, rt.Y);
          var s = GlVram.Scale;
          _gl.Disable(EnableCap.ScissorTest);
          _gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, rt.Fbo);
-@@ -321,6 +332,7 @@ public sealed class GlCore : IGpuBackend
+@@ -321,6 +333,7 @@ public sealed class GlCore : IGpuBackend
  
      private void SyncRtFromVram(GlDisplayRt rt, int rx, int ry, int rw, int rh)
      {
@@ -50,7 +51,7 @@ index 45a0f96..09f0ed9 100644
          int x0 = Math.Max(rx, rt.X), y0 = Math.Max(ry, rt.Y);
          int x1 = Math.Min(rx + rw, rt.X + rt.W), y1 = Math.Min(ry + rh, rt.Y + rt.H);
          if (x0 >= x1 || y0 >= y1) return;
-@@ -528,7 +540,7 @@ public sealed class GlCore : IGpuBackend
+@@ -528,7 +541,7 @@ public sealed class GlCore : IGpuBackend
  
      private GlVertex V(in HleVertex v, in PrimFlags f, bool dither)
      {
@@ -59,7 +60,7 @@ index 45a0f96..09f0ed9 100644
          float cr = raw ? 128f : v.R, cg = raw ? 128f : v.G, cb = raw ? 128f : v.B;
          var tpage = f.UseImage ? 0x4000 : f.Textured ? f.TPage & 0x1FF : 0x8000;
          if (dither && _pendingRepTex == 0) tpage |= 0x400;
-@@ -547,6 +559,8 @@ public sealed class GlCore : IGpuBackend
+@@ -547,6 +560,8 @@ public sealed class GlCore : IGpuBackend
              if (v.Y > _drawMaxY) _drawMaxY = v.Y;
          }
  
@@ -68,7 +69,7 @@ index 45a0f96..09f0ed9 100644
          return new GlVertex
          {
              X = v.X, Y = v.Y,
-@@ -560,6 +574,7 @@ public sealed class GlCore : IGpuBackend
+@@ -560,6 +575,7 @@ public sealed class GlCore : IGpuBackend
  
      public void DrawTri(in HleVertex a, in HleVertex b, in HleVertex c, in PrimFlags f)
      {
@@ -76,7 +77,7 @@ index 45a0f96..09f0ed9 100644
          ResolveReplacement(f,
              (int)Math.Min(a.U, Math.Min(b.U, c.U)), (int)Math.Min(a.V, Math.Min(b.V, c.V)),
              (int)Math.Max(a.U, Math.Max(b.U, c.U)), (int)Math.Max(a.V, Math.Max(b.V, c.V)));
-@@ -752,6 +767,10 @@ public sealed class GlCore : IGpuBackend
+@@ -752,6 +768,10 @@ public sealed class GlCore : IGpuBackend
          var destH = rt == null ? GlVram.Height : rt.TexH;
  
          GpuGlAccess.Gl = _gl;
@@ -87,7 +88,7 @@ index 45a0f96..09f0ed9 100644
          GpuGlAccess.TargetFbo = rt == null ? _vram.Fbo : rt.Fbo;
          GpuGlAccess.TargetWidth = destW;
          GpuGlAccess.TargetHeight = destH;
-@@ -871,6 +890,24 @@ public sealed class GlCore : IGpuBackend
+@@ -871,6 +891,24 @@ public sealed class GlCore : IGpuBackend
          _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
          _gl.BufferSubData<GlVertex>(BufferTargetARB.ArrayBuffer, 0, _verts.AsSpan(0, _count));
  

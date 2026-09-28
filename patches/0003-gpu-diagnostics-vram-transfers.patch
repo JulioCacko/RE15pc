@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..3d633f5 100644
+index bc045ae..38799c2 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,254 @@ public static class GpuGlAccess
+@@ -17,6 +17,348 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -252,6 +252,100 @@ index bc045ae..3d633f5 100644
 +                   + Environment.NewLine + "                            "
 +                   + string.Join(Environment.NewLine + "                            ", rows);
 +        }
++    }
++
++    /// <summary>
++    /// Diagnostics only: what a render target holds at the moment it is composited into VRAM.
++    /// </summary>
++    /// <remarks>
++    /// Sampling the target from outside measures the same thing as sampling VRAM, because
++    /// <c>SyncRtsFromVram</c> copies VRAM into any intersecting target after every upload and VRAM copy.
++    /// That is not a suspicion - it is what the numbers showed: the target's non-black count was always
++    /// the backend's as a percentage of area, 15.8 against 15.8, 0.76 against 0.76, 88.0 against 88.0.
++    ///
++    /// Inside <c>Writeback</c> the ambiguity disappears. The sync that otherwise keeps the two in step
++    /// has already happened, and any drawing since it has not been overwritten yet, so whatever the
++    /// target holds here has been drawn into it. This cannot silently be VRAM's contents.
++    ///
++    /// A 320x32 strip from the middle of the target is read rather than the whole surface: writeback
++    /// runs several hundred times per run and a full read would be gigabytes, while a strip across the
++    /// middle is representative of a framebuffer-wide scene and costs 41 KB a time.
++    /// </remarks>
++    private static byte[] _writebackStrip = new byte[320 * 32 * 4];
++    private static long _wbReads, _wbLit, _wbMaxLit, _wbEmpty;
++
++    /// <summary>
++    /// Per-target statistics, keyed by the target's VRAM origin.
++    /// </summary>
++    /// <remarks>
++    /// The aggregate showed the failing configuration entirely black in 266 of 588 writebacks - 45%, near
++    /// enough to half - while the working configuration was never black, and both reached the same best
++    /// of 90.3%. That is the signature of one double-buffer target receiving the room and the other not,
++    /// so the split matters more than the total.
++    /// </remarks>
++    private static readonly Dictionary<string, (long Reads, long Empty, long Best)> _wbByOrigin = [];
++
++    public static void SampleWriteback(uint fbo, int texW, int texH, int originX, int originY)
++    {
++        const int stripW = 320;
++        const int stripH = 32;
++
++        if (Gl is null || fbo == 0 || texW < stripW || texH < stripH) return;
++
++        var length = stripW * stripH * 4;
++        if (_writebackStrip.Length < length) _writebackStrip = new byte[length];
++
++        try
++        {
++            var gl = Gl;
++            gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, fbo);
++            gl.PixelStore(PixelStoreParameter.PackAlignment, 1);
++            gl.ReadPixels(0, (texH - stripH) / 2, stripW, stripH, PixelFormat.Rgba,
++                PixelType.UnsignedByte, _writebackStrip.AsSpan(0, length));
++            gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
++        }
++        catch
++        {
++            return;
++        }
++
++        var lit = 0;
++        for (var i = 0; i + 3 < length; i += 4)
++            if (_writebackStrip[i] != 0 || _writebackStrip[i + 1] != 0 || _writebackStrip[i + 2] != 0) lit++;
++
++        _wbReads++;
++        _wbLit += lit;
++        if (lit > _wbMaxLit) _wbMaxLit = lit;
++        if (lit == 0) _wbEmpty++;
++
++        var key = $"({originX},{originY})";
++        _wbByOrigin.TryGetValue(key, out var s);
++        _wbByOrigin[key] = (s.Reads + 1, s.Empty + (lit == 0 ? 1 : 0), Math.Max(s.Best, lit));
++    }
++
++    public static string DescribeWritebacksByOrigin()
++    {
++        if (_wbByOrigin.Count == 0) return "  target at writeback      : not sampled";
++
++        var rows = _wbByOrigin.OrderBy(k => k.Key).Select(k =>
++            $"origin {k.Key,-9} {k.Value.Reads,5} sample(s), {k.Value.Empty,5} entirely black, " +
++            $"best {k.Value.Best,5} of {320 * 32}");
++
++        return "  target at writeback      : per buffer" + Environment.NewLine
++               + "                            "
++               + string.Join(Environment.NewLine + "                            ", rows);
++    }
++
++    public static string DescribeWritebacks()
++    {
++        if (_wbReads == 0) return "  target at writeback      : not sampled";
++
++        var strip = 320 * 32;
++        var mean = (double)_wbLit / _wbReads;
++
++        return $"  target at writeback      : {_wbReads} sample(s), {_wbEmpty} entirely black, " +
++               $"non-black mean {mean:0} of {strip}, best {_wbMaxLit} of {strip} " +
++               $"({100.0 * _wbMaxLit / strip:0.0}% at best)";
 +    }
 +
      public static void Bind()
