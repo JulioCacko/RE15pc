@@ -1751,6 +1751,45 @@ outside, and terminating outright is the only path that leaves the exit code mea
    re-verify.
 3. Settle the owner of the 10-pixel displacement. Narrowed as far as static reading can take
    it; see the section above for where to look.
-4. Audio. Nothing has been proven to play at all.
-5. Recompile twice and confirm `generated/` is byte-identical, which is what decides whether
-   it may stay ignored.
+X. Audio was resolved after this list was written: `--verify-audio` measures the SPU producing
+   output, peak 8619 of 32767, from a block mixed while voices carried volume. Continuous music
+   is still unestablished, and CD and XA audio are idle throughout.
+X. Determinism was resolved after this list was written too: `tools/Test-RecompileDeterminism.ps1`
+   passes with all 10 files byte-identical across two recompiles, and fails correctly when a
+   generated file is perturbed by hand. `generated/` may stay ignored.
+X. All seven overlays were verified dispatching after this list was written as well, by
+   `--verify-overlays`: 8 of 8, 0 failed, through the real LBA mapping and base-write promotion.
+
+
+#### Refuted: the sampled texture, which leaves only the shader's own state
+
+```
+                                   non-black in the texture area (x >= 320)
+DEFAULT                                    154,060 of 360,448
+--skip-draws flat                          154,060 of 360,448
+```
+
+The texture area - where the shader reads its texels from, and which cannot overlap the framebuffer
+because the tiles' pages resolve to x >= 320 while the framebuffer occupies x < 320 - is populated
+**identically** in both configurations, to the pixel. So what the shader samples is the same in a frame
+that renders and one that does not, and the sample is refuted as an explanation. That is the eleventh
+mechanism withdrawn.
+
+Worth recording too: the failing configuration's target holds 15.8% at the sampling instant rather than
+nothing, which is the 46/54 split averaged. The room is not absent - it is present in 54% of frames and
+absent in 46%, and an instantaneous sample of a varying quantity lands somewhere in between.
+
+So the position is this. Between a frame that renders and one that comes out black, all of the following
+are identical: the vertices and their positions, the clip, the classification into a target, the
+operation order, the vertex counts, the sampled texture area, and the blit. The draws are not the
+difference. What has not been measured is the **state `GlCore` applies when it flushes the batch** -
+which target, and the transparency, blend, image and mask flags it hands the shader - because a batch is
+drawn under the state of its last `Begin` rather than under per-triangle state.
+
+#### Next probe
+
+Capture `GlCore`'s batch state at each flush - `_kTarget`, `_kTransparent`, `_kBlend`, `_kImage`,
+`_kSetMask`, `_kCheckMask` - and compare a frame that renders against one that does not. Every input to
+the draw has now been shown identical between the two, so if any of these differs, that is the answer.
+If none differs, then the shader produces different results from identical inputs, which is itself
+informative and points at the program rather than at the data.

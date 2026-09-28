@@ -116,6 +116,9 @@ public sealed class ProgressSampler : IDisposable
     private readonly int[] _gpuBufferPeak = new int[2];
     private int _gpuSamples;
 
+    /// <summary>Non-black pixels in the backend's texture area, x >= 320, tracked by peak.</summary>
+    private int _texAreaNow, _texAreaPeak;
+
     /// <summary>
     /// Non-black pixels on the surface draws actually go into, tracked by peak.
     ///
@@ -212,6 +215,17 @@ public sealed class ProgressSampler : IDisposable
             if (gl != null)
             {
                 backendLit = CountLit(gl, width, height, dx, dy, dw, dh);
+
+                // The texture area, which is where the shader reads its texels from. The tiles' texture
+                // pages resolve to x>=320 while the framebuffer occupies x<320, so an empty framebuffer
+                // and an empty texture area are different faults and need separating: if the area the
+                // shader samples is populated, nothing about the sample can explain a black frame.
+                var texArea = CountLit(gl, width, height, 320, 0, width - 320, height);
+                lock (_gate)
+                {
+                    _texAreaNow = texArea;
+                    if (texArea > _texAreaPeak) _texAreaPeak = texArea;
+                }
 
                 // Both buffers of the backend store, tracked by peak as well as current value.
                 for (var b = 0; b < 2; b++)
@@ -442,6 +456,7 @@ public sealed class ProgressSampler : IDisposable
                     sb.AppendLine($"backend store (0,{b * 240,-3})      : non-black now {_gpuBufferNow[b]}, " +
                                   $"peak {_gpuBufferPeak[b]} over {_gpuSamples} sample(s)");
 
+            sb.AppendLine($"backend texture area      : non-black now {_texAreaNow} of {1024 * 512 - 320 * 512}, peak {_texAreaPeak}");
             sb.AppendLine($"render target surface     : non-black now {_targetNow}, peak {_targetPeak}");
             sb.AppendLine($"render target alpha-set  : {_targetWritten} now, {_targetWrittenPeak} peak (semi-transparent texels only - NOT a drawn count)" +
                           $"{(_targetNote.Length > 0 ? $"   ({_targetNote})" : "")}");
