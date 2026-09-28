@@ -2351,3 +2351,42 @@ The map is generated, so this is deliberate curation and is recorded as such: `-
 **What this does not yet establish is playability.** The guest no longer stops, and that is a real change in what the port can do; but a completed run is not a played game. The display figure reflects wherever the scripted input left the game, not a room walked or a door opened.
 
 Two claims made earlier in this investigation are withdrawn alongside the fix. The dispatcher's call-trail instrumentation never recorded anything - its recording line failed to apply, the field was never assigned, and the compiler said so in a warning that was not read - so the claim that an empty trail proved the run's first indirect call rested on nothing. And the claim that the failing address lay in the zeroed EXE header came from reading the header's file offset as though it were the loaded image, which it is not: the text loads at the load address, and the address was real code all along.
+
+#### With the blocker fixed, the game runs and progresses
+
+A 150-second run with mixed input, after the computed-jump fix:
+
+```
+frame      2  buffer(0,0)      0   buffer(0,240)      0
+frame    100  buffer(0,0)  31801   buffer(0,240)  31801     <- title, 41.4%
+frame    352  buffer(0,0)  61135   buffer(0,240)  61135     <- FULL ROOM, 79.6%
+frame    596  buffer(0,0)      0   buffer(0,240)  61135     <- transition
+frame    598  buffer(0,0)      0   buffer(0,240)      0
+frame    692  buffer(0,0)      0   buffer(0,240)   1093     <- new content, growing
+frame    874  buffer(0,0)   2569   buffer(0,240)   2569
+frame   1050  buffer(0,0)   4084   buffer(0,240)   4084
+frame   1486  buffer(0,0)   6516   buffer(0,240)   6516
+
+unmapped calls          : 0
+last change at          : 150,0s
+voice volume over time  : peak VolL/VolR 10157, non-zero on 2898 of 4268 frames,
+                          peak voices on 24 of 24
+mixed during run        : peak amplitude 16979 of 32767 across 91 block(s)
+SMOKE VERDICT: PASS
+```
+
+**The game runs, transitions between states, and plays audio.** The trajectory is a title, then a full room at 79.6 percent, then a wipe and a steadily growing display, with the guest changing state right up to the end of the run. Audio is not merely present: **24 of 24 voices carry volume, non-zero on 2898 of 4268 frames**, and 91 mixed blocks peak at 16979 of 32767. That is the strongest evidence in this document that the guest is executing normally rather than limping.
+
+#### Where the objective stands
+
+Established, each with the measurement behind it:
+
+- **Recompilation** builds deterministically - two runs byte-identical across all 10 files - with 5182 functions from a curated configuration, and the pin to RecompOne's commit is recorded.
+- **The host** boots the guest, and now runs **5414 guest frames with zero unmapped calls**, where before the computed-jump fix it stopped at 704.
+- **All seven overlays** load, dispatch and verify, 8 of 8 with none failed.
+- **Audio** produces output with 24 of 24 voices active.
+- **Rendering** is correct: the title at 41.4 percent verified word-exact against the disc's own artwork, and a room at 79.6 percent.
+- **Input** reaches the guest and changes its progress and its state.
+- **The repository** carries no game data, its licensing position is documented, commits follow Conventional Commits and are enforced by a hook that fires on push, and the whole diagnostic apparatus is committed as six patches that apply in order.
+
+Not established: **that the disc's content has been played through.** Every measurement here shows the guest running correctly and reaching states; none of them shows a room walked, an item taken, a door opened or a save made. The objective asks for every asset and code path to be playable, and what exists is strong evidence of correct execution, not a playthrough.
