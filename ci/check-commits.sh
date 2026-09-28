@@ -18,24 +18,44 @@ set -eu
 range="${1:-}"
 types='feat|fix|build|chore|ci|docs|style|refactor|perf|test|revert'
 
-# A first push reports an all-zero "before" sha, and a force push can report a
-# commit that no longer exists. Neither is an error worth failing the build over,
-# so fall back to checking the tip.
+# Three cases, and the distinction is load bearing.
 #
-# The null sha needs an explicit test rather than a rev-parse: `git rev-parse
-# --verify` happily resolves 0000... to itself while `git log` then rejects the
-# range, which would fail the workflow on the very first push to a new branch.
-# cat-file -e asks the question that actually matters: is this a real commit.
-base="${range%%..*}"
-if [ -n "$range" ] && [ -n "$base" ] &&
-   [ "$base" != "0000000000000000000000000000000000000000" ] &&
-   git cat-file -e "${base}^{commit}" 2>/dev/null; then
-    commits=$(git log --format=%H "$range")
-    echo "checking $(printf '%s\n' "$commits" | wc -l | tr -d ' ') commit(s) in $range"
-else
-    echo "no usable range ('$range'); checking HEAD only"
-    commits=$(git log --format=%H -1)
-fi
+# A two-ended range needs its base validated: a first push reports an all-zero
+# "before" sha and a force push can report a commit that no longer exists, and
+# neither is worth failing the build over, so those fall back to the tip.
+#
+# Anything else - an empty argument, or a single revision such as "HEAD" or
+# "<sha>^!" - goes straight to git log. Treating a single revision as a range with
+# a missing base would send it down the fallback path and validate HEAD instead of
+# the commit actually asked about, which silently passes the wrong thing. That bug
+# was real: it made every per-commit check in .githooks/pre-push validate HEAD.
+#
+# The null sha needs an explicit test rather than a rev-parse, because
+# 'git rev-parse --verify' resolves 0000... to itself while 'git log' then rejects
+# the range and aborts.
+case "$range" in
+    "")
+        echo "no range given; checking HEAD only"
+        commits=$(git log --format=%H -1)
+        ;;
+
+    *..*)
+        base="${range%%..*}"
+        if [ "$base" != "0000000000000000000000000000000000000000" ] &&
+           git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            commits=$(git log --format=%H "$range")
+            echo "checking $(printf '%s\n' "$commits" | wc -l | tr -d ' ') commit(s) in $range"
+        else
+            echo "no usable base in '$range'; checking HEAD only"
+            commits=$(git log --format=%H -1)
+        fi
+        ;;
+
+    *)
+        commits=$(git log --format=%H "$range")
+        echo "checking $(printf '%s\n' "$commits" | wc -l | tr -d ' ') commit(s) in $range"
+        ;;
+esac
 
 fail=0
 
