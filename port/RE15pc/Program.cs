@@ -92,6 +92,12 @@ public static class Program
 
         OverlayPolicy.Attach();
 
+        // Scripted input is what makes an unattended run able to get past the first screen
+        // that waits for a pad. Only attached when asked for, so a normal interactive run
+        // is untouched.
+        if (!string.IsNullOrWhiteSpace(options.Input))
+            ScriptedInput.Attach(options.Input);
+
         // Tolerant mode logs unmapped calls and continues. It is a debugging aid
         // and it hides real bugs, so it is opt-in and the default is strict.
         if (options.Tolerant)
@@ -149,7 +155,7 @@ public static class Program
         _sampler?.Dispose();
 
         var findings = RunReport.AnalyseMirror();
-        var progress = _sampler?.Describe() ?? "";
+        var progress = (_sampler?.Describe() ?? "") + Environment.NewLine + ScriptedInput.Describe();
 
         // Dump video memory before the process goes away, since the whole point is to
         // see what the guest drew without a human watching the window.

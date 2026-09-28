@@ -31,6 +31,12 @@ public sealed class Options
     /// <summary>Seconds between guest-memory progress samples.</summary>
     public double SampleSeconds { get; private init; } = 0.5;
 
+    /// <summary>
+    /// Scripted controller input as a comma-separated list of <c>&lt;frame&gt;:&lt;buttons&gt;</c>
+    /// steps, or empty to leave the pad alone. See <see cref="ScriptedInput"/>.
+    /// </summary>
+    public string Input { get; private init; } = "";
+
     public bool Help { get; private init; }
 
     public static bool TryParse(string[] args, out Options options, out string error)
@@ -42,6 +48,7 @@ public sealed class Options
         var outDir = Path.Combine("out", "diagnostics");
         var log = "";
         var sample = 0.5;
+        var input = "";
         var help = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -95,6 +102,11 @@ public sealed class Options
                     }
                     break;
 
+                case "--input":
+                    if (++i >= args.Length) { error = "--input needs a script"; options = new Options(); return false; }
+                    input = args[i];
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -116,6 +128,7 @@ public sealed class Options
             OutDir = outDir,
             Log = log,
             SampleSeconds = sample,
+            Input = input,
             Help = help
         };
         error = "";
@@ -182,6 +195,11 @@ public sealed class Options
         Console.WriteLine("                        bios spu gpu dma cd sdk vsync mdec irq all");
         Console.WriteLine("                      e.g. --log irq,vsync,cd");
         Console.WriteLine("  --sample <seconds>  guest-memory progress sample interval (default 0.5)");
+        Console.WriteLine("  --input <script>    press buttons on a frame schedule, e.g.");
+        Console.WriteLine("                        --input 90:start,210:cross,330:cross");
+        Console.WriteLine("                      buttons: select start up down left right l1 r1 l2 r2");
+        Console.WriteLine("                               l3 r3 triangle circle cross square");
+        Console.WriteLine("                      each press is held for 12 frames");
         Console.WriteLine("  --help              show this message");
         Console.WriteLine();
         Console.WriteLine("Run from the repository root so settings.json and out/ land predictably.");
