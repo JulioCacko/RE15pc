@@ -56,6 +56,12 @@ public sealed class Options
     /// </summary>
     public bool NeutralModulation { get; private init; }
 
+    /// <summary>
+    /// Exercise overlay dispatch for every registered overlay at the end of the run and report it,
+    /// without needing the gameplay that reaching the later stages would require.
+    /// </summary>
+    public bool VerifyOverlays { get; private init; }
+
     public bool Help { get; private init; }
 
     public static bool TryParse(string[] args, out Options options, out string error)
@@ -71,6 +77,7 @@ public sealed class Options
         var softwareGpu = false;
         var skipDraws = "";
         var neutralModulation = false;
+        var verifyOverlays = false;
         var help = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -149,6 +156,10 @@ public sealed class Options
                     neutralModulation = true;
                     break;
 
+                case "--verify-overlays":
+                    verifyOverlays = true;
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -174,6 +185,7 @@ public sealed class Options
             SoftwareGpu = softwareGpu,
             SkipDraws = skipDraws,
             NeutralModulation = neutralModulation,
+            VerifyOverlays = verifyOverlays,
             Help = help
         };
         error = "";

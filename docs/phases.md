@@ -71,6 +71,13 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 - [x] The `title` overlay loads, and `stage1` loads after it - so the game is driven past the
       opening screens into gameplay, which takes scripted controller input because the title and
       character select both wait for a pad. See `--input` in `docs/boot-status.md`.
+- [x] **All seven disc overlays dispatch correctly**, verified without needing gameplay:
+      `--verify-overlays` exercises the whole dispatch path for every registered overlay and
+      reports 8 of 8 with 0 failures. The seven disc overlays each have their start LBA mapped to
+      their name and are promoted by a write into the first `0x800` bytes of their base, which is
+      how the runtime detects that the guest has finished copying an overlay in; `main` has no LBA
+      and is loaded by the entry point. Function counts match the configured maps exactly -
+      stage1 664, stage2 520, stage3 626, stage4 492, stage5 628, stage6 43, title 38.
 - [x] `TITLEJ.TIM` proven resident at the display origin at a **100.00% word-exact** match, and
       the title screen is a picture rather than noise: 41.4% non-black, 1123 distinct colours.
 - [ ] **The composed frame is black after the stage transition.** The blocker. The backend holds

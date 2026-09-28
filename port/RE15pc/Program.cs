@@ -201,6 +201,20 @@ public static class Program
         Console.WriteLine(report);
         Console.WriteLine($"artifacts: {Path.GetFullPath(options.OutDir)}");
         Console.WriteLine($"OverlayPolicy evictions: {OverlayPolicy.Evictions}");
+
+        // Runs last, after the guest has stopped, because it resets the dispatcher.
+        if (options.VerifyOverlays)
+        {
+            var overlayCheck = OverlayVerification.Verify();
+            Console.WriteLine();
+            Console.WriteLine(overlayCheck);
+
+            var checkPath = Path.Combine(options.OutDir, "overlay-dispatch.txt");
+            Directory.CreateDirectory(options.OutDir);
+            File.WriteAllText(checkPath, overlayCheck + Environment.NewLine);
+            Console.WriteLine($"wrote {checkPath}");
+        }
+
         Console.WriteLine("===================================================");
 
         // Last line, greppable, and authoritative in a way the exit code is not.
