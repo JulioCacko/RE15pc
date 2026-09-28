@@ -1080,12 +1080,31 @@ primitives changes that.
 
 #### Next probe
 
-Count the vertices that reach the batched draw and the vertices that reach the driver, per configuration.
-That separates the two remaining possibilities cleanly: if `_count` accumulates and `Flush` calls
-`DrawArrays` with the room's vertices, then GL is being asked to rasterise them and is not; if the count
-stays at zero or the batch is flushed empty, the vertices are being lost between `DrawTri` and the
-driver. `GlCore` batches into `_verts` and flushes on a target or state change, so both numbers are
-cheap to instrument from the patch set already in place.
+Validate the vertices themselves. Three measurements have now narrowed this to a very small place:
+
+```
+                                        failing config        working config
+render target surface (non-black)       9,299                 1,080,879
+triangles reaching the backend          269,511               271,117
+vertices reaching the driver            835,083               834,717
+in-framebuffer textured clip            x 0..319, y 0..239    x 0..319, y 0..239
+```
+
+The target is empty in one and holds the room in the other, while **the vertices reach the driver in
+both, in near-identical numbers**, and the **draw area is the full framebuffer and identical in both**.
+So it is not a lost-vertex problem and not a scissor problem: GL is asked to rasterise the same
+geometry, under the same clip, into the right target, and produces nothing in one case and the room in
+the other.
+
+What has not been measured is whether those vertices are *valid* - their positions, and the uniforms
+that transform them (`uPosBias`, `uFbInv`, `uScale`). A vertex count says three vertices were handed
+over, not that they form a triangle anywhere on screen. Degenerate, NaN or off-surface positions would
+produce exactly this: correct counts, correct clip, correct target, no pixels.
+
+So the next probe is to capture a sample of the `GlVertex` values the driver receives for
+in-framebuffer textured draws, in both configurations, and compare. `GlCore.V` builds them and
+`BufferSubData` uploads them, so a bounded capture there is a small addition to the patch set already in
+place, and it is the last unmeasured link between the guest's command and a pixel.
 
 
 #### Where thirty rounds of measurement leave this

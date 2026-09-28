@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..7fbde22 100644
+index bc045ae..06e1088 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,79 @@ public static class GpuGlAccess
+@@ -17,6 +17,91 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -62,6 +62,18 @@ index bc045ae..7fbde22 100644
 +    /// and the room is lost every frame without anything being wrong with the draws themselves.
 +    /// </remarks>
 +    public static long SyncRtCalls, WritebackCalls;
++
++    /// <summary>
++    /// Diagnostics only: triangles handed to the backend, and vertices handed to the driver.
++    /// </summary>
++    /// <remarks>
++    /// The render target was measured empty in the failing configuration and full of the room in the
++    /// working one, which localises the fault to rasterisation rather than to the writeback. That
++    /// leaves two possibilities, and these counters separate them: if triangles arrive and vertices
++    /// reach the driver, GL is being asked to rasterise them and is not doing it; if the counts
++    /// diverge, the vertices are being lost between the two.
++    /// </remarks>
++    public static long TrisIn, DrawsOut, VertsOut;
 +
 +    /// <summary>
 +    /// Diagnostics only: called for every whole-region VRAM transfer - a fill, a VRAM-to-VRAM copy,

@@ -145,6 +145,19 @@ public static class GpuActivity
     private static readonly Dictionary<int, long> _texRawColors = [];
     private static readonly Dictionary<int, long> _texNotRawColors = [];
 
+    /// <summary>
+    /// Draw-area rectangles seen on textured primitives that land in a framebuffer.
+    /// </summary>
+    /// <remarks>
+    /// The render target was measured empty in the failing configuration and full of the room in the
+    /// working one, while the vertices reach the driver in both - 837513 of them against 832296. So the
+    /// draw is issued correctly and produces nothing, which points at the state it runs under rather
+    /// than at the geometry. The scissor rectangle comes from this draw area, and a scissor that does
+    /// not contain the primitive clips it away entirely: correct vertices, correct target, no pixels.
+    /// RenderPrimEvent carries the four edges, so this is measurable directly.
+    /// </remarks>
+    private static readonly Dictionary<string, long> _texClips = [];
+
     /// <summary>All flat primitives, in-framebuffer or not, and how many cover most of a frame.</summary>
     private static long _flatAll, _flatAllSemi, _flatScreenSized;
     private static int _flatMinX = int.MaxValue, _flatMaxX = int.MinValue;
@@ -398,6 +411,9 @@ public static class GpuActivity
                     {
                         _texColors[texColour] = _texColors.TryGetValue(texColour, out var tc) ? tc + 1 : 1;
 
+                        var clip = $"x {e.DrawLeft}..{e.DrawRight}, y {e.DrawTop}..{e.DrawBottom}";
+                        _texClips[clip] = _texClips.TryGetValue(clip, out var cl) ? cl + 1 : 1;
+
                         if (e.Raw)
                         {
                             _texRaw++;
@@ -501,6 +517,9 @@ public static class GpuActivity
                       $"{Interlocked.Read(ref GpuGlAccess.NullTargetDraws)} with no target (full VRAM)");
         sb.AppendLine($"  target sync vs writeback: synced from VRAM {Interlocked.Read(ref GpuGlAccess.SyncRtCalls)}x, " +
                       $"written back to VRAM {Interlocked.Read(ref GpuGlAccess.WritebackCalls)}x");
+        sb.AppendLine($"  vertices in vs drawn    : {Interlocked.Read(ref GpuGlAccess.TrisIn)} tris in, " +
+                      $"{Interlocked.Read(ref GpuGlAccess.DrawsOut)} draws out carrying " +
+                      $"{Interlocked.Read(ref GpuGlAccess.VertsOut)} vertices");
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
@@ -539,6 +558,13 @@ public static class GpuActivity
                 .Select(k => $"#{k.Key:X6}:{k.Value}"));
 
         sb.AppendLine($"  textured colours (in-fb): {texColourDesc}");
+
+        var clipDesc = _texClips.Count == 0
+            ? "(none)"
+            : string.Join("  |  ", _texClips.OrderByDescending(k => k.Value).Take(4)
+                .Select(k => $"{k.Key} x{k.Value}"));
+
+        sb.AppendLine($"  in-fb textured clip     : {clipDesc}");
 
         var rawDesc = _texRawColors.Count == 0
             ? "(none)"

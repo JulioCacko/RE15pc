@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..4913884 100644
+index 45a0f96..1bb2fdc 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -289,9 +289,13 @@ public sealed class GlCore : IGpuBackend
@@ -51,7 +51,15 @@ index 45a0f96..4913884 100644
          float cr = raw ? 128f : v.R, cg = raw ? 128f : v.G, cb = raw ? 128f : v.B;
          var tpage = f.UseImage ? 0x4000 : f.Textured ? f.TPage & 0x1FF : 0x8000;
          if (dither && _pendingRepTex == 0) tpage |= 0x400;
-@@ -752,6 +763,10 @@ public sealed class GlCore : IGpuBackend
+@@ -560,6 +571,7 @@ public sealed class GlCore : IGpuBackend
+ 
+     public void DrawTri(in HleVertex a, in HleVertex b, in HleVertex c, in PrimFlags f)
+     {
++        GpuGlAccess.TrisIn++;
+         ResolveReplacement(f,
+             (int)Math.Min(a.U, Math.Min(b.U, c.U)), (int)Math.Min(a.V, Math.Min(b.V, c.V)),
+             (int)Math.Max(a.U, Math.Max(b.U, c.U)), (int)Math.Max(a.V, Math.Max(b.V, c.V)));
+@@ -752,6 +764,10 @@ public sealed class GlCore : IGpuBackend
          var destH = rt == null ? GlVram.Height : rt.TexH;
  
          GpuGlAccess.Gl = _gl;
@@ -62,3 +70,15 @@ index 45a0f96..4913884 100644
          GpuGlAccess.TargetFbo = rt == null ? _vram.Fbo : rt.Fbo;
          GpuGlAccess.TargetWidth = destW;
          GpuGlAccess.TargetHeight = destH;
+@@ -871,6 +887,11 @@ public sealed class GlCore : IGpuBackend
+         _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+         _gl.BufferSubData<GlVertex>(BufferTargetARB.ArrayBuffer, 0, _verts.AsSpan(0, _count));
+ 
++        // Counted wherever the batch is actually handed to the driver, so this and TrisIn together say
++        // whether the failure is before the driver or inside it.
++        GpuGlAccess.VertsOut += _count;
++        GpuGlAccess.DrawsOut++;
++
+         if (_legacy)
+         {
+             _gl.Disable(EnableCap.Blend);
