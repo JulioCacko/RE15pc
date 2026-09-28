@@ -150,16 +150,52 @@ This is consistent with the luminance render above, which shows a coherent pictu
 than the mess a grossly misplaced upload would produce: a 10 pixel shift on a mostly dark
 title screen is subtle, which is exactly why it took a byte comparison to find.
 
-### Why this is not yet attributed
+### How far this is narrowed
 
-The upload is width-320, so the runtime honoured the transfer rectangle. The source bytes
-started at the file base. Whether that is the guest computing its pixel pointer without
-skipping the header, or the game deliberately staging the whole file in VRAM before a
-GPU-to-GPU blit that had not happened yet when the dump was taken, is **not settled**. Both
-would produce these exact bytes. Deciding between them means reading the guest's TIM loader
-in `generated/main.cs` or `generated/title.cs` and finding what it passes to the GPU.
+Four things are now established, which between them remove most of the search space.
 
-Do not "fix" this by patching VRAM. Establish which side is wrong first.
+**1. RAM holds the file correctly.** Dumping all of guest memory and searching it for the
+TIM header finds it in exactly one place:
+
+```
+RAM offset 0x198000  (guest 0x80198000)
+  0x80198000 : 10 00 00 00 02 00 00 00 0C 58 02 00 00 00 00 00 40 01 F0 00
+  0x80198014 : 00 80 00 80 00 80 00 80 ...            <- pixel data, at exactly +20
+```
+
+So the file sits at a clean, aligned base with the header at offset 0 and the pixels at
+offset `0x14`. A loader that wanted the pixels would pass `0x80198014`. The file is not
+misplaced in memory, and it is not present anywhere else.
+
+**2. The runtime's transfer is faithful.** `GpuCommands.BeginImageLoad` takes the
+destination from the command word and the size from the next, and
+`StoreImageHalfword` places each following word at
+`(loadX + px % w, loadY + px / w)`. It writes exactly the words the guest sends, in order.
+There is no offset for it to lose.
+
+**3. The guest does not build a command buffer in RAM.** Searching memory for the
+`LoadImage` size word `0x00F00140` finds 16 occurrences and none of them is a GPU command
+stream; they are sprite coordinate pairs and pointer tables. So the pixel data is reaching
+the GPU some other way, most plausibly DMA reading directly out of the TIM buffer.
+
+**4. Therefore the data stream began at `0x80198000`, not `0x80198014`.**
+
+What is still not settled is whether that is the guest's own choice or a guest-visible
+difference introduced by the port. Both remain possible:
+
+- the game feeds the buffer base and real hardware shows the same 10-pixel displacement, in
+  which case this build simply has this defect and the port is reproducing it faithfully;
+- the game computes `base + 20` and something in the port changes that arithmetic, in which
+  case it is a real port bug affecting every TIM upload, not just this one.
+
+Deciding between them needs the guest's TIM loader located and read. Useful starting points:
+`generated/title.cs` references `0x8019xxxx` at guest addresses `0x801010C0`, `0x801010CC`,
+`0x801010D4`, `0x80101164`, `0x80101194`, `0x801011C0`, `0x80101FE4` and `0x80102040`, and no
+literal `0x80198014` appears anywhere in the generated code, so if the `+20` exists it is
+computed rather than folded into a constant.
+
+**Do not "fix" this by patching VRAM.** Establish which side is wrong first. A symptom patch
+here would hide the same defect on every other TIM in the game.
 
 ---
 
@@ -175,7 +211,8 @@ dotnet run --project port/RE15pc -- --smoke 20 --log irq,vsync,cd,sdk,bios
 
 Artifacts written to `out/diagnostics/`: `console.log`, `report.txt`, `verdict.txt`,
 `framebuffer.png`, `vram-full.png`, `vram.rgb555.bin`, `framebuffer-ascii.txt`,
-`ram-overlay-80100000.bin`.
+`ram-overlay-80100000.bin` (the overlay region) and `ram-full.bin` (all 2 MB of guest RAM,
+which is what makes it possible to search memory for a known byte signature).
 
 ### A note on the process exit code
 
@@ -192,11 +229,14 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. Identify the owner of the 10-pixel displacement: read the guest TIM loader and find
-   what it hands to the GPU.
-2. Reach the next boot milestone past character select. The `title` overlay's string table
-   contains `Selecth3.tim`, `Selecth.tim`, `PLAYER PLD`, `POS X = %d`, `POS Y = %d`, so the
-   screen in memory is the character select, and it has already advanced its menu index -
-   `0x801026C4` holds `0x02` in RAM against `0x00` in the file, written by
-   `func_80102038` in `generated/title.cs`.
-3. Audio. Nothing has been proven to play yet.
+1. **Feed the game input.** This is now the blocking item, not the displacement. The guest
+   is sitting on a menu waiting for a pad, and an unattended run can never provide one, so
+   nothing past this screen is reachable by `--smoke` as it stands. A scripted input driver
+   that presses Start and Cross on a schedule is the difference between watching one screen
+   and walking the game forward, and it is a prerequisite for every later phase.
+2. Settle the owner of the 10-pixel displacement once something else is progressing: find
+   the guest TIM loader and see what it hands to the transfer. The section above records
+   where to look.
+3. Audio. Nothing has been proven to play at all.
+4. Recompile twice and confirm `generated/` is byte-identical, which is what decides whether
+   it may stay ignored.
