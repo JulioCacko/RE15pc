@@ -579,6 +579,7 @@ public static class GpuActivity
                       $"{_recentTex} textured and {_recentFlat} flat");
         sb.AppendLine($"  the last flat primitives : {(_lastFlats.Count == 0 ? "(none)" : string.Join(" | ", _lastFlats))}");
         sb.AppendLine(GpuGlAccess.DescribeVertexHashes());
+        sb.AppendLine(GpuGlAccess.DescribeFrameOrder());
         sb.AppendLine(GpuGlAccess.DescribeUpload());
         sb.AppendLine($"  settle on readback      : {Interlocked.Read(ref GpuGlAccess.SettleCalls)} call(s), " +
                       $"{Interlocked.Read(ref GpuGlAccess.SettleEmpty)} found the graph EMPTY, " +

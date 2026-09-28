@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..aee540d 100644
+index bc045ae..f8176c5 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,848 @@ public static class GpuGlAccess
+@@ -17,6 +17,905 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -848,6 +848,63 @@ index bc045ae..aee540d 100644
 +               $"{_uploadBad} with a mismatch" +
 +               $"{(_firstBadIndex >= 0 ? $"; first mismatch at vertex {_firstBadIndex} of a {_firstBadCount}-vertex batch" : "")}";
 +    }
++    /// <summary>
++    /// Diagnostics only: within a frame, do the VRAM-to-target syncs precede the draws?
++    /// </summary>
++    /// <remarks>
++    /// The mechanism under test is that subtract rectangles accumulate because the target is not
++    /// re-seeded from a cleared VRAM between frames. SyncRtsFromVram is what re-seeds a target, so if it
++    /// runs after that frame's draws then the frame's drawing is applied on top of the previous frame's
++    /// faded result and the subtraction accumulates. Counting syncs before and after the first draw of
++    /// each frame answers it directly, and the frame boundary comes from the runtime's own counter.
++    /// </remarks>
++    private static long _sigFrame = -1;
++    private static int _syncsBefore, _syncsAfter, _drawsThisFrame, _flatsThisFrame;
++    private static int _lastSyncsBefore, _lastSyncsAfter, _lastDraws, _lastFlats;
++    private static long _lastFrameNumber;
++
++    public static void NoteFrameOp(long frame, char kind)
++    {
++        if (frame != _sigFrame)
++        {
++            if (_sigFrame >= 0)
++            {
++                _lastFrameNumber = _sigFrame;
++                _lastSyncsBefore = _syncsBefore;
++                _lastSyncsAfter = _syncsAfter;
++                _lastDraws = _drawsThisFrame;
++                _lastFlats = _flatsThisFrame;
++            }
++
++            _sigFrame = frame;
++            _syncsBefore = 0;
++            _syncsAfter = 0;
++            _drawsThisFrame = 0;
++            _flatsThisFrame = 0;
++        }
++
++        switch (kind)
++        {
++            case 'S':
++                if (_drawsThisFrame == 0) _syncsBefore++; else _syncsAfter++;
++                break;
++            case 'T':
++                _drawsThisFrame++;
++                break;
++            case 'F':
++                _flatsThisFrame++;
++                break;
++        }
++    }
++
++    public static string DescribeFrameOrder()
++    {
++        if (_lastFrameNumber == 0) return "  frame order             : no frame completed";
++
++        return $"  frame order             : frame {_lastFrameNumber}: {_lastSyncsBefore} sync(s) BEFORE the first draw, " +
++               $"{_lastSyncsAfter} after; {_lastDraws} textured and {_lastFlats} flat primitive(s) drawn";
++    }
++
      public static void Bind()
      {
          if (Gl == null) return;

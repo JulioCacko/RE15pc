@@ -2146,3 +2146,24 @@ And it explains the instrument that has dominated this investigation: **the subt
 #### Next probe
 
 Measure the order, within a frame, of SyncRtsFromVram against the room's textured draws and against the subtract rectangles. If the sync follows the draws, the accumulation is confirmed and the fix is to make the clear take effect first. The earlier ordering test cannot answer this: it looked only at WriteVram, Fill and CopyVram, and the subtract rectangles are draws, so they were never in it.
+
+
+#### The frame darkens over the run and then holds, which points away from rendering entirely
+
+Measuring the order within a frame - whether the VRAM-to-target sync precedes that frame's draws - gives the sharpest picture yet:
+
+```n18s  frame  529   0 sync(s) before the first draw   435 textured, 2 flat   display 4656 (6.1%), 188 colours
+40s  frame 1208   1 sync  before the first draw     809 textured, 0 flat   display  582 (0.8%), 122 colours
+```
+
+Two things stand out. **Frame 529 has no sync at all** - the target is not re-seeded from VRAM that frame, which is consistent with the black uploads to each framebuffer not beginning until around frame 595. And **the display grows darker over the run**: 6.1 percent of it was non-black at 18 seconds and 0.8 percent at 40.
+
+Combined with the previous round, where the two rectangles at 40 seconds and 75 seconds are byte-identical, the picture is a **fade-out that completes and then holds**. The game draws 809 textured primitives every frame - the room, faithfully - then applies huge dark subtract rectangles over them, and the result converges on black and stays there.
+
+**None of that is a rendering defect.** The room is drawn correctly, every frame, and then deliberately darkened by primitives the guest issues. Every instrument built in this investigation that made the room visible did so by removing those primitives, and every one that found the frame black found it black because the game had faded it.
+
+That leaves one question, and it is not about the GPU at all: **is the fade the game's intent, or is the game waiting for something?** A fade-out that holds for seventeen hundred frames is either a legitimate hold - a black screen awaiting input, a pause, a transition waiting on a condition - or a stuck state. The evidence leans toward waiting: the drawn content is static, the frame counter keeps advancing normally, and no error, exception or unmapped call appears anywhere in a 75-second run.
+
+#### Next probe
+
+Supply input that the game will accept at this point, and check whether the state advances. The scripted input has been pressing the cross button every 120 frames throughout, which is a reasonable guess and may simply be the wrong one - a black holding screen most likely wants Start, or a direction, or a specific button the game is polling. Instrumenting what the guest is polling, or sweeping buttons one run at a time, would answer it; and if the state does advance, then the frame has been correct from the beginning and the whole rendering investigation was chasing a fade.
