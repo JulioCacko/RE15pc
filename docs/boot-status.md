@@ -640,6 +640,59 @@ outright; blending is disabled entirely for non-semi-transparent draws, where a 
 matter. **The blend chain is correct.** Five rounds were spent across the blend path and this is the
 one part of the frame that can now be called verified rather than un-blamed.
 
+#### No flat primitive is drawn after the room, so the effect is state
+
+The order question was asked of the screen-covering quads first and of every flat primitive second:
+
+```
+flat primitives (all)    : 858 (632 semi-transparent, 362 spanning >= 300x200)
+textured after last flat : 121657 (max 121657)
+flat colours (all)       : #000000:380, #808080:157, #FFFFFF:8, #080808:5, #101010:5, #181818:5
+```
+
+**121,657 textured draws follow the last flat primitive of any kind.** There is no late overlay.
+Every flat primitive this game draws happens early, during the title and character-select screens,
+and the post-transition room is drawn entirely by textured primitives.
+
+**And removing those early flat primitives is still the one thing that restores the frame.** Those two
+facts together admit only one kind of explanation: the flat primitives are not covering anything and
+are not in the wrong order - they leave *state* behind that persists across the 121,657 textured
+draws which follow. Nothing geometric can survive that many intervening draws.
+
+This also explains, at last, why every sub-class suppression failed. Suppressing 380 black flat
+primitives does not restore the frame; suppressing 157 mid-grey ones does not; suppressing 2,352
+subtract-blended ones does not; suppressing 226 flat blend-0 ones does not. Only suppressing all 858
+does. **No sub-class can work, because no sub-class is the cause.** The cause is something that
+happens when flat primitives are drawn at all, and it is carried forward in the backend's state.
+
+#### Where that leaves the search
+
+Since the state survives 121,657 textured draws, it is set once and never reset, which is a much
+smaller set of candidates than anything considered so far. The ones worth checking, in order:
+
+1. **What is in the displayed VRAM region.** The black flat quads write black into the framebuffer
+   early. If the room's textured draws are classified into a render target whose writeback does not
+   cover the displayed region, then the region keeps that early black - and suppressing the flat
+   primitives leaves whatever the uploads put there, which is the 79.6% baseline plus the textured
+   detail that reaches 88%. That composition fits every measurement so far, including the two-store
+   agreement, because both stores would be showing the same un-overwritten background.
+2. **Render-target selection changing once flat primitives stop being drawn.** `Classify` picks a
+   target from the display-rect ring by geometry, so this is only plausible if flat primitives
+   influence `_env`'s clip - and `HleFill` notably does not call `SetDrawEnv` while `HleTri`,
+   `HleRect` and `HleLine` do.
+3. **A uniform left set.** `uBlendOpaque`, `uSetMask` and `uCheckMask` are assigned per draw, so they
+   are unlikely; `uScale` and the replacement-texture uniforms are the ones not re-set each draw.
+
+#### Next probe
+
+Compare `GlCore`'s `_vram` contents against the display region at a moment when the room should have
+been drawn: if the displayed region holds the early black rather than the room, the writeback is not
+covering it, and the question becomes why the target's rectangle and the display's rectangle differ.
+`GpuGlAccess.TargetOriginX` and `TargetOriginY` give the target's placement directly, and the sampler
+already reads them - the missing piece is sampling them alongside the VRAM contents rather than on a
+separate cadence.
+
+
 #### The colours, measured
 
 `RenderPrimEvent` carries no colour, so measuring it needed a hook in `GpuRaster`. That is a runtime

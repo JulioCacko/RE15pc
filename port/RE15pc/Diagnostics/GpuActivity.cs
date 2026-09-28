@@ -135,6 +135,18 @@ public static class GpuActivity
     /// </summary>
     private static long _afterScreenQuad, _maxAfterScreenQuad, _screenQuads;
 
+    /// <summary>
+    /// The same draw-order question asked about EVERY flat primitive rather than only the
+    /// screen-covering ones.
+    ///
+    /// Only the screen-covering subset was tracked at first, and that was a gap: removing the 380
+    /// black flat primitives or the 157 mid-grey ones individually does not restore the frame while
+    /// removing all 858 does, which is the signature of a late overlay spread across many colours -
+    /// a fade stepping through values, for instance - rather than of one identifiable primitive. If
+    /// the final count here is small, the last flat primitive comes after the room.
+    /// </summary>
+    private static long _afterAnyFlat, _maxAfterAnyFlat;
+
     /// <summary>Textured primitives drawn while CheckMask was set - i.e. while they could be skipped.</summary>
     private static long _texUnderCheckMask;
 
@@ -205,6 +217,13 @@ public static class GpuActivity
             "flatblend0" => !e.Textured && blendMode == 0,
             // Every primitive using the average blend, textured or not, as a control on the above.
             "blend0" => blendMode == 0,
+            // Suppression by colour, now that the colour is measurable. 378 of the 856 flat
+            // primitives are pure black and 157 are exactly mid-grey, so these two separate the
+            // class by what it actually draws rather than by how it blends.
+            "blackflat" => !e.Textured && RecompOne.Runtime.Gpu.DiagR == 0
+                           && RecompOne.Runtime.Gpu.DiagG == 0 && RecompOne.Runtime.Gpu.DiagB == 0,
+            "greyflat" => !e.Textured && RecompOne.Runtime.Gpu.DiagR == 0x80
+                          && RecompOne.Runtime.Gpu.DiagG == 0x80 && RecompOne.Runtime.Gpu.DiagB == 0x80,
             _ => false
         };
 
@@ -219,9 +238,12 @@ public static class GpuActivity
         {
             var after = Interlocked.Increment(ref _afterScreenQuad);
 
+            var afterAny = Interlocked.Increment(ref _afterAnyFlat);
+
             lock (Gate)
             {
                 if (after > _maxAfterScreenQuad) _maxAfterScreenQuad = after;
+                if (afterAny > _maxAfterAnyFlat) _maxAfterAnyFlat = afterAny;
             }
         }
 
@@ -234,6 +256,7 @@ public static class GpuActivity
         if (!e.Textured)
         {
             Interlocked.Increment(ref _flatAll);
+            Interlocked.Exchange(ref _afterAnyFlat, 0);
             if (e.SemiTransparent) Interlocked.Increment(ref _flatAllSemi);
 
             _flatBlend[blendMode] = _flatBlend.TryGetValue(blendMode, out var bc) ? bc + 1 : 1;
@@ -442,6 +465,8 @@ public static class GpuActivity
             : string.Join(", ", _flatScreenColors.OrderByDescending(k => k.Value).Take(6)
                 .Select(k => $"#{k.Key:X6}:{k.Value}"));
 
+        sb.AppendLine($"  textured after last flat: {Interlocked.Read(ref _afterAnyFlat)} " +
+                      $"(max {Interlocked.Read(ref _maxAfterAnyFlat)})");
         sb.AppendLine($"  flat colours (all)      : {colourDesc}");
         sb.AppendLine($"  flat colours (screen)   : {screenColourDesc}");
         sb.AppendLine($"  screen-covering flat quads: {Interlocked.Read(ref _screenQuads)}, " +
