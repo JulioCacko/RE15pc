@@ -14,11 +14,12 @@ STAGE1**. Guest code executes, receives interrupts, decodes images through MDEC,
 `title` overlay and is driven by scripted controller input past the title and character
 select until the `stage1` overlay loads. There are **zero unmapped calls**.
 
-The immediate blocker is that the composed frame comes out **black**. The room background is
-provably present in video memory at (320,256) as a 320x240 pre-rendered image, the display is
-at (0,0) or (0,240), and about 247k primitives per run are drawn into the displayed buffer at
-the right positions and produce almost nothing. Geometry has been eliminated as the cause; the
-fault is downstream of it, in the HLE render-target path. The evidence and the next three
+The immediate blocker is that the composed frame comes out **black**. A decisive experiment -
+turning the GPU HLE off with `--software-gpu` - produces a complete, correct VRAM image
+(90.4% non-black, 1140 distinct colours) in the software store, with **byte-identical texture
+content in both modes**. That rules out the guest code, disc reads, MDEC decoding and texture
+uploads at once, and localises the defect to the HLE's deferred recording layer: under the HLE,
+the content destined for the framebuffer never arrives. Details, evidence and the next three
 probes are below.
 
 One rendering defect is also identified and quantified: before the stage load, the title
@@ -197,75 +198,82 @@ almost exactly 50/50, which is the double-buffer flip working as intended.
 So the geometry the rasteriser receives is internally consistent, and every primitive that
 should land in the displayed buffer is positioned to do so.
 
-#### Where the fault must be
+#### The decisive experiment: disable the HLE
 
-Geometry is eliminated, so the fault is **downstream of it**: in the HLE render-target path,
-between "a correctly positioned primitive arrives" and "pixels appear in VRAM".
+`GpuHle.Active` is a settable static, so `--software-gpu` turns the HLE off for a run. The
+software path is self-contained - `GpuCommands.CopyVramToVram` performs the shadow copy itself
+and only *notifies* the HLE afterwards - so this isolates the HLE/GL layer cleanly.
 
-**The backend is `InterpBackend`, not `GlCore`.** Reported directly:
+Both VRAM stores are now dumped on every run, because each was separately believed to be the
+truth and each produced a different black frame. Display crop, in each mode:
+
+| mode | shadow store | backend store |
+|---|---|---|
+| HLE **on** (default) | 0 / 76800 (0.0%) | 584 / 76800 (0.8%) |
+| HLE **off** (`--software-gpu`) | **69,444 / 76800 (90.4%)**, 1140 colours | 0 / 76800 (0.0%) |
+
+Mapping content across both stores in both modes is what makes this conclusive:
 
 ```
-gpu hle : active=True, backend=InterpBackend
+MODE A (HLE on)  shadow   x0: 0, 0, 0, 3634        x320: 24576, 24576, 30962, 26633
+MODE A (HLE on)  gl       x0: 578, 0, 581, 3634    x320: 24576, 24576, 30962, 26633
+MODE B (HLE off) shadow   x0: 33604, 39396, 35168, 34354   x320: 24576, 24576, 30962, 26633
+MODE B (HLE off) gl       0 everywhere
 ```
 
-`HleTri` calls `GpuHle.Backend.DrawTri`, so primitives go into the interpolation backend's
-frame graph, and `InterpBackend.Replay` renders them. `GlCore` is a different object - the one
-`HostWindow` uses for VRAM and presentation - which is why reading `GlCore` to reason about the
-draw path was misleading.
+**The `x320` columns are byte-for-byte identical in all three populated stores.** Every texture
+upload the game performs lands correctly, in both modes, in whichever store is in use. That
+rules out the CD load path, the MDEC decode, the texture uploads, the draw-list decoding and
+the guest code itself, in one comparison.
 
-**And the interpolation wrapper's offset handling is correct.** `InterpBackend.DrawTri` reads
-`Runtime.Gpu.DrawOffsetX/Y` and stores the triangle with the offset *removed*:
+The **only** thing that differs is the framebuffer column `x0`, which is empty under the HLE and
+full without it. So the defect is precisely: *under the HLE, the content destined for the
+framebuffer never arrives.*
 
-```csharp
-A = Detach(in a, offsetX, offsetY),      // InterpBackend.cs:75   Detach subtracts, :483-484
-OffsetX = offsetX, OffsetY = offsetY
-```
+#### Why, and why disabling the HLE fixes it
 
-and `ReplayTri` puts it back before handing the triangle to the inner backend:
+The mechanism, from the code:
 
-```csharp
-var va = Attach(in a, tri.OffsetX, tri.OffsetY);   // InterpBackend.cs:473   Attach adds, :491-492
-_inner.DrawTri(in va, in vb, in vc, in tri.Flags);
-```
+- `HleLoadBegin` sets `_hleLoadActive = HleOn`. So a CPU-to-VRAM upload is buffered and then
+  pushed to the backend with `WriteVram` **only when the HLE is on**.
+- `InterpBackend` is the active backend, and when `_active` is true it **defers**: `WriteVram`
+  and `DrawTri` are appended to a frame graph (`_recording`) instead of being forwarded to the
+  inner `GlCore`, and are applied later by `Replay`.
+- With the HLE off, `_hleLoadActive` is false, so `HleLoadFlush` returns immediately and the
+  upload is never deferred. It reaches the shadow directly through
+  `GpuCommands.StoreImageHalfword`, which writes `Vram[idx]` unconditionally, and nothing
+  afterwards displaces it.
+- With the HLE on, the deferred copy is what should reach the framebuffer, and the shadow is
+  additionally overwritten by `HleReadback`, which writes backend contents back into the shadow
+  (`GpuHleForward.cs:115-120`). If the backend's framebuffer is empty, that readback writes
+  emptiness into the shadow - which is exactly the `x0: 0, 0, 0` in mode A.
 
-Detach and Attach are exact inverses, and each record carries the offset that was in force when
-it was recorded rather than the current one, which is what makes this survive the per-frame
-buffer flip. So the offset is applied **exactly once** through the whole chain: added by
-`GpuRaster`, removed for interpolation, restored for replay.
+So the fault is in the **deferred recording layer** (`InterpBackend`'s graph) or in what
+`GlCore` does with the replayed writes, and disabling the HLE sidesteps both. That is why
+turning it off produces a complete, correct VRAM image.
 
-**The offset is therefore eliminated in both directions** - it is not missing, and it is not
-doubled. Two successive hypotheses died here, and both are recorded above with the evidence
-that killed them, because each looked convincing from the code alone.
+#### What this establishes, and what it does not
 
-#### Eliminated
+Established: the guest code, disc reads, MDEC decoding, texture uploads and draw-list decoding
+all work. A complete and correct VRAM image exists with the HLE off - 90.4% non-black, 1140
+distinct colours, and a coherent scene in
+`out/diagnostics/framebuffer-shadow-ascii.txt`.
 
-- **Widescreen margin.** `WideAspect=0`, `SourceAspect=1.333`, `WideMargin(320)=0`, so the
-  render target is not being widened and vertices are not being shifted by a margin. The
-  `rt.Margin` term in `GlCore`'s clip translation is therefore zero here.
+Not established: `--software-gpu` does **not** by itself put a picture on screen. The backend
+store is empty in that mode, and presentation reads the backend, so the window still shows
+nothing. It is a diagnostic, not a workaround, and it must not be described as making the game
+playable.
 
-#### Remaining probes
+#### Next probes
 
-Geometry, the drawing offset and the interpolation wrapper are all eliminated, so the fault is
-narrower than it was: it is in what happens to a correctly positioned, correctly offset
-primitive inside the GL path - the render target it is drawn into, the texture and CLUT it
-samples, or the flush that composites it back into VRAM.
-
-1. **Texture and CLUT sampling.** The background sits at texpage X = 5, which is unusually high
-   - most games keep textures in the low pages - so a page-resolution bug that no other game
-   would exercise is a live possibility. Sampling VRAM at the resolved page for a known tile
-   and comparing against the decoded background at (320,256) would show it directly.
-2. **The render target and its flush.** `GlCore.Classify()` picks a `GlDisplayRt` from a
-   two-slot display-rect ring and `ClassifySlow` can also return null, in which case drawing
-   goes into the full-VRAM texture. Whether a target is chosen at all, and whether it is
-   flushed back, separates "drawn into the wrong place" from "drawn and never composited".
-3. **Force the software rasteriser.** `GpuHle.Active` is a settable static; with it false,
-   `GpuRaster`'s own path draws into the shadow and `VramDump` reads that. If the room appears
-   there, the fault is isolated to the GL path specifically. The host must re-assert it,
-   because `InterpBackend` sets `_active` from `_inner.Ready`.
-4. **PGXP / `Transform` grouping.** `InterpBackend.Group` and `Mix` key off
-   `HleVertex.Transform`, and `Mix` accumulates texture-coordinate ranges and page masks per
-   group. If those ranges feed a batched or replaced texture, geometry can be perfect and the
-   result still black. Worth checking with PGXP off as well as on.
+1. **Instrument `Replay`.** Whether the frame graph is replayed at all, how often, and whether
+   the `WriteVram` and `Tri` ops in it are visited, is the single question that separates
+   "recorded and dropped" from "replayed but written to the wrong target".
+2. **`GlCore`'s render targets.** `Classify()` picks a target from a two-slot display-rect ring
+   and `WritebackDirtyIntersecting` flushes dirty targets into `_vram`. A target that is never
+   marked dirty, or never flushed, would hold the drawing invisibly.
+3. **PGXP grouping.** `InterpBackend.Group`/`Mix` key off `HleVertex.Transform` and accumulate
+   texture-coordinate ranges and page masks per group. Worth a run with PGXP off.
 
 ---
 
@@ -479,8 +487,9 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Work the three probes above**, cheapest first: check whether widescreen is on, instrument
-   `Classify()`, and force the software rasteriser to isolate the GL path. This is the blocker.
+1. **Instrument `Replay`** in `InterpBackend`: whether the deferred frame graph is replayed, how
+   often, and whether its `WriteVram` and `Tri` operations are visited. This is the blocker and
+   the question is now narrow - recorded-and-dropped versus replayed-to-the-wrong-target.
 2. **Turn reaching STAGE1 into a one-line regression check.** It currently needs a hand-written
    `--input` script; naming a standard script for it would make every later phase cheap to
    re-verify.
