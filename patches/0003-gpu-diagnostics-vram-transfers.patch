@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..38799c2 100644
+index bc045ae..b59d720 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,348 @@ public static class GpuGlAccess
+@@ -17,6 +17,364 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -74,6 +74,22 @@ index bc045ae..38799c2 100644
 +    /// diverge, the vertices are being lost between the two.
 +    /// </remarks>
 +    public static long TrisIn, DrawsOut, VertsOut;
++
++    /// <summary>
++    /// Diagnostics only: what <c>InterpBackend.Settle</c> found when a readback asked it to catch up.
++    /// </summary>
++    /// <remarks>
++    /// The room was measured rendering at 90.3% inside <c>Writeback</c> in every configuration, while
++    /// roughly 45% of writebacks in the failing one composite an empty target. A writeback compositing
++    /// nothing must precede the frame's draws, and <c>ReadVram</c> is the only thing that triggers one:
++    /// it settles first, and <c>Settle</c> replays <c>_current</c> and then clears it. So the first
++    /// readback in a frame replays the previously published graph, and the second finds nothing, flushes
++    /// anyway, and composites whatever the current frame has not yet drawn.
++    ///
++    /// These counters test that directly: if the empty settles line up with the black writebacks, the
++    /// mechanism is confirmed rather than inferred.
++    /// </remarks>
++    public static long SettleCalls, SettleEmpty, SettleReplayed;
 +
 +    /// <summary>
 +    /// Diagnostics only: called for every whole-region VRAM transfer - a fill, a VRAM-to-VRAM copy,
@@ -285,7 +301,7 @@ index bc045ae..38799c2 100644
 +    /// </remarks>
 +    private static readonly Dictionary<string, (long Reads, long Empty, long Best)> _wbByOrigin = [];
 +
-+    public static void SampleWriteback(uint fbo, int texW, int texH, int originX, int originY)
++    public static void SampleWriteback(uint fbo, int texW, int texH, int originX, int originY, string why)
 +    {
 +        const int stripW = 320;
 +        const int stripH = 32;
@@ -318,7 +334,7 @@ index bc045ae..38799c2 100644
 +        if (lit > _wbMaxLit) _wbMaxLit = lit;
 +        if (lit == 0) _wbEmpty++;
 +
-+        var key = $"({originX},{originY})";
++        var key = $"{why}  ({originX},{originY})";
 +        _wbByOrigin.TryGetValue(key, out var s);
 +        _wbByOrigin[key] = (s.Reads + 1, s.Empty + (lit == 0 ? 1 : 0), Math.Max(s.Best, lit));
 +    }
@@ -328,10 +344,10 @@ index bc045ae..38799c2 100644
 +        if (_wbByOrigin.Count == 0) return "  target at writeback      : not sampled";
 +
 +        var rows = _wbByOrigin.OrderBy(k => k.Key).Select(k =>
-+            $"origin {k.Key,-9} {k.Value.Reads,5} sample(s), {k.Value.Empty,5} entirely black, " +
++            $"{k.Key,-28} {k.Value.Reads,5} sample(s), {k.Value.Empty,5} entirely black, " +
 +            $"best {k.Value.Best,5} of {320 * 32}");
 +
-+        return "  target at writeback      : per buffer" + Environment.NewLine
++        return "  target at writeback      : by trigger and buffer" + Environment.NewLine
 +               + "                            "
 +               + string.Join(Environment.NewLine + "                            ", rows);
 +    }

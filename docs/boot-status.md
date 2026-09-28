@@ -1244,13 +1244,51 @@ black, why the split is near half rather than total, why both double-buffer targ
 and why removing a class of primitives - changing when in the frame the draws finish - changes the
 outcome without addressing the cause.
 
+#### The black writebacks are the end-of-frame flush, and settle is not the cause
+
+Two measurements, and the first refutes the mechanism proposed above.
+
+`Settle` is called **seven times** in an entire run - 1 finding the graph empty and 6 replaying in the
+failing configuration, against 2 and 5 in the working one. That does not correlate with 269 black
+writebacks in any way, so the mid-frame-flush-versus-replay mechanism is **wrong**. It was a good fit
+for the shape of the evidence and it is not the cause.
+
+Labelling the four ways a target can be written back does identify the cause, though:
+
+```
+DEFAULT        dirtyIntersecting (0,0)     1 sample,   1 entirely black, best    0
+               dirtyIntersecting (0,240)   5 samples,  2 entirely black, best 5618
+               frameEnd          (0,0)   292 samples, 134 entirely black (46%), best 9248
+               frameEnd          (0,240) 292 samples, 134 entirely black (46%), best 9248
+
+--skip-draws flat  frameEnd     (0,0)   222 samples,   0 entirely black, best 9248
+                   frameEnd     (0,240) 222 samples,   0 entirely black, best 9248
+```
+
+**268 of the 270 black writebacks come from the end-of-frame flush**, which writes back every target
+still marked dirty. A target is only dirty if something *drew* into it during that frame, since
+`Writeback` clears the flag and a VRAM sync does not set it. So these are not stale targets being
+flushed: each one had drawing done into it during the frame that produced it, and the result was black.
+
+Each buffer is black in 46% of its own frame-end flushes, and both figures match. With two buffers
+flushed per frame, that is the signature of **one buffer per frame being drawn with the room and the
+other being drawn black**, alternating - which is what double buffering looks like when the front buffer
+is not left holding the previous frame's image.
+
+The working configuration never does this: both buffers are drawn with the room in every frame.
+
+So the defect is narrower than "the room does not render" and different from it. The room renders into
+one buffer; the other buffer receives drawing that produces black; and they swap, so the displayed
+buffer is the black one about half the time - which is why an end-of-run sample of the display shows a
+black frame, and why the frames that would show the room are not the ones being measured.
+
 #### Next probe
 
-Instrument `Settle` to count how often it finds `_current` empty, and correlate those with the
-writebacks that composite black. If the two line up, the mechanism is confirmed rather than inferred,
-and the fix is narrow: a readback should not flush targets whose content for this frame is still being
-recorded, which means settling the in-flight graph as well as the published one, or not flushing
-targets that the current frame has yet to draw into.
+Find what draws black into the second buffer. It is drawing, not an upload - the target is dirty - and
+it happens once per frame per buffer in the failing configuration only. The per-frame black 320x240
+`LoadImage` is the obvious candidate, but an upload reaches a target through `SyncRtsFromVram`, which
+does not mark it dirty; something has to be drawing. Counting the draws that target each buffer
+separately, and their colours, is the direct way to see it.
 
 
 #### Where thirty rounds of measurement leave this

@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..83e952c 100644
+index 45a0f96..16c8b86 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -14,8 +14,9 @@ index 45a0f96..83e952c 100644
  
          if (_rts[slot] is { } old)
          {
+-            if (old.Dirty) Writeback(old);
 +            var wasDirty = old.Dirty;
-             if (old.Dirty) Writeback(old);
++            if (old.Dirty) Writeback(old, "evict");
              old.Destroy(_gl);
              InvalidateClassify();
 +
@@ -36,10 +37,11 @@ index 45a0f96..83e952c 100644
          return fresh;
      }
  
-     private void Writeback(GlDisplayRt rt)
+-    private void Writeback(GlDisplayRt rt)
++    private void Writeback(GlDisplayRt rt, string why)
      {
 +        GpuGlAccess.WritebackCalls++;
-+        GpuGlAccess.SampleWriteback(rt.Fbo, rt.TexW, rt.TexH, rt.X, rt.Y);
++        GpuGlAccess.SampleWriteback(rt.Fbo, rt.TexW, rt.TexH, rt.X, rt.Y, why);
          var s = GlVram.Scale;
          _gl.Disable(EnableCap.ScissorTest);
          _gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, rt.Fbo);
@@ -51,6 +53,24 @@ index 45a0f96..83e952c 100644
          int x0 = Math.Max(rx, rt.X), y0 = Math.Max(ry, rt.Y);
          int x1 = Math.Min(rx + rw, rt.X + rt.W), y1 = Math.Min(ry + rh, rt.Y + rt.H);
          if (x0 >= x1 || y0 >= y1) return;
+@@ -338,7 +351,7 @@ public sealed class GlCore : IGpuBackend
+     {
+         foreach (var rt in _rts)
+             if (rt is { Dirty: true } && rt.Intersects(x, y, w, h))
+-                Writeback(rt);
++                Writeback(rt, "dirtyIntersecting");
+     }
+ 
+     private void SyncRtsFromVram(int x, int y, int w, int h)
+@@ -359,7 +372,7 @@ public sealed class GlCore : IGpuBackend
+             if (rt is { Dirty: true } && rt.Intersects(px, py, pw, 256))
+             {
+                 Flush();
+-                Writeback(rt);
++                Writeback(rt, "textureFeedback");
+             }
+     }
+ 
 @@ -528,7 +541,7 @@ public sealed class GlCore : IGpuBackend
  
      private GlVertex V(in HleVertex v, in PrimFlags f, bool dither)
@@ -113,3 +133,12 @@ index 45a0f96..83e952c 100644
          if (_legacy)
          {
              _gl.Disable(EnableCap.Blend);
+@@ -990,7 +1028,7 @@ public sealed class GlCore : IGpuBackend
+         for (var i = 0; i < _rts.Length; i++)
+         {
+             if (_rts[i] is not { } rt) continue;
+-            if (rt.Dirty) Writeback(rt);
++            if (rt.Dirty) Writeback(rt, "frameEnd");
+             if (_frame - rt.LastDrawFrame > 300)
+             {
+                 rt.Destroy(_gl);

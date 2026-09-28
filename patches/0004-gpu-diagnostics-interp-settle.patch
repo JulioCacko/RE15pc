@@ -1,0 +1,28 @@
+diff --git a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
+index e8d2299..cf3b570 100644
+--- a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
++++ b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
+@@ -379,12 +379,21 @@ public sealed class InterpBackend : IGpuBackend
+     
+     private void Settle()
+     {
++        Hle.GpuGlAccess.SettleCalls++;
+         if (!_active) return;
+         
+         lock (_gate)
+         {
+-            if (_current.IsEmpty) return;
+-            
++            if (_current.IsEmpty)
++            {
++                // Counting this is the confirmation the mechanism needs. A readback that settles an
++                // empty graph replays nothing, and the flush that follows then composites targets the
++                // current frame's still-in-flight recording has not been drawn into yet.
++                Hle.GpuGlAccess.SettleEmpty++;
++                return;
++            }
++
++            Hle.GpuGlAccess.SettleReplayed++;
+             Replay(_current, null, 1f);
+             _current.Clear();
+             _current.Interpolatable = false;
