@@ -2,6 +2,8 @@ using RecompOne.Runtime;
 using RecompOne.Runtime.Assets.Textures;
 using RecompOne.Runtime.Events;
 using RecompOne.Runtime.Hle;
+using RecompOne.Runtime.Interp;
+using RecompOne.Runtime.Pgxp;
 
 namespace RE15pc.Diagnostics;
 
@@ -483,6 +485,17 @@ public static class GpuActivity
         sb.AppendLine($"  gpu hle                 : active={GpuHle.Active}, backend={GpuHle.Backend?.GetType().Name ?? "null"}" +
                       (_forceSoftware ? "  (software rasteriser forced)" : "") +
                       (SuppressMode.Length > 0 ? $"  (drawing suppressed: {SuppressMode}, {_suppressed} primitives skipped)" : ""));
+
+        // Interpolation decides whether InterpBackend.ReplayTri emits the recorded vertices or replaces
+        // them with warped ones. With interpolation off the replay is faithful - Emit re-adds the
+        // offset and passes tri.Flags through unchanged - which matters because every observation made
+        // from outside the backend reads the input side of that recorder, not its output.
+        sb.AppendLine($"  interpolation           : targetFps={Interp.TargetFps} " +
+                      $"requested={Interp.Requested} " +
+                      $"pgxp={Pgxp.Enabled}/{Pgxp.MemoryTracking} " +
+                      $"available={Interp.Available} " +
+                      $"enabled={Interp.Enabled} " +
+                      $"effective={Interp.EffectiveTarget}");
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");

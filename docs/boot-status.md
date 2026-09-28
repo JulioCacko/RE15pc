@@ -950,6 +950,48 @@ event carried, for one framebuffer-resident textured primitive. That is the last
 that has never been inspected, and it is the only one that can explain a draw arriving correctly and
 rendering nothing.
 
+#### The recorder is faithful, so it is cleared too
+
+It did not need instrumenting, only measuring what is switched on:
+
+```
+interpolation : targetFps=0 requested=False pgxp=False/False available=False enabled=False effective=0
+```
+
+Interpolation and PGXP are **both off**. That matters because `InterpBackend.ReplayTri` has two paths
+and only one preserves the recorded draw:
+
+```csharp
+if (previous == null || weight >= 1f) { Emit(in tri, in tri.A, in tri.B, in tri.C); return; }
+if (tri.Transform > 0 && _transforms.Warp(tri.Transform, in tri.A, in tri.B, in tri.C, out var wa, ...))
+    { Emit(in tri, in wa, in wb, in wc); return; }      // vertices REPLACED
+```
+
+With interpolation off, `previous` is null, so the first branch is taken: `Emit` replays the recorded
+vertices, re-adds the offset through `Attach`, and passes `tri.Flags` through untouched. The warping
+branch cannot be reached either, because `GpuRaster` sets
+`v[i].Transform = transform != 0 ? transform : -1` and PGXP - which is what populates it - is off, so
+`Group` yields no transform and `tri.Transform` stays 0.
+
+So the recorder is a faithful record-and-replay layer for this game, and the last uninspected component
+in the chain is cleared. `uScale`, the other uniform never seen being assigned, is set by
+`SetScaleUniform` to `GlVram.Scale`, so that is cleared as well - and it died before being tested, which
+is the right order for once.
+
+#### Where thirty rounds of measurement leave this
+
+Every component between a guest GP0 command and the framebuffer has now been measured rather than
+argued, and every one is correct: geometry, texture addressing, the sampled VRAM contents, the blend
+chain and its factors, the modulation colour, the drawing offset, the order of draws against the
+per-frame clear, the landing of draws in the framebuffer, the render target lifecycle, and the
+interpolation recorder. The room still does not render.
+
+The one fact that survives all of it, and which no component-level explanation accounts for, is that
+**suppressing flat drawing makes those same textured draws produce 88%**. That is a state effect whose
+cause has not been found. The honest summary is that fourteen mechanisms have been proposed, six
+withdrawn after measurement, and the remaining candidate space is the backend's behaviour as a whole
+rather than any value that travels through it.
+
 
 #### What can be said with confidence
 
