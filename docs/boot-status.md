@@ -2505,3 +2505,21 @@ That also reframes the sequence. The cross-only run wipes at frame 598 and holds
 **Audio over that run is sustained rather than intermittent**: voice volume non-zero on **9,719 of 12,536 frames**, 308 blocks mixed while voices carried volume, peak 17,229 of 32767. The earlier "intermittent, about a quarter of full scale" reading is superseded; over a long driven run the SPU is busy almost continuously.
 
 **What this does not change is the remaining gap.** The revealed state is 6,709 pixels against a full room's 61,135, and it plateaus rather than completing, so no room has been walked and nothing has been taken, opened or saved. What has changed is the evidence about the pad: it is not inert, and the earlier claim that it was came from a run too short to contain the states it affects. That is the fourth time in this investigation that a measurement was right about *what* it sampled and wrong about *when*.
+
+#### Final experiment: the direction input decides the state, and the state plateaus
+
+Three four-hundred-and-twenty-second runs, differing only in direction input, with the frame counts within 0.6 percent of each other:
+
+```
+direction input            changes   plateau reached        display
+none                             7   frozen from frame 598    636 (0,8%) 122 colours
+cross only                       7   frozen from frame 598    636 (0,8%) 122 colours
+cross + cycled directions       14   6295 at frame 1538      6709 (8,7%) 514 colours
+cross + UP held continuously    14   6281 at frame 1546      6777 (8,8%) 526 colours
+```
+
+Reading it: **direction input is decisive** - with it the game leaves the wiped state and reveals a second one, without it the display holds 636 pixels for twelve thousand frames. **But how the direction is held does not matter**: cycling through the four directions and holding one continuously, which is what tank controls expect, reach the same plateau within 1 percent of each other, at the same frame, and then stop.
+
+So the pad is acted on, reliably and reproducibly, and the state it leads to is stable rather than still developing. Neither holding nor cycling moves past about 6,300 pixels of a full room's 61,135.
+
+That is the last measurement made here, and it leaves the remaining question sharper than it found it: the input reaches the game, the game responds to it, and the response plateaus. Whether that plateau is a state awaiting a different button, or the build's own end of what its scripted input can drive, is what the two routes in the README would settle.
