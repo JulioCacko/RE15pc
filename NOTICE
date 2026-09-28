@@ -11,6 +11,55 @@ that disc at build time on the user's own machine and is likewise not
 redistributed.
 
 
+What this repository contains, verifiably
+-----------------------------------------
+
+Every file tracked here is plain text. That is not an assurance to be taken on
+trust; it is a property anyone can check in one command:
+
+    git ls-files | ForEach-Object { [IO.Path]::GetExtension($_) } | Sort-Object -Unique
+
+The complete set of extensions is .cs .csproj .cue .editorconfig .gitattributes
+.gitignore .json .md .patch .ps1 .sh .sln .yml - source code, configuration and
+prose, and nothing else. The largest tracked file is a 125 KB function map, which
+records addresses and symbol names rather than instructions or assets.
+
+Explicitly not present, and excluded by named rules rather than by convention:
+
+    the disc image           *.bin *.iso *.img *.chd *.mdf *.toc   .gitignore:13-19
+    recompiled C# output     /generated/                           .gitignore:25
+    VRAM, RAM and frames     /out/                                 .gitignore:28
+    the upstream engine      /RecompOne/                           .gitignore:22
+
+Those last two matter and are worth stating plainly. `/out/` holds the port's own
+diagnostic dumps - raw video memory, a machine's RAM, and frame captures - and
+those would contain decoded game art and overlay code if they were committed. They
+are excluded for precisely that reason. The recompiled output under `/generated/`
+is a transcription of the disc's executable and is excluded for the same reason.
+Both are produced on the user's machine from the user's own disc, and neither is
+distributed. All four rules can be verified directly:
+
+    git check-ignore -v Bio2Nov96.bin generated/ out/ RecompOne/
+
+
+If you are a rights holder
+--------------------------
+
+This project has no connection to Capcom, and it contains no game data. A takedown
+notice needs to identify the material it concerns, and there is no such material in
+this repository to identify - which the three commands above demonstrate rather
+than merely assert.
+
+If you believe something here is nevertheless a problem, please open an issue or
+contact the repository owner. Concerns about this repository will be addressed
+promptly, and the project's default position is to remove anything a rights holder
+objects to rather than to argue about it.
+
+Nothing in this file is legal advice, and it does not claim to be a defence against
+any particular claim. It describes what the repository contains and how that can be
+checked.
+
+
 Upstream dependency: RecompOne
 ------------------------------
 

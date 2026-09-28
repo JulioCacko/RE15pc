@@ -115,6 +115,38 @@ sh ci/check-commits.sh            # validates HEAD only
 It falls back to checking the tip when the range is unusable, which is what happens on a
 first push (an all-zero "before" sha) or after a force push.
 
+#### Running the workflow itself, locally
+
+The whole job can be run on this machine without GitHub, using
+[`act`](https://nektosact.com/) against a container engine. On Windows, Podman works and
+needs no `DOCKER_HOST`, because it forwards a Docker-compatible API to the default pipe:
+
+```powershell
+winget install RedHat.Podman
+podman machine init
+podman machine start          # reports: API forwarding listening on npipe:////./pipe/docker_engine
+
+# a payload standing in for a real push, so the range is exercised rather than fallen back
+$before = git rev-parse HEAD~1; $after = git rev-parse HEAD
+@{ ref='refs/heads/main'; before=$before; after=$after
+   head_commit=@{ id=$after }; repository=@{ full_name='JulioCacko/RE15pc'; default_branch='main' }
+} | ConvertTo-Json -Depth 5 | Set-Content .git/act-push.json
+
+act push -W .github/workflows/commits.yml -e .git/act-push.json `
+         -P ubuntu-latest=catthehacker/ubuntu:act-latest
+```
+
+Pinning `-P` avoids `act`'s interactive prompt for an image size. It also keeps the run
+off the default micro image, which lacks the tools `actions/checkout` needs.
+
+Both outcomes have been verified this way, not just the passing one:
+
+- a one-commit push range checks one commit and reports **Job succeeded**;
+- the whole-history range reports **`not conventional : e05b0ff`** and **Job failed**,
+  which is that web-editor commit being caught exactly as intended.
+
+A check that has only ever been seen to pass is not evidence that it works.
+
 ---
 
 ## Scope of contributions
@@ -140,6 +172,12 @@ git -C RecompOne checkout .        # leave the working clone clean
 
 - Never commit disc data. `Bio2Nov96.bin` is 124.3 MB and over GitHub's per-file
   limit, and it is copyrighted. `.gitignore` covers it; do not override that.
+- Never commit anything under `out/`. Those are the port's diagnostic dumps - raw
+  video memory, machine RAM and frame captures - and they contain decoded game art
+  and overlay code. They are ignored for that reason, and it is the same reason the
+  disc image is.
+- Never commit anything under `generated/`. It is a transcription of the disc's
+  executable.
 - Never hand-edit anything under `generated/`. It is recompiler output. Change
   the config or the patches instead, and re-run the recompiler.
 - Keep `.gitignore`, the hooks, and `bootstrap.ps1` honest. If a fresh clone

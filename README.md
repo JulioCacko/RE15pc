@@ -44,6 +44,11 @@ garbage output.
 
 ## What it is
 
+**RE15pc is a recompilation toolchain and host application, not a game.** What this
+repository holds is: a recompiler configuration, function maps, a host program that
+runs the recompiled result, and the diagnostics used to work out what that result is
+doing. What it does not hold is any part of the game.
+
 Static recompilation translates the PlayStation's MIPS instructions into C#
 ahead of time, then runs that code on top of a runtime that models the PS1
 hardware in software. No BIOS or other Sony component is needed — only the game
@@ -51,9 +56,40 @@ disc. Compared to emulation this trades a one-off translation pass for much
 lower per-frame overhead, which is what makes a native port of this build
 practical.
 
+The translation happens **on your machine, from your disc, at build time**. The
+recompiled code is never produced here and never distributed here; it lands in
+`generated/`, which `.gitignore` excludes. The same applies to the port's
+diagnostic dumps of video memory, RAM and frame captures, which contain decoded
+game art and are excluded under `/out/` for exactly that reason.
+
 The engine is [RecompOne](https://github.com/BlackLabelHQ/RecompOne) by
 BlackLabelHQ (MIT). RE15pc pins it at a known commit, keeps it out of this
 repository, and records any needed change as a patch in [`patches/`](patches/).
+
+## This repository contains no game data
+
+Every tracked file is plain text — source, configuration and documentation — and
+that is checkable rather than merely promised:
+
+```powershell
+git ls-files | ForEach-Object { [IO.Path]::GetExtension($_) } | Sort-Object -Unique
+git check-ignore -v Bio2Nov96.bin generated/ out/ RecompOne/
+```
+
+The first command lists every extension present: `.cs .csproj .cue .editorconfig
+.gitattributes .gitignore .json .md .patch .ps1 .sh .sln .yml`. The second shows
+the disc image, the recompiled output, the diagnostic dumps and the upstream engine
+all excluded by named rules in `.gitignore`.
+
+**If you are a rights holder:** this project has no connection to Capcom and
+contains no Capcom material of any kind. If you believe something here is
+nevertheless a problem, please open an issue or contact the repository owner — the
+default position is to remove anything objected to rather than to argue about it.
+See [NOTICE](NOTICE) for the full statement.
+
+"Resident Evil", "Biohazard" and related names are trademarks of Capcom Co., Ltd.
+This is an unofficial, non-commercial preservation and research effort, not
+affiliated with or endorsed by Capcom. Nothing in the documentation is legal advice.
 
 ## Building
 
@@ -93,7 +129,15 @@ dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-au
 
 # the disc is the one this port expects, checked by hash and by file layout
 pwsh -File tools/New-DiscManifest.ps1 -Check
+
+# commit messages follow Conventional Commits v1.0.0
+sh ci/check-commits.sh HEAD~5..HEAD
 ```
+
+The commit check can also be run as the actual GitHub Actions workflow, locally and
+without GitHub, using `act` against a container engine. Both the passing and the
+failing outcome have been verified that way — see
+[CONTRIBUTING.md](CONTRIBUTING.md#running-the-workflow-itself-locally).
 
 Two further options exist for investigating the rendering blocker, and are described
 in [docs/boot-status.md](docs/boot-status.md): `--skip-draws <class>` suppresses a
