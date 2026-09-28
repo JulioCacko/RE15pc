@@ -9,13 +9,98 @@ Last updated at the end of Phase 5.
 
 ## Summary
 
-The recompiled prototype **boots and runs**. Guest code executes, receives interrupts,
-runs its threaded main loop, loads the `title` overlay, uploads the Japanese title
-image to video memory and drives the display. There are **zero unmapped calls**.
+The recompiled prototype **boots, runs, and now plays through its opening screens into
+STAGE1**. Guest code executes, receives interrupts, decodes images through MDEC, loads the
+`title` overlay and is driven by scripted controller input past the title and character
+select until the `stage1` overlay loads. There are **zero unmapped calls**.
 
-One concrete rendering defect is identified and quantified below: the title image is
-uploaded to VRAM **including its 20-byte TIM header**, which displaces the picture
+The immediate blocker is that the screen then goes **solid black**. MDEC is decoding
+full-screen images roughly once a second at that point, but the display area holds a single
+colour, so the decoded backgrounds are not reaching the displayed region.
+
+One rendering defect is also identified and quantified: before the stage load, the title
+image was uploaded to VRAM **including its 20-byte TIM header**, displacing the picture
 10 pixels horizontally.
+
+---
+
+## STAGE1 loads
+
+Scripted input changed what is reachable. Without it the port could only ever reach the
+first screen that waits for a pad, which made every later phase untestable.
+
+```
+[Dispatcher] loaded overlay: main
+ResetGraph:jtb=8007e308,env=8007e350
+[Dispatcher] loaded overlay: title
+[Dispatcher] loaded overlay: title overwritten by stage1
+[Dispatcher] loaded overlay: stage1
+```
+
+`overlays loaded : 3`, `region overwrites : 1`. The overwrite line is upstream's own doing
+and is correct here: `stage1` (137,648 bytes) fully covers `title` (9,932 bytes), so
+`Dispatcher.HandleRegionOverwrites` retires it without help. `OverlayPolicy` reports zero
+evictions, which is the expected outcome — it exists for the case upstream cannot handle,
+and this was not one.
+
+Verifying the overlay really is resident: the dumped overlay window now begins
+`0F 00 00 00 9C FF FF FF A8 FD FF FF`, which is `PSX/BIN/STAGE1.BIN` from offset 0, not the
+title image. Consistent with the verbatim-copy finding.
+
+### A frame-rate correction worth recording
+
+An earlier reading of these runs concluded the guest had stalled around frame 1528 because
+`VSyncEvent` stopped advancing at roughly half the expected 60 per second. That was wrong.
+
+`LibEtc.VSync` returns early for `mode < 0` and for `mode == 1` **without dispatching
+`VSyncEvent`**, and `WaitVBlanks` waits `mode` vblanks. This game calls `VSync(2)`, which
+waits two vblanks, so 30 events per second is exactly correct for a 30 fps game. A 150 second
+run reached frame 4527, i.e. 30.2 events per second sustained.
+
+The lesson is that the frame counter measures `VSyncEvent` dispatches, not frames the guest
+executed, and the two differ by a constant factor whenever the game uses `VSync(2)`.
+
+### After the stage load
+
+| | |
+|---|---|
+| guest memory | 300 distinct states over 150 s, still changing at the end |
+| unmapped calls | 0 |
+| crashed | false |
+| overlays loaded | 3 |
+| display | enabled, 320x240, NTSC |
+| non-black pixels | **0 / 76800** |
+| distinct colours | **1** |
+
+So the guest is alive and working, and the screen is one flat colour.
+
+**The lead.** With `--log mdec` the runtime reports 42 decodes in 45 seconds, each of the form
+
+```
+[MDEC] decode depth=3 signed=False bit15=False inHW=11648 consumedHW=11648 mbs=300 wordsOut=38400 outTotal=38400
+```
+
+`mbs=300` macroblocks is 300 x 256 = 76,800 pixels, exactly one 320x240 screen, and
+`wordsOut=38400` is those pixels as 32-bit words. So the game is decoding **full-screen
+images** at that point, which is what Resident Evil does for room backgrounds — the
+`ROOM*.BSS` files are MDEC-compressed pre-rendered backdrops.
+
+`Hardware/Mdec.cs` exposes only `ReadData`, `ReadStatus`, `OutEmpty`, `WriteControl` and
+`Write0`, and contains **no reference to VRAM or the GPU at all**. That is not necessarily
+wrong: the real machine has the CPU or DMA read decoded data out of the MDEC data register
+and write it to VRAM, so MDEC not touching VRAM is expected. What is not yet established is
+whether the decoded data comes back out correctly and whether the guest's transfer of it to
+VRAM lands in the displayed region. Decoding roughly once per second, repeatedly, rather than
+once per room, also hints at a retry loop rather than a slow decode.
+
+Next steps for this lead:
+
+1. Check the MDEC output read path: `Mdec.ReadData`, `OutEmpty`, and DMA channels 0 and 1.
+   Confirm the words coming back are the decoded image and not zeros or stale data.
+2. Confirm the guest's transfer of that data lands at the display origin. `VramDump` already
+   writes `vram.rgb555.bin`, so this is a byte comparison, not guesswork.
+3. Sample the display area over time rather than only at the end, to see whether the screen
+   ever changes and whether it changes before or after the stall in decoding.
 
 ---
 
@@ -229,14 +314,13 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Feed the game input.** This is now the blocking item, not the displacement. The guest
-   is sitting on a menu waiting for a pad, and an unattended run can never provide one, so
-   nothing past this screen is reachable by `--smoke` as it stands. A scripted input driver
-   that presses Start and Cross on a schedule is the difference between watching one screen
-   and walking the game forward, and it is a prerequisite for every later phase.
-2. Settle the owner of the 10-pixel displacement once something else is progressing: find
-   the guest TIM loader and see what it hands to the transfer. The section above records
-   where to look.
-3. Audio. Nothing has been proven to play at all.
-4. Recompile twice and confirm `generated/` is byte-identical, which is what decides whether
+1. **Why the screen is black after the stage load.** This is the blocker. The lead and the
+   three concrete checks are in the section above; start with the MDEC output read path.
+2. **Reach STAGE1 with a *correct* frame.** Getting there took scripted input, so the
+   milestone is one `--input` argument away from being reproducible; turning that into a
+   short, named script in the docs would make every later regression check trivial.
+3. Settle the owner of the 10-pixel displacement. Narrowed as far as static reading can take
+   it; see the section above for where to look.
+4. Audio. Nothing has been proven to play at all.
+5. Recompile twice and confirm `generated/` is byte-identical, which is what decides whether
    it may stay ignored.
