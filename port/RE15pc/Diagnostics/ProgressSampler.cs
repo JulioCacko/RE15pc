@@ -79,8 +79,16 @@ public sealed class ProgressSampler : IDisposable
     /// region is marked dirty continuously, the draws are landing there and producing black, which
     /// is a completely different defect.
     /// </summary>
-    private readonly Dictionary<int, (int Ticks, int GpuDirtyTicks, long LastGeneration, int GenerationChanges)>
-        _fbWrites = [];
+    private readonly Dictionary<int, (int Ticks, int GpuDirtyTicks, long LastGeneration, int GenerationChanges,
+        int MaxLit, int LastLit)> _fbWrites = [];
+
+    /// <summary>
+    /// VRAM contents and the draw destination from the same instant, so they can be correlated.
+    /// Taken together deliberately: a display region that stays black while the target origin is
+    /// elsewhere says something different from one that stays black with the target in place.
+    /// </summary>
+    private readonly List<(double Seconds, int OriginX, int OriginY, int ShadowLit, int BackendLit, string Gl)>
+        _combined = [];
 
     private readonly record struct Observation(double Seconds, string Hash);
 
@@ -158,6 +166,12 @@ public sealed class ProgressSampler : IDisposable
 
             // Reads real GL state, so it is on the same slow cadence as the backend read.
             GlStateSampler.Sample();
+
+            lock (_gate)
+            {
+                _combined.Add((_clock.Elapsed.TotalSeconds, dx, dy, shadowLit, backendLit,
+                    GlStateSampler.LastReading));
+            }
         }
 
         lock (_gate)
@@ -188,9 +202,29 @@ public sealed class ProgressSampler : IDisposable
             var dirty = VramTracker.IsGpuDirty(0, top, 320, 240);
             var generation = (long)VramTracker.Generation(0, top, 320, 240);
 
+            // Content as well as write activity, for BOTH buffers. Every earlier measurement counted
+            // only the DISPLAYED buffer, and the display origin is the opposite of the draw target -
+            // which is correct double buffering, but it means those counts have all been reading the
+            // front buffer, the one that is not being drawn into. A black front buffer over a correct
+            // back buffer is indistinguishable from a black frame if only the front is ever counted.
+            var lit = 0;
+            if (RecompOne.Runtime.Runtime.Gpu is { } gpu && gpu.Vram.Length >= Gpu.VramWidth * Gpu.VramHeight)
+            {
+                var vram = gpu.Vram;
+                for (var y = 0; y < 240; y++)
+                {
+                    var row = ((top + y) & (Gpu.VramHeight - 1)) * Gpu.VramWidth;
+                    for (var x = 0; x < 320; x++)
+                    {
+                        var px = vram[row + x];
+                        if (px != 0 && px != 0x8000) lit++;
+                    }
+                }
+            }
+
             lock (_gate)
             {
-                if (!_fbWrites.TryGetValue(top, out var s)) s = (0, 0, generation, 0);
+                if (!_fbWrites.TryGetValue(top, out var s)) s = (0, 0, generation, 0, 0, 0);
 
                 s.Ticks++;
                 if (dirty) s.GpuDirtyTicks++;
@@ -199,6 +233,9 @@ public sealed class ProgressSampler : IDisposable
                     s.GenerationChanges++;
                     s.LastGeneration = generation;
                 }
+
+                if (lit > s.MaxLit) s.MaxLit = lit;
+                s.LastLit = lit;
 
                 _fbWrites[top] = s;
             }
@@ -279,11 +316,23 @@ public sealed class ProgressSampler : IDisposable
             var glState = GlStateSampler.Describe();
             if (glState.Length > 0) sb.AppendLine(glState);
 
+            if (_combined.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  VRAM display contents and draw destination, from the same instant:");
+
+                var rows = _combined.Count <= 10 ? _combined : _combined.TakeLast(10).ToList();
+
+                foreach (var (sec, ox, oy, shadowLit, backendLit, gl) in rows)
+                    sb.AppendLine($"    {sec,6:0.0}s origin {ox,4},{oy,-4} shadow {shadowLit,6} backend {backendLit,6}  {gl}");
+            }
+
             foreach (var top in _fbWrites.Keys.OrderBy(k => k))
             {
                 var s = _fbWrites[top];
-                sb.AppendLine($"framebuffer (0,{top,-3}) writes   : gpu-dirty on {s.GpuDirtyTicks}/{s.Ticks} samples, " +
-                              $"generation changed {s.GenerationChanges} times");
+                sb.AppendLine($"framebuffer (0,{top,-3})          : gpu-dirty {s.GpuDirtyTicks}/{s.Ticks}, " +
+                              $"generation changed {s.GenerationChanges}x, " +
+                              $"non-black now {s.LastLit}, peak {s.MaxLit}");
             }
 
             if (_vramTimeline.Count > 0)

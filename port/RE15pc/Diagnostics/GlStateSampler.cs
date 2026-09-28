@@ -34,6 +34,13 @@ public static class GlStateSampler
     /// <summary>Samples taken, and how many produced a reading.</summary>
     private static int _attempts, _readings;
 
+    /// <summary>
+    /// The most recent reading, so that a caller taking a VRAM reading at the same moment can record
+    /// the two together. Correlating "what the display region holds" against "where the last draw
+    /// went" requires both from the same instant; on separate cadences they cannot be compared.
+    /// </summary>
+    public static string LastReading { get; private set; } = "";
+
     public static void Attach() => _attached = true;
 
     public static void Sample()
@@ -72,6 +79,7 @@ public static class GlStateSampler
         if (!done.Wait(TimeSpan.FromSeconds(2)) || description is null) return;
 
         _readings++;
+        LastReading = description;
 
         lock (Gate)
         {

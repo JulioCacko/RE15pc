@@ -665,6 +665,71 @@ subtract-blended ones does not; suppressing 226 flat blend-0 ones does not. Only
 does. **No sub-class can work, because no sub-class is the cause.** The cause is something that
 happens when flat primitives are drawn at all, and it is carried forward in the backend's state.
 
+#### The defect is an erasure, not a failure to draw
+
+Every measurement so far counted only the **displayed** buffer's contents at the end of the run. That
+was wrong twice over, and fixing it changes what the problem is.
+
+Wrong because the display origin and the draw target are **opposite** in every sample - which is
+correct double buffering, but it means those counts were always reading the front buffer, the one not
+being drawn into. A black front buffer over a correct back buffer is indistinguishable from a black
+frame if only the front is ever counted.
+
+And wrong because a final value is not a peak:
+
+```
+DEFAULT (black)
+  framebuffer (0,0  ): gpu-dirty 37/39, non-black now 0,     peak 61135
+  framebuffer (0,240): gpu-dirty 37/39, non-black now 0,     peak 61135
+
+--skip-draws flat
+  framebuffer (0,0  ): gpu-dirty 30/39, non-black now 67603, peak 67603
+  framebuffer (0,240): gpu-dirty 29/39, non-black now 67603, peak 67603
+```
+
+**In the default configuration both framebuffers reach 61,135 non-black pixels - 79.6%, exactly the
+uploaded-background figure - and then fall to zero.** They are not failing to receive content. The
+content arrives, and is then **erased**. With flat drawing suppressed the same buffers end at 67,603
+and never lose it.
+
+So the question this document has been asking for many rounds - why the textured draws produce no
+pixels - was the wrong question. They do produce pixels; the frame is filled and then wiped.
+
+That also removes the last puzzle about the composition figures, because they now read as a sequence
+rather than as alternatives: uploads fill both buffers to 79.6%, and either the textured detail is
+added on top for 88% or the buffers are wiped back to zero.
+
+#### What it means for the search
+
+An erasure has a different candidate set from a failure to draw, and a smaller one. Something that
+writes whole buffers rather than pixels:
+
+- **`GlCore.FillRect`** writes `_vram` directly through `_vram.Fill(...)` and additionally takes a
+  `FillRtFull` path for render targets the rectangle covers. A fill of the framebuffer region would
+  wipe it in one operation. Note this is reached from the GP0 0x02 fill, which `--skip-draws` does not
+  intercept, so if a fill were responsible then suppressing flat drawing should not help - which means
+  either the erasure is not a fill, or something else about the flat primitives gates it.
+- **A render target being destroyed and recreated.** `GetOrCreateRt` evicts the oldest target, writes
+  it back if dirty, and destroys it; a replacement is then seeded from `_vram`. If a target covering a
+  framebuffer is destroyed while clean and recreated empty, `SyncRtFromVram` should refill it - and if
+  that seeding is skipped or covers the wrong rectangle, its next writeback would lay emptiness over
+  the buffer.
+- **A stale target's writeback.** `Writeback` blits the whole target surface. A target that is clean
+  but whose contents are empty would, on its next flush, overwrite whatever the buffer holds.
+
+Since no flat primitive is drawn after the room, the erasure must be triggered by state left behind
+earlier - so the question is now specifically which of these three writes whole buffers, and what the
+flat primitives leave set that causes it.
+
+#### Next probe
+
+Sample the two buffers' contents on the fast cadence rather than only at the end, so the erasure can
+be placed in time - whether it happens once or every frame, and whether it coincides with the stage
+transition. That distinguishes a one-off wipe from a per-frame one, which separates the three
+candidates above: a per-frame erasure points at a fill or a stale writeback, a one-off points at a
+target being destroyed and recreated.
+
+
 #### Where that leaves the search
 
 Since the state survives 121,657 textured draws, it is set once and never reset, which is a much
