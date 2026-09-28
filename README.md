@@ -5,9 +5,26 @@ abandoned Resident Evil 2 build commonly known as *Resident Evil 1.5* — produc
 by statically recompiling the original PlayStation executable rather than
 emulating it.
 
-> **Status: early.** The repository is being bootstrapped. See
-> [docs/phases.md](docs/phases.md) for the current gate and what is proven
-> working.
+> **Status: it boots, runs and dispatches, but does not yet draw the game.**
+>
+> Working: the disc is identified and validated; the recompiled executable runs real
+> game code at 30 fps with zero unmapped calls; scripted controller input drives it
+> through the title and character select into **STAGE1**; **all seven overlays
+> dispatch correctly**; the **audio path is measured to produce output**; and the
+> title screen's image is proven resident in video memory at a **100.00% word-exact**
+> match.
+>
+> Blocked: the composed frame comes out black. Every component between a guest GP0
+> command and the framebuffer has been measured and cleared - geometry, texture
+> addressing, sampled data, the blend chain, the modulation colour, the drawing
+> offset, draw order, the render target lifecycle and the interpolation recorder -
+> and the room's drawn output still never reaches video memory. The room renders
+> correctly at 88% non-black with `--skip-draws flat`, which is a diagnostic and not
+> a workaround.
+>
+> See [docs/phases.md](docs/phases.md) for the phase gates and
+> [docs/boot-status.md](docs/boot-status.md) for the evidence, including the
+> mechanisms that were proposed and then withdrawn after measurement.
 
 ---
 
@@ -55,6 +72,35 @@ Then run the port:
 ```powershell
 dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue
 ```
+
+## Verifying a build
+
+Every claim above is reproducible, and each of these runs the check rather than
+asserting the result.
+
+```powershell
+# the recompiler is a pure function of the disc and the config: recompiles and
+# compares, failing if any output byte differs
+pwsh -File tools/Test-RecompileDeterminism.ps1
+
+# all seven overlays dispatch, without needing gameplay to reach them
+# (prints 8 of 8, 0 failed; writes out/diagnostics/overlay-dispatch.txt)
+dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-overlays
+
+# the SPU produces sound: mixes a block while voices carry volume and peaks near 26%
+# (writes out/diagnostics/audio.txt)
+dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-audio
+
+# the disc is the one this port expects, checked by hash and by file layout
+pwsh -File tools/New-DiscManifest.ps1 -Check
+```
+
+Two further options exist for investigating the rendering blocker, and are described
+in [docs/boot-status.md](docs/boot-status.md): `--skip-draws <class>` suppresses a
+class of primitive (`all`, `textured`, `flat`, plus colour and blend variants), and
+`--software-gpu` disables the GPU HLE. **Neither is a workaround.** `--skip-draws
+flat` renders the room at 88%, but it also removes the title and select screens'
+flat drawing, so it is an instrument and not something to play the game with.
 
 ## Layout
 
