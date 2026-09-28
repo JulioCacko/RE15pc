@@ -1,0 +1,67 @@
+#!/bin/sh
+#
+# RE15pc - validates the commit messages being pushed.
+#
+# Why this exists alongside .githooks/commit-msg and .github/workflows/commits.yml:
+#
+#   commit-msg  catches a bad message as it is written, but only when the hook is
+#               installed, and it is bypassed by `git commit --no-verify`.
+#   CI          is the check that cannot be bypassed, but it needs a working
+#               Actions runner, which this account does not currently have.
+#   pre-push    catches everything that reaches a push from this machine, including
+#               commits that bypassed the hook, commits brought in by rebase,
+#               cherry-pick or merge, and commits authored elsewhere.
+#
+# What none of them can catch is a commit made through the GitHub web editor,
+# because that is created on the server and this clone only ever sees it by
+# fetching. That gap closes when CI works again.
+#
+# Bypass with:  git push --no-verify
+
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+checker="$repo_root/ci/check-commits.sh"
+
+[ -f "$checker" ] || exit 0
+
+fail=0
+
+# git feeds one line per ref being pushed: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    # git feeds LF-terminated lines, but strip any stray CR anyway. Without this a
+    # CRLF-terminated ref line produces an unparseable sha, 'git rev-list' fails,
+    # the fallback swallows the failure and the hook passes everything silently -
+    # which is the worst possible outcome for a validator.
+    local_sha=$(printf '%s' "$local_sha" | tr -d '\r')
+    remote_sha=$(printf '%s' "$remote_sha" | tr -d '\r')
+
+    # A deletion pushes the null sha and has no message to check.
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New remote branch: everything reachable here but not from any remote
+        # tracking ref. Passing just the tip would check one commit out of many.
+        commits=$(git rev-list "$local_sha" --not --remotes)
+    else
+        commits=$(git rev-list "$remote_sha..$local_sha")
+    fi
+
+    if [ -z "$commits" ]; then
+        continue
+    fi
+
+    echo "[pre-push] checking $(printf '%s\n' "$commits" | wc -l | tr -d ' ') commit(s) to $_remote_ref"
+
+    for sha in $commits; do
+        # "<sha>^!" is exactly that one commit, and works for merges too.
+        if ! sh "$checker" "$sha^!" >/dev/null 2>&1; then
+            sh "$checker" "$sha^!" || true
+            fail=1
+        fi
+    done
+done
+
+exit $fail
