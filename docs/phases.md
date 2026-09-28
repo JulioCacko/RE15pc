@@ -87,7 +87,15 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 - [ ] Title image is displaced 10 pixels horizontally, because the 20-byte TIM header is uploaded
       along with the pixels. Root cause not yet attributed.
 - [ ] Animation not yet observed across frames, only individual frames compared.
-- [ ] Audio not proven to play at all.
+- [ ] **Audio is silent, and now measured rather than merely unproven.** `--verify-audio` renders a
+      block from the SPU at the end of a run and measures it. The SPU is enabled, unmuted, at half
+      main volume with CD volume at maximum, and 7 of 24 voices are keyed on - in correct Attack,
+      Sustain and Release phases, with ADSR at up to 32767, non-zero pitch and start addresses, and
+      sample playback advancing. Every one of those voices nevertheless has `VolL/VolR` of zero, and
+      a rendered block is exactly zero: peak 0 of 32767 over 1024 frames. CD audio is idle throughout
+      (`cdAudio=False`, XA `playing=False`, `buffered=0`). The register write path was checked and is
+      correct - `Voice` is a sealed class, so the per-voice mutations in `WriteReg` persist and no
+      writeback is required - so this is not a lost write.
 
 ## Phase 5 — Overlay dispatch and determinism — DONE
 

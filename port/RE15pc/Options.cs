@@ -62,6 +62,12 @@ public sealed class Options
     /// </summary>
     public bool VerifyOverlays { get; private init; }
 
+    /// <summary>
+    /// Render a block from the SPU at the end of the run and measure it, so that "audio plays" is
+    /// evidence rather than an untested assumption.
+    /// </summary>
+    public bool VerifyAudio { get; private init; }
+
     public bool Help { get; private init; }
 
     public static bool TryParse(string[] args, out Options options, out string error)
@@ -78,6 +84,7 @@ public sealed class Options
         var skipDraws = "";
         var neutralModulation = false;
         var verifyOverlays = false;
+        var verifyAudio = false;
         var help = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -160,6 +167,10 @@ public sealed class Options
                     verifyOverlays = true;
                     break;
 
+                case "--verify-audio":
+                    verifyAudio = true;
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -186,6 +197,7 @@ public sealed class Options
             SkipDraws = skipDraws,
             NeutralModulation = neutralModulation,
             VerifyOverlays = verifyOverlays,
+            VerifyAudio = verifyAudio,
             Help = help
         };
         error = "";

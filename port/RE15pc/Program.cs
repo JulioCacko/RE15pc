@@ -215,6 +215,16 @@ public static class Program
             Console.WriteLine($"wrote {checkPath}");
         }
 
+        if (options.VerifyAudio)
+        {
+            var audioCheck = AudioVerification.Verify();
+            Console.WriteLine();
+            Console.WriteLine(audioCheck);
+
+            Directory.CreateDirectory(options.OutDir);
+            File.WriteAllText(Path.Combine(options.OutDir, "audio.txt"), audioCheck + Environment.NewLine);
+        }
+
         Console.WriteLine("===================================================");
 
         // Last line, greppable, and authoritative in a way the exit code is not.
