@@ -443,7 +443,7 @@ public sealed class ProgressSampler : IDisposable
                                   $"peak {_gpuBufferPeak[b]} over {_gpuSamples} sample(s)");
 
             sb.AppendLine($"render target surface     : non-black now {_targetNow}, peak {_targetPeak}");
-            sb.AppendLine($"render target written     : alpha set now {_targetWritten}, peak {_targetWrittenPeak}" +
+            sb.AppendLine($"render target alpha-set  : {_targetWritten} now, {_targetWrittenPeak} peak (semi-transparent texels only - NOT a drawn count)" +
                           $"{(_targetNote.Length > 0 ? $"   ({_targetNote})" : "")}");
 
             if (_vramTimeline.Count > 0)

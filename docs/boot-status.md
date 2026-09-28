@@ -1078,7 +1078,41 @@ and all of them were looking one stage too late in the pipeline. The question is
 `GlCore`'s batched draw rasterises nothing for these primitives, and why the presence of flat
 primitives changes that.
 
-#### The target is filled with black, not empty: rasterisation works
+#### Retracted: alpha does not count drawn pixels
+
+The previous revision reframed the target as "filled with black rather than empty", reasoning that the
+fragment shader writes alpha as `max(stp, uSetMask)` and therefore a drawn pixel has alpha set. That
+reasoning is wrong and the reframing is withdrawn.
+
+An **opaque** texel has `stp = 0`, so a fragment drawn from one gets `alpha = max(0, uSetMask) = 0`
+unless the mask is set. Alpha is therefore set only for fragments drawn from *semi-transparent* texels,
+or drawn with the mask bit. A room drawn entirely from opaque texels - which is what a pre-rendered
+background is - would have `alpha = 0` everywhere and would count as zero under this probe while being
+fully drawn.
+
+So the alpha count is not a measure of what was drawn, and the numbers cannot carry the conclusion that
+was placed on them:
+
+```
+                                   failing config      working config
+target pixels non-black, now       9,299               1,080,879
+target pixels alpha-set, now       953                 211,193
+target pixels alpha-set, peak      718,240             719,920
+```
+
+All they show is that the working configuration has semi-transparent fragments and the failing one has
+almost none - consistent with the room's semi-transparent elements being drawn in one case and not the
+other, and silent about its opaque ones.
+
+**The colour-based conclusion therefore stands unchanged**: in the failing configuration the target holds
+9,299 non-black pixels of 1,228,800, essentially nothing, against 1,080,879 in the working one. For
+opaque draws colour is the right measure and alpha is not, and a pre-rendered background is opaque.
+
+That is the fourth probe here to rest on a premise that did not survive checking, and the third to be
+withdrawn in the round after it was written. The pattern is consistent enough to name: an aggregate is
+measured, a meaning is assumed for it, and the assumption - not the measurement - is what turns out to
+be false. Alpha "counts drawn pixels" was such an assumption; so was "a peak describes the end state".
+
 
 The colour count said the render target was empty. It is not. The fragment shader writes alpha as
 `max(stp, uSetMask)`, so counting pixels whose alpha is set counts what was **drawn** regardless of
@@ -1108,14 +1142,24 @@ without disturbing the texpage, so the modulation is not it - which leaves the *
 
 #### Next probe
 
-Read the texel the shader actually samples, at the page base the vertex carries plus the tile's
-coordinate, and compare that region between the two configurations. This is not the same as asking the
-runtime where a page resolves to, which was checked earlier and resolved to non-black VRAM: what
-matters is the bytes actually in VRAM at that address when the draw happens.
+Read the bytes actually at the page base the shader samples, which is not the same question as where
+the runtime says a page resolves to. That was checked earlier and resolved to non-black VRAM, using
+`TextureTile.Describe` - the runtime's own model of the addressing:
 
-The alpha-set pixels give a cheap cross-check for the same question: a colour histogram restricted to
-pixels whose alpha is set says exactly what colours the drawn fragments are producing, without the
-undrawn black surface diluting it.
+```glsl
+pageBase  = ivec2((inTexpage & 0xf) * 64, ((inTexpage >> 4) & 1) * 256);
+clutBase  = ivec2((inClut & 0x3f) * 16, (inClut >> 6) & 0x1ff);
+```
+
+Both decode correctly on inspection, which is exactly why this needs measuring rather than reading. The
+earlier check validated a *model* of the addressing; a model can be right while the bytes at the address
+are not, and the distinction between those two is the same distinction that has caught this document
+out three times now.
+
+The measurement is cheap and does not need the shader: for a sample of textured primitives that land in
+a framebuffer, resolve `pageBase` from the texpage the vertex carries, read VRAM there in the backend
+store, and report whether that region holds anything. If it does, the sample is not the problem and the
+remaining place is the shader's arithmetic on it; if it does not, the addressing is what to chase.
 
 
 #### Where thirty rounds of measurement leave this
