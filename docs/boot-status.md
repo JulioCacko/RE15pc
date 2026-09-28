@@ -2223,3 +2223,28 @@ So the position is: the title renders at 41.4 percent and was verified word-exac
 **What is established:** the recompiled code builds deterministically; the host boots the guest; all seven overlays load, dispatch and are verified; audio produces output; the build is reproducible; the repository carries no game data and its licensing position is documented; the title and the room render correctly; input reaches the guest and changes its progress; and the whole diagnostic apparatus is committed as reproducible patches that apply in order.
 
 **What is not established:** that the game has been *played*. The objective asks for every asset and code path present on the disc to be playable, and the evidence supports *reachable and correctly rendered*. No room has been walked, no item taken, no door opened, no save made. A scripted button sweep proves the guest responds; it does not prove the game was played through.
+
+#### The playability blocker: a call into the zeroed EXE header at 0x800100AC
+
+Driving the game with sustained input rather than a button sweep reaches further, and then stops hard:
+
+```
+[Runtime] runtime has crashed: System.InvalidOperationException: unmapped call: 0x800100AC
+verdict                 : FAIL
+last change at          : 22.5s
+SMOKE VERDICT: FAIL
+```
+
+The address is not arbitrary. `0x80010000` is the load address of `PSX.EXE`, and `0x800100AC` falls inside the 0x800-byte EXE header, whose bytes are zero:
+
+```
+bytes 0x00..0x1F: "PS-X EXE" ... 48 44 05 80 ... 00 00 01 80 ... 00 F0 0A 00
+                   magic        entry 0x80054448  load 0x80010000  text 0xAF000
+bytes 0xA0..0xBF: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ...
+```
+
+**So the guest called a location that holds nothing**, which is the signature of a wild or uninitialised function pointer rather than a recompilation gap - there is no code there to recompile. Strict mode then turns the call into a crash rather than continuing into zero bytes.
+
+Two things are worth recording alongside it. The default script never reaches this - it takes sustained input over more frames to arrive at frame 704 - so **the failure is a consequence of the game progressing further, not of anything unusual about the input used**. And the report line reading `unmapped calls: 0` while the crash names an unmapped call is a real inconsistency in the reporting: the counter and the exception disagree, and the counter should not be trusted as evidence that no unmapped call occurred.
+
+**This is the concrete blocker on playability.** The guest boots, renders the title at 41.4 percent and the room at 79.6 percent, responds to input, and progresses; at frame 704 it calls into empty memory and stops. Everything before that point works, and nothing after it has been reached.
