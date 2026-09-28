@@ -4,12 +4,13 @@ A Windows PC preservation port of the **Biohazard 2 November 6, 1996 prototype**
 (commonly called Resident Evil 1.5), built by statically recompiling the disc's
 MIPS executable and seven overlays with [RecompOne](https://github.com/BlackLabelHQ/RecompOne).
 
-**Current status: acceptance harness repaired; gameplay and gold are unverified.**
-The native host boots, reaches character selection, and executes STAGE1.
-The STAGE1 rooftop background now renders after a synchronous GPU readback fix.
-A directional-input run triggers camera changes; collision and doors remain
-unverified. See [the repair evidence](docs/background-readback.md).
-Earlier pixel counts had confused character selection with a playable room.
+**Current status: the first playable-room gate passes; gold remains open.**
+The native host boots, renders the rooftop, turns and moves Leon, respects the
+railing collision, and deliberately exits from room 117 into room 116.
+The destination room data and player spawn are checked against the actual disc.
+See [first-room acceptance](docs/first-room.md), the
+[background repair](docs/background-readback.md), and
+[native input evidence and limits](docs/keyboard-input.md).
 
 ## Build
 
@@ -33,6 +34,7 @@ discard recovered computed-jump targets.
 ```powershell
 dotnet build tests/RE15pc.Checks/RE15pc.Checks.csproj -c Release
 pwsh -File tools/Test-Acceptance.ps1
+pwsh -File tools/Test-FirstRoom.ps1
 pwsh -File tools/Test-RecompileDeterminism.ps1
 pwsh -File tools/New-DiscManifest.ps1 -Check
 ```
@@ -72,8 +74,9 @@ reproducible build, and passing release checks. Unknown behavior blocks the
 relevant gate. Emulator setup is not required.
 
 Synthetic dispatch success, nonzero audio, pixel counts, and a clean smoke run
-do not establish playability. Full movement acceptance, collision, doors, interactions, combat,
-inventory, save/load, full content coverage, and the stability gate remain open.
+do not establish playability. Movement, collision and one intentional exit are verified in the first-room
+gate. Full-room/scenario coverage, remaining interactions and combat, inventory,
+save/load, full native-input certification and the stability gate remain open.
 GitHub Actions is currently blocked from starting by account billing/spending
 limits; local passes do not establish a remote check pass.
 

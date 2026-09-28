@@ -19,7 +19,7 @@ failure aggregation, log rollover, input boundaries, stale overlay eviction,
 resident functions, and restoration of the active maps.
 
 Latest local gate: `out/gates/harness-v2`, PASS. The focused suite had 33 passing checks at that checkpoint; the GPU readback
-regression raises the current total to 40, with the native gate passing again
+regression raised the total to 40; keyboard/host-error checks bring it to 47, with the native gate passing again
 at `out/gates/readback-fixed`.
 Both positive native cases stopped at exactly 180 frames with exit 0.
 The audio-negative case stopped at frame 1 with exit 1; the timeout case
@@ -73,8 +73,11 @@ Computer Use inspection of the native 2100-frame scripted run showed the
 “PLEASE SELECT MAIN CAST” screen with Leon and Elza. Previous pixel counts
 described as a playable room do not identify a controllable gameplay state.
 The STAGE1 background has since been repaired and verified in the native
-window; see [background-readback.md](background-readback.md). No complete
-movement/collision/door, inventory, combat or save/load gate is established.
+window; see [background-readback.md](background-readback.md). The movement/collision/door gate now passes; see [first-room.md](first-room.md).
+Inventory, combat, full content coverage and save/load remain unverified.
 
 GitHub Actions currently cannot start because of the account billing/spending
 limit. Local checks do not substitute for a passing required remote release check.
+
+Caught host event failures are now also authoritative in the runtime check;
+see [keyboard-input.md](keyboard-input.md) for the positive and negative controls.

@@ -1,0 +1,144 @@
+diff --git a/RecompOne.Runtime/Host/InputManager.cs b/RecompOne.Runtime/Host/InputManager.cs
+index e191dad..6429417 100644
+--- a/RecompOne.Runtime/Host/InputManager.cs
++++ b/RecompOne.Runtime/Host/InputManager.cs
+@@ -15,6 +15,9 @@ namespace RecompOne.Runtime.Host;
+ internal static unsafe class InputManager
+ {
+     private static IKeyboard? _keyboard;
++    private static readonly KeyPulseLatch KeyPulses = new();
++    private static long _guestFrame;
++    private static bool _frameListenerAttached;
+     private static IMouse? _mouse;
+     private static Sdl? _sdl;
+     private static GameController* _pad0;
+@@ -52,6 +55,13 @@ internal static unsafe class InputManager
+ 
+     public static void Initialize(IInputContext input)
+     {
++        KeyPulses.Clear();
++        if (!_frameListenerAttached)
++        {
++            _frameListenerAttached = true;
++            EventBus.AddListener<RecompOne.Runtime.Events.VSyncEvent>(
++                e => Volatile.Write(ref _guestFrame, e.Frame));
++        }
+         if (input.Keyboards.Count > 0)
+         {
+             _keyboard = input.Keyboards[0];
+@@ -313,7 +323,8 @@ internal static unsafe class InputManager
+ 
+         void B(string keyName, ushort bit)
+         {
+-            if (Enum.TryParse<Key>(keyName, out var k) && kb.IsKeyPressed(k))
++            if (Enum.TryParse<Key>(keyName, out var k) &&
++                (kb.IsKeyPressed(k) || KeyPulses.IsPressed((int)k, Volatile.Read(ref _guestFrame))))
+                 s &= (ushort)~bit;
+         }
+ 
+@@ -443,6 +454,7 @@ internal static unsafe class InputManager
+ 
+     private static void OnKeyDown(IKeyboard kb, Key key, int _)
+     {
++        KeyPulses.Press((int)key, Volatile.Read(ref _guestFrame));
+         if (key == Key.F1) _topBarToggle = true;
+         if (key == Key.F11) _fullscreenToggle = true;
+ 
+@@ -523,4 +535,4 @@ internal static unsafe class InputManager
+             _ => EvMouseButton.None
+         };
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/Host/KeyPulseLatch.cs b/RecompOne.Runtime/Host/KeyPulseLatch.cs
+new file mode 100644
+index 0000000..e79d685
+--- /dev/null
++++ b/RecompOne.Runtime/Host/KeyPulseLatch.cs
+@@ -0,0 +1,12 @@
++namespace RecompOne.Runtime.Host;
++
++/// <summary>Retains a host key-down across a complete guest frame, even if key-up
++/// arrives in the same event pump. Used only by the keyboard/GL thread.</summary>
++public sealed class KeyPulseLatch
++{
++    private readonly Dictionary<int, long> _until = [];
++    public void Press(int key, long completedFrame) => _until[key] = completedFrame + 2;
++    public bool IsPressed(int key, long completedFrame)
++        => _until.TryGetValue(key, out var until) && completedFrame < until;
++    public void Clear() => _until.Clear();
++}
+diff --git a/RecompOne.Runtime/Host/Window/HostWindow.cs b/RecompOne.Runtime/Host/Window/HostWindow.cs
+index 10f691a..672ec6c 100644
+--- a/RecompOne.Runtime/Host/Window/HostWindow.cs
++++ b/RecompOne.Runtime/Host/Window/HostWindow.cs
+@@ -285,7 +285,7 @@ public static class HostWindow
+         }
+         catch (Exception e)
+         {
+-            Console.WriteLine(e.Message);
++            Runtime.ReportHostFailure(e);
+         }
+ 
+         if (_window.IsClosing)
+@@ -324,7 +324,7 @@ public static class HostWindow
+         }
+         catch (Exception e)
+         {
+-            Console.WriteLine(e.Message);
++            Runtime.ReportHostFailure(e);
+         }
+         
+         if (_window.IsClosing)
+@@ -358,8 +358,9 @@ public static class HostWindow
+         {
+             _window.DoRender();
+         }
+-        catch (NotImplementedException) //doesnt fucking work
++        catch (Exception e)
+         {
++            Runtime.ReportHostFailure(e);
+         }
+         
+         if (counts) FrameClock.MarkPresent();
+@@ -372,8 +373,9 @@ public static class HostWindow
+         {
+             _window.DoEvents();
+         }
+-        catch
++        catch (Exception e)
+         {
++            Runtime.ReportHostFailure(e);
+         }
+ 
+         if (_window.IsClosing)
+@@ -453,8 +455,9 @@ public static class HostWindow
+             {
+                 _window!.DoEvents();
+             }
+-            catch
++            catch (Exception e)
+             {
++                Runtime.ReportHostFailure(e);
+             }
+ 
+             if (_window!.IsClosing)
+diff --git a/RecompOne.Runtime/Runtime.cs b/RecompOne.Runtime/Runtime.cs
+index d3e1a52..c673ac9 100644
+--- a/RecompOne.Runtime/Runtime.cs
++++ b/RecompOne.Runtime/Runtime.cs
+@@ -203,6 +203,13 @@ public static class Runtime
+     public delegate void AudioOutputObserver(ReadOnlySpan<short> samples);
+     public static AudioOutputObserver? AudioOutputObserved;
+     public static Exception? GameFailure { get; private set; }
++    private static Exception? _hostFailure;
++    public static Exception? HostFailure => Volatile.Read(ref _hostFailure);
++    public static void ReportHostFailure(Exception error)
++    {
++        if (Interlocked.CompareExchange(ref _hostFailure, error, null) is null)
++            Console.Error.WriteLine($"[Host] event processing failed: {error}");
++    }
+     public static bool GameStopped => _gameDone;
+     public static void RequestStop() => _stopRequested = true;
+     public static void CheckStop()

@@ -71,6 +71,20 @@ var overlays = OverlayVerification.Verify();
 Check(overlays.Passed, overlays.Detail);
 Check(Dispatcher.ActiveNames.SequenceEqual(new[] { "main", "stage1" }), "synthetic verification restores active maps");
 GpuReadbackChecks.Run(Check);
+var keys = new RecompOne.Runtime.Host.KeyPulseLatch();
+Check(!keys.IsPressed(257, 10), "keyboard pulse initially released");
+keys.Press(257, 10);
+Check(keys.IsPressed(257, 10) && keys.IsPressed(257, 11), "short tap survives the next guest frame");
+Check(!keys.IsPressed(257, 12), "short tap expires without sticking");
+keys.Press(257, 11);
+Check(keys.IsPressed(257, 12) && !keys.IsPressed(257, 13), "new press refreshes the pulse");
+Check(!keys.IsPressed(90, 11), "unrelated key is not pressed");
+keys.Clear();
+Check(!keys.IsPressed(257, 11), "keyboard reset releases pulses");
+var hostError = new InvalidOperationException("expected host failure regression");
+RecompOne.Runtime.Runtime.ReportHostFailure(hostError);
+RecompOne.Runtime.Runtime.ReportHostFailure(new Exception("later error"));
+Check(ReferenceEquals(RecompOne.Runtime.Runtime.HostFailure, hostError), "first host event error remains authoritative");
 Console.WriteLine($"ALL {count} CHECKS PASSED");
 
 sealed class FakeOverlay(string name, int index) : IOverlay

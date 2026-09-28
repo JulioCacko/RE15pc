@@ -23,6 +23,9 @@ public static class ScriptedInput
         _trace = trace;
         Event.AddListener<VSyncEvent>(e => _frame = e.Frame);
         Event.AddListener<PadReadEvent>(OnPadRead);
+        if (trace)
+            Event.AddListener<KeyboardEvent>(e => Console.WriteLine(
+                $"[keyboard] completedFrame={Interlocked.Read(ref _frame)} key={e.Key} pressed={e.Pressed}"));
     }
     private static void OnPadRead(PadReadEvent e)
     {

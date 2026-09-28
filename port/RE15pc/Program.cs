@@ -79,7 +79,16 @@ public static class Program
             Interlocked.Exchange(ref _frame, frame);
             if (frame % sampleEvery == 0 || frame == options.Frames)
                 states.Add(new { frame, overlays = Dispatcher.ActiveNames,
-                    ramSha256 = Convert.ToHexString(SHA256.HashData(memory.Ram)) });
+                    ramSha256 = Convert.ToHexString(SHA256.HashData(memory.Ram)),
+                    // This disc's player structure is passed as 0x800ACA54 by its
+                    // input/interaction handlers; XYZ are +0x34/+0x38/+0x3c and yaw +0x6a.
+                    player = new { x = unchecked((int)memory.ReadU32(0x800ACA88)),
+                        y = unchecked((int)memory.ReadU32(0x800ACA8C)),
+                        z = unchecked((int)memory.ReadU32(0x800ACA90)),
+                        yaw = memory.ReadU16(0x800ACABE) & 0xfff },
+                    camera = memory.ReadU16(0x800B0FE4),
+                    roomIndex = memory.ReadU8(0x800B0FE2),
+                    rdt = $"0x{memory.ReadU32(0x800AC778):X8}" });
             if (frame == options.Frames) Runtime.RequestStop();
         };
         using var emergency = new Timer(_ =>
@@ -115,8 +124,8 @@ public static class Program
         checks.Add(Acceptance.Completion(options.Frames, _frame, _timedOut != 0, Runtime.GameStopped));
         if (options.SmokeSeconds is not null)
             checks.Add(new("smoke-duration", _deadlineReached != 0, "smoke must reach its requested duration"));
-        checks.Add(new("runtime", hostFailure is null && Runtime.GameFailure is null,
-            (hostFailure ?? Runtime.GameFailure)?.ToString() ?? "guest returned without exception"));
+        checks.Add(new("runtime", hostFailure is null && Runtime.GameFailure is null && Runtime.HostFailure is null,
+            (hostFailure ?? Runtime.GameFailure ?? Runtime.HostFailure)?.ToString() ?? "guest returned without exception"));
         checks.Add(new("preservation", !options.Tolerant && options.SkipDraws.Length == 0 &&
             !options.NeutralModulation && !options.SoftwareGpu, "acceptance requires strict, unmodified rendering"));
         if (Runtime.GameStopped)
