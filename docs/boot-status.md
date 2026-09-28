@@ -14,12 +14,12 @@ STAGE1**. Guest code executes, receives interrupts, decodes images through MDEC,
 `title` overlay and is driven by scripted controller input past the title and character
 select until the `stage1` overlay loads. There are **zero unmapped calls**.
 
-The immediate blocker is that the composed frame comes out **black**. The room background is
-provably present in video memory at (320,256) as a 320x240 pre-rendered image, the display is
-at (0,0) or (0,240), and about 263 textured background tiles per frame are drawn into the
-framebuffer at the right screen positions and produce almost nothing. Textured rendering has
-never once been observed working in this port, so there is no baseline to compare against.
-The evidence, what has been ruled out, and the ranked candidates are below.
+The immediate blocker is identified at root cause: the composed frame comes out **black**
+because the HLE draw path cannot receive the PlayStation's drawing offset and therefore clips
+every primitive away. The room background is provably present in video memory at (320,256)
+as a 320x240 pre-rendered image, the display is at (0,0) or (0,240), and about 263 textured
+background tiles per frame are drawn into the framebuffer at the right screen positions and
+produce almost nothing. The mechanism, the evidence and the shape of the fix are below.
 
 One rendering defect is also identified and quantified: before the stage load, the title
 image was uploaded to VRAM **including its 20-byte TIM header**, displacing the picture
@@ -156,21 +156,69 @@ compare against.
   event field, not evidence about sampling.
 - **Wrong VRAM read path.** Corrected above; the dump is now GL-authoritative.
 
-#### Candidates for the next session
+#### Root cause
 
-1. **Draw-area clipping in the HLE path.** The drawing areas seen are `0..319 x 0..239` and
-   `0..319 x 240..479`, which match the framebuffers, so a clip test that is inverted or
-   one-sided would discard every tile while leaving the framebuffer cleared.
-2. **Texture and CLUT resolution at sample time.** The background is at texpage X = 5, which
-   is unusual - most games keep textures in the low pages, so a bug that only shows up for a
-   high page number would not have been caught by other games using this runtime.
-3. **Draw offset.** `Gpu.DrawOffsetX/Y` applied twice, or not at all, would put output outside
-   the framebuffer without changing the primitive count.
+**The HLE draw path cannot receive the PlayStation's drawing offset, so it clips every
+primitive away.**
 
-A cheap decisive experiment for whichever is tried first: `RenderPrimEvent.Skip` is honoured
-by `GpuRaster` before the vertices are consumed, so a listener can suppress primitives
-selectively and confirm which ones should have produced pixels. Combined with the GL VRAM
-read now in place, that gives a yes/no answer per hypothesis without guessing.
+Sampling the draw offset across the run:
+
+```
+draw offsets seen       : 0,0 | 0,240
+drawing area(s) seen    : 0..1023 x 0..1023 | 0..319 x 0..239 | 0..319 x 240..479
+```
+
+The game double-buffers by moving the drawing area, exactly as expected: one buffer is
+`(0,0)..(319,239)` with draw offset `(0,0)`, the other is `(0,240)..(319,479)` with draw
+offset `(0,240)`. On real hardware a vertex at screen `(0,0)` is rasterised at
+`vertex + drawOffset`, so with offset `(0,240)` it lands at VRAM `(0,240)` - inside the clip
+area.
+
+The HLE draw path forwards the clip rectangle but not the offset. `HleDrawEnv` is:
+
+```csharp
+public struct HleDrawEnv
+{
+    public int ClipX0, ClipY0, ClipX1, ClipY1;
+    public int TwMaskX, TwMaskY, TwOffX, TwOffY;
+    public bool SetMask, CheckMask, Dither;
+}
+```
+
+There is no offset field, and neither `HleVertex` nor `HleRect` carries one either, so there
+is nowhere for `Gpu.DrawOffsetX`/`DrawOffsetY` to go. `GpuHleForward.CurEnv()` builds the
+draw environment from `_drawAreaLeft/Right/Top/Bottom` and the texture-window, mask and
+dither state - and stops there.
+
+The consequence is deterministic. For the second buffer the backend is handed
+`ClipY0 = 240, ClipY1 = 479` and vertices at screen y `0..239`. Every tile lies entirely
+outside the clip rectangle, so every tile is discarded and the framebuffer keeps whatever it
+was cleared to. **That is the black screen.**
+
+It also explains why the title screen worked: its background is an uploaded image being
+displayed directly, which needs no rasteriser at all. Textured rendering is first exercised
+at the stage load, and this defect is only reachable once a game uses a nonzero draw offset,
+which is why it had not been seen before.
+
+#### The fix, and why it is a patch
+
+The offset has to be forwarded and applied inside the backend, so this cannot be worked
+around from the host. That makes it the first genuine need for an entry in `patches/`,
+against the pinned upstream revision, exactly as `docs/compatibility.md` anticipated. Per the
+upstream README's stance on contributions, it stays a local patch rather than a pull request.
+
+The shape of the change:
+
+1. Add `OffsetX`/`OffsetY` to `HleDrawEnv`.
+2. Populate them in `GpuHleForward.CurEnv()` from `_drawOffsetX`/`_drawOffsetY`.
+3. Apply them where each backend rasterises - the same place `ClipX0..ClipY1` is consumed -
+   so that a vertex at screen `(0,0)` lands at `offset + (0,0)` in VRAM space, matching the
+   clip rectangle's coordinate space.
+
+Verification is already in place, which is what makes this safe to attempt: run
+`--smoke 45 --input <script>`, and the framebuffer crop should stop being 0.8% non-black and
+start showing the room background that is provably sitting at VRAM `(320,256)`. The title
+screen is the control - it needs no rasteriser, so if it regresses the patch is wrong.
 
 ---
 
@@ -384,10 +432,8 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Get one textured polygon to render.** This is the blocker and everything else waits on it.
-   The candidates and a cheap decisive experiment are at the end of the section above. The
-   title screen is a useful control: it needs no rasteriser at all, so a regression there is
-   immediately visible.
+1. **Apply the draw-offset patch** described above, then confirm the framebuffer stops being
+   0.8% non-black. This is the blocker; everything else waits on it.
 2. **Turn reaching STAGE1 into a one-line regression check.** It currently needs a hand-written
    `--input` script; naming a standard script for it would make every later phase cheap to
    re-verify.

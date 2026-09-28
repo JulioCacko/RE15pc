@@ -40,6 +40,13 @@ public sealed class ProgressSampler : IDisposable
     /// </summary>
     private readonly HashSet<string> _displayGeometries = [];
 
+    /// <summary>
+    /// Distinct draw offsets seen. The PS1 drawing offset is where a primitive at screen
+    /// (0,0) actually lands in VRAM, and it is the field the HLE draw path has no way to
+    /// receive, so sampling it over time is how that gets confirmed rather than assumed.
+    /// </summary>
+    private readonly HashSet<string> _drawOffsets = [];
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -72,6 +79,8 @@ public sealed class ProgressSampler : IDisposable
                     _displayGeometries.Add(
                         $"{gpu.DisplayX},{gpu.DisplayY} {gpu.DisplayWidth}x{gpu.DisplayHeight}" +
                         (gpu.DisplayEnabled ? "" : " (disabled)"));
+
+                    _drawOffsets.Add($"{gpu.DrawOffsetX},{gpu.DrawOffsetY}");
                 }
         }
         catch
@@ -131,6 +140,7 @@ public sealed class ProgressSampler : IDisposable
             sb.AppendLine($"seconds since change    : {SecondsSinceLastChange:0.0}");
             sb.AppendLine($"verdict                 : {(Stalled ? "STALLED - guest stopped writing memory" : "PROGRESSING")}");
             sb.AppendLine($"display geometries seen : {(_displayGeometries.Count == 0 ? "(none sampled)" : string.Join(" | ", _displayGeometries.OrderBy(d => d)))}");
+            sb.AppendLine($"draw offsets seen       : {(_drawOffsets.Count == 0 ? "(none sampled)" : string.Join(" | ", _drawOffsets.OrderBy(d => d)))}");
 
             if (_samples.Count > 0)
             {
