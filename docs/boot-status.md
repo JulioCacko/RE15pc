@@ -2487,3 +2487,21 @@ SMOKE VERDICT: PASS
 So the port executes this build's opening sequence correctly and stops responding to input after it. That is what Phase 6's gate says, and this is the shape of it: **the room renders, and nothing in it moves.**
 
 Whether the sequence continues past frame 1204 into gameplay that the input never reaches, or whether the later state is waiting for something the input never presses, is not distinguished here and is the thing to determine next. The route documented in the README - logging the pad states the guest receives through PadReadEvent and correlating them with the state changes it makes - is the way to tell those apart without guessing, and it is where the remaining time is best spent by whoever continues this.
+
+#### Corrected: directions do change the game, and the earlier negative was too short to see it
+
+An earlier round concluded that holding a direction "changes nothing measurable" - 87 framebuffer generations with directions against 86 without. **That conclusion is withdrawn.** It rested on a forty-five second run, and the states a direction affects appear later than that. Four hundred and twenty seconds, compared properly:
+
+```
+input                changes   display                    guest frames
+cross only                 7   636 (0,8%) 122 colours      12524
+cross + directions        14   6709 (8,7%) 514 colours     12536
+```
+
+**The frame counts differ by 0.1 percent, so this comparison is exact.** With directions held the game reaches a state of 6,709 pixels and 514 distinct colours; without them it freezes at 636 pixels of 122 colours from frame 598 onward and never changes again for the remaining twelve thousand frames. **The pad changes the game's trajectory.**
+
+That also reframes the sequence. The cross-only run wipes at frame 598 and holds black for four hundred seconds while still running; the run with directions wipes at 898 and then reveals a state that grows to 6,295 by frame 1538. So the pad is not merely being received - it is deciding which of those two the game does.
+
+**Audio over that run is sustained rather than intermittent**: voice volume non-zero on **9,719 of 12,536 frames**, 308 blocks mixed while voices carried volume, peak 17,229 of 32767. The earlier "intermittent, about a quarter of full scale" reading is superseded; over a long driven run the SPU is busy almost continuously.
+
+**What this does not change is the remaining gap.** The revealed state is 6,709 pixels against a full room's 61,135, and it plateaus rather than completing, so no room has been walked and nothing has been taken, opened or saved. What has changed is the evidence about the pad: it is not inert, and the earlier claim that it was came from a run too short to contain the states it affects. That is the fourth time in this investigation that a measurement was right about *what* it sampled and wrong about *when*.
