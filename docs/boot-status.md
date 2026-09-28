@@ -503,46 +503,62 @@ belong to `PrimFs120`, which is the shader that path uses - that retracts the le
 `_uBlendOpaque` belongs to `PrimFs`, which is why the non-legacy branch sets it and the legacy one
 does not.
 
-#### A real finding: a subtract-blended draw can be a no-op
+#### Retracted: subtract-blended draws are not no-ops
 
-The blend-2 path is a two-pass subtract:
+The previous revision claimed that a subtract-blended primitive draws nothing when `needDest` is
+false. That is wrong, and the derivation that corrects it also shows the two-pass path is right.
+
+`needDest` is not a per-primitive property at all:
 
 ```csharp
-BlendEquation(FuncAdd); SetBlend(0f, 1f); DrawArrays(...);          // pass 1
-if (needDest) { _vram.BeginDestRead(destTex, ...); RebindTarget(rt); }
-BlendEquationSeparate(FuncReverseSubtract, FuncAdd); SetBlend(1f, 1f);
-Uniform4(_uBlendOpaque, 0f, 0f, 0f, 1f); DrawArrays(...);           // pass 2
+var needDest = _legacy || _kCheckMask != 0;      // GlCore.cs:803
 ```
 
-`SetBlend(0f, 1f)` gives a source factor of zero and a destination factor of one, so **pass 1 leaves
-the destination exactly as it found it**. The subtraction that was supposed to happen depends
-entirely on pass 2, and pass 2 needs the destination bound as a texture. `needDest` is not set from
-anything the primitive carries; when it is false the second pass runs anyway, with
-`uBlendOpaque = (0,0,0,1)` making the source factor zero again.
+On core GL with the mask bits never set - both measured, `_legacy` is false for a GL 4.5 context and
+every flat primitive reports `-/-` - `needDest` is correctly false for every draw. The earlier claim
+assumed pass 2 needed the destination bound as a texture, and it does not.
 
-So when `needDest` is false, a subtract-blended primitive **draws nothing at all** - two passes that
-each leave the destination unchanged. 632 of the 856 flat primitives are subtract-blended, and
-subtract-blended draws exist in the textured class too.
+Re-deriving the two passes with `needDest` false, and recalling that `BlendColor.rgb` is the source
+factor and `BlendColor.a` the destination factor, because the shader picks between `uBlend` and
+`uBlendOpaque` per texel:
 
-That is a genuine defect regardless of whether it is the one behind the black frame, and it is the
-same class of problem the offset field had: a value the backend needs that has no reliable way to
-travel. It is also testable - forcing `needDest` true, or forcing it false, and re-measuring, would
-show directly how much of the frame depends on this path.
+- **Pass 1**, `SetBlend(0f, 1f)` with `uBlendOpaque = (1,1,1,0)`: an *opaque* texel takes
+  `uBlendOpaque`, giving source factor 1 and destination factor 0, so it is **written normally**;
+  a semi-transparent texel takes `uBlend`, giving source 0 and destination 1, so it is left alone.
+- **Pass 2**, `FuncReverseSubtract` with `SetBlend(1f, 1f)` and `uBlendOpaque = (0,0,0,1)`: the
+  opaque texel is left alone, having already been written; the semi-transparent texel computes
+  `destination x 1 - source x 1`, which is the subtraction.
 
-#### Where this leaves the black frame
+Fixed-function blending reads the destination **implicitly**, so no destination copy is required.
+`BeginDestRead` exists for the in-shader blend that `PrimFs120` performs, which is why `needDest`
+is true on the legacy path - the two are consistent, and the check is not a defect. The two-pass
+design is correct, and the claim that subtract draws are no-ops is withdrawn.
 
-It is still not explained, and the honest position is that the surviving candidate set has shrunk to
-the blend and render-target interaction rather than any single line. What is established:
+That is the third mechanism in this document to be retracted after being written up as a finding.
+The pattern is consistent: each was derived by following the code's *intent* rather than reading what
+the code actually does with the values it has.
 
-- geometry, texture addressing, the sampled VRAM contents, uploads, VRAM copies, fills, the drawing
-  offset and the draw order are all correct;
-- the draws land in the framebuffer, so it is not classification or binding;
-- screen-covering flat quads are drawn as clears first and the scene follows;
-- removing every flat primitive yields a correct frame at 88%, and no sub-class reproduces that;
-- subtract-blended draws can silently do nothing.
+#### A tool that was not being used: GpuGlAccess
 
-The next useful step is not another hypothesis. It is to force `needDest` both ways and measure,
-because that is the only remaining stateful behaviour with a direct, observable consequence.
+`GpuGlAccess` is public and exposes the GL state the backend is actually using:
+
+```csharp
+public static GL? Gl { get; internal set; }
+public static uint TargetFbo { get; internal set; }
+public static int TargetWidth, TargetHeight { get; internal set; }
+public static int TargetOriginX, TargetOriginY, TargetMargin { get; internal set; }
+public static bool Available => Gl != null && TargetFbo != 0;
+```
+
+Because `Gl` is the live `GL` object, the *actual* GL state is queryable from the host at any point -
+`GetInteger` for the blend source and destination factors, the blend equation, the bound draw and
+read framebuffers, the viewport - rather than inferred from the runtime's intentions. `TargetOriginX`
+and `TargetOriginY` also say which VRAM region the last draw was classified into, which is the direct
+answer to the `Classify` question that the earlier `VramTracker` proxy could only approach
+indirectly.
+
+Everything reasoned about the blend path in this document was reasoned from the source. This is the
+first way to *observe* it instead, and it is where the next round should start.
 
 ---
 
