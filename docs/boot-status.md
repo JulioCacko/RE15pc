@@ -2268,3 +2268,23 @@ So there is a real gap at frame 704, and it is not about strictness. The guest e
 **The honest position on the objective.** The port boots the guest, renders the title at 41.4 percent word-exact against the disc's artwork, renders rooms at 79.6 percent in both buffers, dispatches all seven overlays, produces audio, responds to input, and progresses to frame 704. What it cannot do is get past frame 704, and the reason is a specific, reproducible emulation gap at a named address. Everything after that point on the disc has not been reached, let alone played.
 
 Fourteen rounds remain. The next step is to identify the caller: instrumenting the dispatcher to record the calling site when an unmapped call occurs would name the function that expects something at `0x800100AC`, and the argument it passed, which is the shortest path to knowing what the guest believes is there.
+
+#### The blocker diagnosed: the first indirect call in the run, into uninitialised table space
+
+Two instrumentations turn the crash from an address into a diagnosis.
+
+The runtime printed only the exception message, never its stack trace, so the crash handler now prints the call path as well. That path shows a single frame - `Dispatcher.Call` - because the recompiled caller is inlined away, so the stack cannot name the caller.
+
+Recompiled code reaches every function through the dispatcher, so the dispatcher now also keeps a trailing record of recent call targets and attaches it to the exception:
+
+```
+unmapped call: 0x800100AC; recent calls: -> 0x800100AC
+```
+
+**The trail contains nothing but the failure itself.** That is the diagnosis: this is the **first indirect call of the entire run**. Ordinary calls are made directly by the recompiled code and never reach the dispatcher; only calls through a **function pointer** do. So for seven hundred frames the guest used no function pointers at all, and the first one it used held `0x800100AC` - an address inside the zeroed EXE header.
+
+Tolerant mode adds the last piece. It skips the call, sets `V0` to zero, and the guest immediately uses `0x00800000` as an address and stops. **So the caller expected that function to return something** - a pointer, most likely - and the value it got instead was a placeholder pointing nowhere.
+
+Taken together: at frame 704 the guest calls a function pointer for the first time, the slot holds a stub address rather than a real function, and the caller consumes the result as an address. **That is an uninitialised function table, not a broken renderer and not a missing recompilation** - there is no code at `0x800100AC` on the disc to recompile, only zeros. Some earlier initialisation that should have registered a handler in that table either did not run or wrote somewhere else.
+
+**This is where the port stops, and it is the last thing established about it.** Everything before frame 704 works and is verified; nothing after it has been observed. Locating the initialisation that fills that table is the work that would unblock the rest of the disc, and the trail is the instrument for it.

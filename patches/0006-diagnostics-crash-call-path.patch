@@ -1,0 +1,16 @@
+diff --git a/RecompOne.Runtime/Runtime.cs b/RecompOne.Runtime/Runtime.cs
+index 4d86b48..6ab7c39 100644
+--- a/RecompOne.Runtime/Runtime.cs
++++ b/RecompOne.Runtime/Runtime.cs
+@@ -232,7 +232,11 @@ public static class Runtime
+             }
+             catch (Exception e)
+             {
++                // The stack trace names the recompiled function that made the failing call. Without it
++                // the report says only that some address was unmapped, which is not enough to act on:
++                // the caller is what identifies which guest routine expects something to be there.
+                 Console.Error.WriteLine($"[Runtime] runtime has crashed: {e}");
++                Console.Error.WriteLine($"[Runtime] call path: {e.StackTrace}");
+                 break;
+             }
+         

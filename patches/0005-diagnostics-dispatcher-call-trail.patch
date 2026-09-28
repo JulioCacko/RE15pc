@@ -1,0 +1,42 @@
+diff --git a/RecompOne.Runtime/Dispatch/Dispatcher.cs b/RecompOne.Runtime/Dispatch/Dispatcher.cs
+index 0ca71cb..086f19b 100644
+--- a/RecompOne.Runtime/Dispatch/Dispatcher.cs
++++ b/RecompOne.Runtime/Dispatch/Dispatcher.cs
+@@ -240,6 +240,28 @@ public static class Dispatcher
+         return op == 1 && ((w >> 16) & 0x1Fu) is 0x10 or 0x11;
+     }
+ 
++    /// <summary>Diagnostics only: the most recent call targets, so an unmapped call carries context.</summary>
++    /// <remarks>
++    /// The stack trace for an unmapped call shows only Dispatcher.Call, because the recompiled caller is
++    /// inlined away, so the exception names the failing address and nothing about who asked for it.
++    /// Recompiled code reaches every function through here, so the entries preceding the failure are the
++    /// caller and the short history that led to it.
++    /// </remarks>
++    private static readonly uint[] _recentCalls = new uint[32];
++    private static int _recentCount;
++
++    private static string RecentCallTrail(uint failing)
++    {
++        var parts = new List<string>(33);
++        var n = Math.Min(_recentCount, _recentCalls.Length);
++
++        for (var i = n; i > 0; i--)
++            parts.Add($"0x{_recentCalls[(_recentCount - i) % _recentCalls.Length]:X8}");
++
++        parts.Add($"-> 0x{failing:X8}");
++        return string.Join(" ", parts);
++    }
++
+     public static void Call(CpuContext c, IMemory m, uint addr)
+     {
+         if (BiosKernel.TryDispatch(c, m, addr)) return;
+@@ -259,7 +281,7 @@ public static class Dispatcher
+         
+         if (IsReturnSite(m, addr)) return;
+ 
+-        if (!Tolerant) throw new InvalidOperationException($"unmapped call: 0x{addr:X8}");
++        if (!Tolerant) throw new InvalidOperationException($"unmapped call: 0x{addr:X8}; recent calls: {RecentCallTrail(addr)}");
+ 
+         lock (_reported)
+             if (_reported.Add(addr))
