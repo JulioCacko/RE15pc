@@ -85,7 +85,10 @@ public static class Program
                     player = new { x = unchecked((int)memory.ReadU32(0x800ACA88)),
                         y = unchecked((int)memory.ReadU32(0x800ACA8C)),
                         z = unchecked((int)memory.ReadU32(0x800ACA90)),
-                        yaw = memory.ReadU16(0x800ACABE) & 0xfff },
+                        yaw = memory.ReadU16(0x800ACABE) & 0xfff,
+                        character = memory.ReadU8(0x800ACA5C),
+                        weapon = memory.ReadU8(0x800ACA5D),
+                        health = memory.ReadU16(0x800ACAEE) },
                     camera = memory.ReadU16(0x800B0FE4),
                     roomIndex = memory.ReadU8(0x800B0FE2),
                     rdt = $"0x{memory.ReadU32(0x800AC778):X8}" });
@@ -115,8 +118,11 @@ public static class Program
         }, null, bounded ? TimeSpan.FromSeconds(options.SmokeSeconds ?? options.TimeoutSeconds)
                          : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         Console.WriteLine($"[RE15pc] output={output}; targetFrames={options.Frames}; strict={!options.Tolerant}");
+        ExecutionCoverage.Reset();
+        ExecutionCoverage.Enabled = options.TraceCoverage;
         try { Runtime.Run(() => Recompiled.Entry.Run(memory, cue, "RE15pc - Biohazard 1.5")); }
         catch (Exception ex) { hostFailure = ex; Console.Error.WriteLine(ex); }
+        ExecutionCoverage.Enabled = false;
         limit.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         emergency.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
@@ -141,6 +147,8 @@ public static class Program
                 return new("artifacts", true, "stopped guest RAM, GPU readback, input and state trace written");
             });
             if (options.VerifyAudio) Check("audio", AudioVerification.Verify);
+            if (options.TraceCoverage)
+                Check("coverage-capture", () => ContentCoverage.Write(Path.Combine(sourceRoot, "disc-manifest.json"), output));
             // Snapshot gameplay findings before synthetic verification mutates the dispatcher.
             if (options.VerifyOverlays) Check("overlays", OverlayVerification.Verify);
         }
@@ -149,9 +157,10 @@ public static class Program
             checks.Add(new("artifacts", false, "no snapshot: guest not stopped"));
             if (options.VerifyAudio) checks.Add(new("audio", false, "not evaluated"));
             if (options.VerifyOverlays) checks.Add(new("overlays", false, "not evaluated"));
+            if (options.TraceCoverage) checks.Add(new("coverage-capture", false, "not evaluated"));
         }
         var after = accumulator.Snapshot();
-        if (after.ListenerErrors > findings.ListenerErrors || after.Crashed)
+        if (after.ListenerErrors > findings.ListenerErrors || (after.Crashed && !findings.Crashed))
             checks.Add(new("verification-runtime", false, "runtime/listener failure during verification"));
         try { if (Runtime.GameStopped) Runtime.Shutdown(); }
         catch (Exception ex) { checks.Add(new("shutdown", false, ex.ToString())); }
@@ -161,10 +170,11 @@ public static class Program
             var report = new
             {
                 schemaVersion = 1, revision, dirty, cue,
+                failureTracking = "guest-main-bios-and-host-v1",
                 discSha256 = DiscIdentity.ExpectedSha256,
                 discHashVerified = options.FullHash || options.Frames is not null,
                 configHashes = hashes, requested = new { options.Frames, options.SmokeSeconds,
-                    options.TimeoutSeconds, options.Input, options.VerifyAudio, options.VerifyOverlays },
+                    options.TimeoutSeconds, options.Input, options.VerifyAudio, options.VerifyOverlays, options.TraceCoverage },
                 completedFrames = _frame, elapsedSeconds = clock.Elapsed.TotalSeconds,
                 guestStopped = Runtime.GameStopped, findings, checks, passed,
                 evidence = Directory.GetFiles(output).Select(Path.GetFileName).Order().ToArray()

@@ -79,13 +79,14 @@ public static class RunReport
 
         foreach (var line in lines)
         {
-            if (line.Contains("runtime has crashed", StringComparison.Ordinal))
+            if (line.Contains("runtime has crashed", StringComparison.Ordinal) ||
+                (line.StartsWith("[Runtime] thread ", StringComparison.Ordinal) && line.Contains(" stopped:")))
             {
                 crashed = true;
-                continue;
             }
 
-            if (line.Contains("[Dispatcher] skipped an unmapped call", StringComparison.Ordinal))
+            if (line.Contains("[Dispatcher] skipped an unmapped call", StringComparison.Ordinal) ||
+                line.Contains("unmapped call:", StringComparison.Ordinal))
             {
                 unmapped++;
                 continue;

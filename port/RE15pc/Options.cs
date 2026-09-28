@@ -14,6 +14,7 @@ public sealed class Options
     public long? Frames { get; private init; }
     public double TimeoutSeconds { get; private init; } = 300;
     public bool TraceInput { get; private init; }
+    public bool TraceCoverage { get; private init; }
 
     /// <summary>Log unmapped calls and continue, rather than throwing.</summary>
     public bool Tolerant { get; private init; }
@@ -80,6 +81,7 @@ public sealed class Options
         long? frames = null;
         double timeout = 300;
         var traceInput = false;
+        var traceCoverage = false;
         var tolerant = false;
         var fullHash = false;
         var outDir = Path.Combine("out", "runs", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
@@ -110,6 +112,9 @@ public sealed class Options
                     break;
                 case "--trace-input":
                     traceInput = true;
+                    break;
+                case "--trace-coverage":
+                    traceCoverage = true;
                     break;
                 case "--cue":
                     if (++i >= args.Length) { error = "--cue needs a path"; options = new Options(); return false; }
@@ -214,6 +219,7 @@ public sealed class Options
             Frames = frames,
             TimeoutSeconds = timeout,
             TraceInput = traceInput,
+            TraceCoverage = traceCoverage,
             Tolerant = tolerant,
             FullHash = fullHash,
             OutDir = outDir,
@@ -284,6 +290,7 @@ public sealed class Options
         Console.WriteLine("  --frames <count>    stop at this completed guest frame; exact-count acceptance");
         Console.WriteLine("  --timeout <secs>    frame-run wall timeout, default 300; timeout fails");
         Console.WriteLine("  --trace-input      log pad values delivered to the guest");
+        Console.WriteLine("  --trace-coverage   record generated function entries and disc-sector reads");
         Console.WriteLine("  --smoke <seconds>   run for N seconds, write diagnostics, then exit");
         Console.WriteLine("                      non-zero if the run crashed or made an unmapped call");
         Console.WriteLine("  --tolerant          log unmapped calls and continue instead of throwing;");

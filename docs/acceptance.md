@@ -81,3 +81,9 @@ limit. Local checks do not substitute for a passing required remote release chec
 
 Caught host event failures are now also authoritative in the runtime check;
 see [keyboard-input.md](keyboard-input.md) for the positive and negative controls.
+
+BIOS thread failures are now also authoritative and trigger cooperative stop.
+A real Elza failure formerly hidden by the surviving VSync thread now fails at
+frame 1537. The decoder and callback repairs are covered by the 159-check
+focused suite and both character-entry gates. Coverage imports require this
+failure policy and reject legacy or fault-bearing reports.

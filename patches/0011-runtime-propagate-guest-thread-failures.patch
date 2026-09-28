@@ -1,0 +1,78 @@
+diff --git a/RecompOne.Runtime/Bios/BiosB.cs b/RecompOne.Runtime/Bios/BiosB.cs
+index 1239e9d..06de2b8 100644
+--- a/RecompOne.Runtime/Bios/BiosB.cs
++++ b/RecompOne.Runtime/Bios/BiosB.cs
+@@ -675,6 +675,7 @@ public static class BiosB
+ 
+         self.Baton.Wait();
+         if (Gone(from, self)) throw new ThreadGone();
++        Runtime.CheckStop();
+ 
+         c.Restore(self.Regs);
+         c.V0 = 1u;
+@@ -705,9 +706,16 @@ public static class BiosB
+         {
+             return;
+         }
++        catch (Runtime.StopRequestedSignal)
++        {
++            // Wake the caller below; it observes cancellation before executing
++            // another guest instruction. Cancellation is not a guest failure.
++        }
+         catch (Exception e)
+         {
+-            Console.Error.WriteLine($"[Runtime] thread {slot} stopped: {e}");
++            Console.Error.WriteLine($"[Runtime] guest thread {slot} faulted");
++            Runtime.ReportGameFailure(e);
++            Runtime.RequestStop();
+         }
+ 
+         if (Gone(slot, tcb)) return;
+@@ -756,4 +764,4 @@ public static class BiosB
+ 
+         c.V0 = 0u;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/Runtime.cs b/RecompOne.Runtime/Runtime.cs
+index c673ac9..6c2d0ac 100644
+--- a/RecompOne.Runtime/Runtime.cs
++++ b/RecompOne.Runtime/Runtime.cs
+@@ -198,11 +198,20 @@ public static class Runtime
+ 
+     private static volatile bool _gameDone;
+     private static volatile bool _stopRequested;
+-    private sealed class StopRequestedSignal : Exception { }
++    internal sealed class StopRequestedSignal : Exception { }
+     public static Action<long>? FrameCompleted;
+     public delegate void AudioOutputObserver(ReadOnlySpan<short> samples);
+     public static AudioOutputObserver? AudioOutputObserved;
+-    public static Exception? GameFailure { get; private set; }
++    private static Exception? _gameFailure;
++    public static Exception? GameFailure => Volatile.Read(ref _gameFailure);
++    public static void ReportGameFailure(Exception error)
++    {
++        if (Interlocked.CompareExchange(ref _gameFailure, error, null) is null)
++        {
++            Console.Error.WriteLine($"[Runtime] runtime has crashed: {error}");
++            Console.Error.WriteLine($"[Runtime] call path: {error.StackTrace}");
++        }
++    }
+     private static Exception? _hostFailure;
+     public static Exception? HostFailure => Volatile.Read(ref _hostFailure);
+     public static void ReportHostFailure(Exception error)
+@@ -257,12 +266,10 @@ public static class Runtime
+             }
+             catch (Exception e)
+             {
+-                GameFailure = e;
+                 // The stack trace names the recompiled function that made the failing call. Without it
+                 // the report says only that some address was unmapped, which is not enough to act on:
+                 // the caller is what identifies which guest routine expects something to be there.
+-                Console.Error.WriteLine($"[Runtime] runtime has crashed: {e}");
+-                Console.Error.WriteLine($"[Runtime] call path: {e.StackTrace}");
++                ReportGameFailure(e);
+                 break;
+             }
+         

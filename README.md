@@ -4,11 +4,13 @@ A Windows PC preservation port of the **Biohazard 2 November 6, 1996 prototype**
 (commonly called Resident Evil 1.5), built by statically recompiling the disc's
 MIPS executable and seven overlays with [RecompOne](https://github.com/BlackLabelHQ/RecompOne).
 
-**Current status: the first playable-room gate passes; gold remains open.**
+**Current status: Leon’s first-room gate and Elza’s entry gate pass; gold remains open.**
 The native host boots, renders the rooftop, turns and moves Leon, respects the
 railing collision, and deliberately exits from room 117 into room 116.
 The destination room data and player spawn are checked against the actual disc.
-See [first-room acceptance](docs/first-room.md), the
+The full-disc ledger has 37 partially observed files and 297 unverified files.
+See [coverage and remaining scope](docs/content-coverage.md),
+[first-room acceptance](docs/first-room.md), the
 [background repair](docs/background-readback.md), and
 [native input evidence and limits](docs/keyboard-input.md).
 
@@ -35,11 +37,12 @@ discard recovered computed-jump targets.
 dotnet build tests/RE15pc.Checks/RE15pc.Checks.csproj -c Release
 pwsh -File tools/Test-Acceptance.ps1
 pwsh -File tools/Test-FirstRoom.ps1
+pwsh -File tools/Test-ElzaEntry.ps1
 pwsh -File tools/Test-RecompileDeterminism.ps1
 pwsh -File tools/New-DiscManifest.ps1 -Check
 ```
 
-The acceptance harness checks exact frame counts, failure propagation, all 49
+The 159 focused checks and native gates cover exact frame counts, failure propagation, all 49
 ordered overlay replacements, input holds/releases, log rollover, timeouts, and
 isolated output. Recompilation currently produces ten byte-identical files.
 

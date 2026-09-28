@@ -17,7 +17,7 @@ function Require([bool] $Condition, [string] $Message) {
 }
 Push-Location $RepoRoot
 try {
-    & dotnet $HostDll --frames 2700 --timeout 150 --input $InputRoute --trace-input --verify-audio --verify-overlays --out $RunDir *> (Join-Path $OutputRoot 'route.log')
+    & dotnet $HostDll --frames 2700 --timeout 150 --input $InputRoute --trace-input --trace-coverage --verify-audio --verify-overlays --out $RunDir *> (Join-Path $OutputRoot 'route.log')
     Require ($LASTEXITCODE -eq 0) 'native process exit'
     $Report = Get-Content (Join-Path $RunDir 'run.json') -Raw | ConvertFrom-Json
     Require ($Report.passed -and $Report.completedFrames -eq 2700 -and $Report.guestStopped) 'exact stopped-run acceptance'

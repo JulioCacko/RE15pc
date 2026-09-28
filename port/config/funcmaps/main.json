@@ -6959,6 +6959,26 @@
       "address": "0x8008EF3C",
       "name": "func_8008EF3C",
       "size": 8
+    },
+    {
+      "address": "0x8001031C",
+      "name": "func_8001031C",
+      "size": 404
+    },
+    {
+      "address": "0x80010334",
+      "name": "func_80010334",
+      "size": 380
+    },
+    {
+      "address": "0x80010340",
+      "name": "func_80010340",
+      "size": 368
+    },
+    {
+      "address": "0x80010490",
+      "name": "func_80010490",
+      "size": 32
     }
   ],
   "labels": []

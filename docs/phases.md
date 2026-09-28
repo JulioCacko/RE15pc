@@ -14,7 +14,7 @@ boot investigation. A smoke pass does not complete a gameplay gate.
 ## Phase 1 evidence
 
 See [acceptance.md](acceptance.md). The local native suite passed at
-`out/gates/harness-v2`; the focused suite now has 47 passing checks.
+`out/gates/harness-v2`; the focused suite now has 159 passing checks.
 Recompilation compared all ten generated files byte-for-byte successfully.
 The tracked patch series reconstructs the upstream changes. The GPU readback
 repair also passes the native harness at `out/gates/readback-fixed`.
@@ -52,3 +52,15 @@ billing/spending limits. Do not apply a gold tag while release checks are blocke
 Native keyboard short taps are repaired. Unknown synthetic arrow events remain
 unverified and now fail acceptance instead of being swallowed; see
 [keyboard-input.md](keyboard-input.md).
+
+## Phase 3 checkpoint
+
+Generated-entry and disc-sector tracing now expose unentered functions and
+unread file extents. The 334-file ledger has 37 partial observations and 297
+unverified entries; branch and packed-member coverage remain open.
+
+Elza reaches ROOM1031.RDT after recovery of one STAGE1 callback and four
+computed-copy destinations. `tools/Test-ElzaEntry.ps1` passes, and Leon’s full
+first-room gate still passes. BIOS guest-thread exceptions now fail and stop
+the run instead of allowing the surviving VSync thread to produce a false pass.
+See [content-coverage.md](content-coverage.md) for commands, evidence and limits.

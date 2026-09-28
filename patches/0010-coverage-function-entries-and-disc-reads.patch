@@ -1,0 +1,146 @@
+diff --git a/RecompOne.Recompiler/CodeGen/FunctionEmmiter.cs b/RecompOne.Recompiler/CodeGen/FunctionEmmiter.cs
+index a5ec45a..3c87d82 100644
+--- a/RecompOne.Recompiler/CodeGen/FunctionEmmiter.cs
++++ b/RecompOne.Recompiler/CodeGen/FunctionEmmiter.cs
+@@ -20,6 +20,7 @@ public static class FunctionEmitter
+                 dsIdx.Add(i + 1);
+ 
+         var name = func.EmittedName;
++        var visit = $"RecompOne.Runtime.Diagnostics.ExecutionCoverage.Visit({System.Text.Json.JsonSerializer.Serialize(func.OverlayName)}, 0x{func.Start:X8}u);";
+         const string ind = "        ";
+         const string noInline =
+             "    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]";
+@@ -28,7 +29,7 @@ public static class FunctionEmitter
+         if (func.IsStub)
+         {
+             sb.AppendLine(noInline);
+-            sb.AppendLine($"    public static void {name}(CpuContext c, IMemory m) {{ }}");
++            sb.AppendLine($"    public static void {name}(CpuContext c, IMemory m) {{ {visit} }}");
+             return sb.ToString();
+         }
+ 
+@@ -39,12 +40,13 @@ public static class FunctionEmitter
+             sb.AppendLine(noInline);
+             if (!hooked)
+             {
+-                sb.AppendLine($"    public static void {name}(CpuContext c, IMemory m) => {func.PatchTarget}(c, m);");
++                sb.AppendLine($"    public static void {name}(CpuContext c, IMemory m) {{ {visit} {func.PatchTarget}(c, m); }}");
+                 return sb.ToString();
+             }
+ 
+             sb.AppendLine($"    public static void {name}(CpuContext c, IMemory m)");
+             sb.AppendLine("    {");
++            sb.AppendLine($"        {visit}");
+             EmitHooks(sb, func, $"        {func.PatchTarget}(c, m);");
+             sb.AppendLine("    }");
+             return sb.ToString();
+@@ -55,6 +57,7 @@ public static class FunctionEmitter
+             sb.AppendLine(noInline);
+             sb.AppendLine($"    public static void {name}(CpuContext c, IMemory m)");
+             sb.AppendLine("    {");
++            sb.AppendLine($"        {visit}");
+             EmitHooks(sb, func, $"        {name}_Impl(c, m);");
+             sb.AppendLine("    }");
+             name += "_Impl";
+@@ -63,6 +66,7 @@ public static class FunctionEmitter
+         sb.AppendLine(noInline);
+ 
+         var body = new StringBuilder();
++        if (!hooked) body.AppendLine($"        {visit}");
+         if (ctx.Debug)
+             body.AppendLine(
+                 $"        System.Console.WriteLine(\"{func.EmittedName} @ {func.OverlayName} @ 0x{func.Start:X8}\");");
+@@ -136,4 +140,4 @@ public static class FunctionEmitter
+         if (ctrl.IsFunctionCall) return false;
+         return true;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/Cdrom/DiscFs.cs b/RecompOne.Runtime/Cdrom/DiscFs.cs
+index 5ebd7ca..27913a7 100644
+--- a/RecompOne.Runtime/Cdrom/DiscFs.cs
++++ b/RecompOne.Runtime/Cdrom/DiscFs.cs
+@@ -47,17 +47,21 @@ public sealed class DiscFs : IDisposable
+ 
+     public byte[] ReadSector(int lba)
+     {
+-        return _image.ReadSectorData(lba, 2048);
++        return ReadSectorData(lba, 2048);
+     }
+ 
+     public byte[] ReadSectorData(int lba, int size)
+     {
+-        return _image.ReadSectorData(lba, size);
++        var data = _image.ReadSectorData(lba, size);
++        Diagnostics.ExecutionCoverage.ReadSector(lba, data.Length);
++        return data;
+     }
+ 
+     public byte[] ReadRawSector(int lba)
+     {
+-        return _image.ReadRawSector(lba);
++        var data = _image.ReadRawSector(lba);
++        Diagnostics.ExecutionCoverage.ReadSector(lba, data.Length >= 2352 ? 2048 : 0);
++        return data;
+     }
+ 
+     public byte[] ReadSectors(int lba, int size)
+@@ -259,4 +263,4 @@ public sealed class DiscFs : IDisposable
+     {
+         _image.Dispose();
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/Diagnostics/ExecutionCoverage.cs b/RecompOne.Runtime/Diagnostics/ExecutionCoverage.cs
+new file mode 100644
+index 0000000..0ee44cd
+--- /dev/null
++++ b/RecompOne.Runtime/Diagnostics/ExecutionCoverage.cs
+@@ -0,0 +1,45 @@
++using System.Runtime.CompilerServices;
++
++namespace RecompOne.Runtime.Diagnostics;
++
++public sealed record FunctionVisit(string Overlay, uint Address);
++public sealed record SectorVisit(int Lba, int Bytes);
++public sealed record CoverageSnapshot(FunctionVisit[] Functions, SectorVisit[] Sectors);
++
++/// <summary>Optional observations, not a completion verdict. Entry hits do not
++/// prove every branch; sector reads do not prove an asset was decoded or played.</summary>
++public static class ExecutionCoverage
++{
++    public static volatile bool Enabled;
++    private static readonly object Gate = new();
++    private static readonly HashSet<(string Overlay, uint Address)> Functions = [];
++    private static readonly Dictionary<int, int> Sectors = [];
++
++    public static void Reset()
++    {
++        Enabled = false;
++        lock (Gate) { Functions.Clear(); Sectors.Clear(); }
++    }
++
++    [MethodImpl(MethodImplOptions.AggressiveInlining)]
++    public static void Visit(string overlay, uint address)
++    {
++        if (!Enabled) return;
++        lock (Gate) Functions.Add((overlay, address));
++    }
++
++    public static void ReadSector(int lba, int bytes)
++    {
++        if (!Enabled || lba < 0 || bytes <= 0) return;
++        lock (Gate)
++            Sectors[lba] = Math.Max(Sectors.GetValueOrDefault(lba), Math.Min(bytes, 2048));
++    }
++
++    public static CoverageSnapshot Snapshot()
++    {
++        lock (Gate)
++            return new(Functions.OrderBy(f => f.Overlay, StringComparer.Ordinal).ThenBy(f => f.Address)
++                .Select(f => new FunctionVisit(f.Overlay, f.Address)).ToArray(),
++                Sectors.OrderBy(s => s.Key).Select(s => new SectorVisit(s.Key, s.Value)).ToArray());
++    }
++}

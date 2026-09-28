@@ -1,0 +1,3323 @@
+{
+  "schemaVersion": 1,
+  "discSha256": "B5C26B6A5EC21FC93B16F904642DAACD527207A7460FFB8349077AA6426BC30D",
+  "definitions": {
+    "unverified": "No qualifying evidence yet.",
+    "partial": "Observed access or limited scenario evidence; not complete playability.",
+    "verified": "Requires explicit scenario assertions for the full entry scope.",
+    "original-limit": "Requires original-code/data evidence, not an unexplained port failure."
+  },
+  "openScopes": [
+    "Conditional branches and path combinations are not covered by function-entry hits.",
+    "Packed models, animations, items, samples, sequences, background images and script branches still need member-level enumeration.",
+    "Reads do not establish decoding, presentation, interaction or playability.",
+    "Runs with different config hashes remain separate evidence; do not merge them into a release verdict."
+  ],
+  "functionMaps": [
+    {
+      "overlay": "main",
+      "mapEntries": 1396,
+      "map": "port/config/funcmaps/main.json"
+    },
+    {
+      "overlay": "stage1",
+      "mapEntries": 389,
+      "map": "port/config/funcmaps/stage1.json"
+    },
+    {
+      "overlay": "stage2",
+      "mapEntries": 354,
+      "map": "port/config/funcmaps/stage2.json"
+    },
+    {
+      "overlay": "stage3",
+      "mapEntries": 321,
+      "map": "port/config/funcmaps/stage3.json"
+    },
+    {
+      "overlay": "stage4",
+      "mapEntries": 274,
+      "map": "port/config/funcmaps/stage4.json"
+    },
+    {
+      "overlay": "stage5",
+      "mapEntries": 327,
+      "map": "port/config/funcmaps/stage5.json"
+    },
+    {
+      "overlay": "stage6",
+      "mapEntries": 41,
+      "map": "port/config/funcmaps/stage6.json"
+    },
+    {
+      "overlay": "title",
+      "mapEntries": 37,
+      "map": "port/config/funcmaps/title.json"
+    }
+  ],
+  "runs": [
+    {
+      "path": "out/gates/elza-thread-safe/route",
+      "revision": "5216b1a02961fc93c0a7544518980121eaa8cdba",
+      "dirty": "M port/RE15pc/Diagnostics/RunReport.cs\n M port/RE15pc/Options.cs\n M port/RE15pc/Program.cs\n M port/config/funcmaps/main.json\n M port/config/funcmaps/stage1.json\n M tests/RE15pc.Checks/Program.cs\n M tools/Test-FirstRoom.ps1\n?? docs/content-coverage.json\n?? docs/content-coverage.md\n?? patches/0010-coverage-function-entries-and-disc-reads.patch\n?? patches/0011-runtime-propagate-guest-thread-failures.patch\n?? port/RE15pc/Diagnostics/ContentCoverage.cs\n?? tests/RE15pc.Checks/CoverageChecks.cs\n?? tests/RE15pc.Checks/DecoderCopyChecks.cs\n?? tools/Test-ContentInventory.ps1\n?? tools/Test-ElzaEntry.ps1\n?? tools/Update-ContentCoverage.ps1",
+      "failureTracking": "guest-main-bios-and-host-v1",
+      "frames": 2100,
+      "input": "90:start,240:cross,300:cross,600:right,1250:cross",
+      "configHashes": {
+        "patches\\0001-gpu-diagnostics-primitive-colour.patch": "1C306E7B92E2365DD59CCDF8FB8A154BBCFDD7131F3906EF743D050AA2056339",
+        "patches\\0002-gpu-diagnostics-render-target-lifecycle.patch": "11372688EB0AAC25C92EF39357A03B68AC59B2064A055DAB7147E4611FE67C64",
+        "patches\\0003-gpu-diagnostics-vram-transfers.patch": "40D4CF87AB12418F7677988A25EB182D9F2ACC0E54614A91172DA430A8CD0756",
+        "patches\\0004-gpu-diagnostics-interp-settle.patch": "52DACC9C96F298022BFF02AD9BF10A164DCCC676659F6E2E88101A5D8B565834",
+        "patches\\0005-diagnostics-dispatcher-call-trail.patch": "1DD24145A1759F371B57781B9DDAFBF1038D062E7713A7670A44E51F5DDA5098",
+        "patches\\0006-diagnostics-crash-call-path.patch": "E0A1307B4FBA5652038CD6B33179577D29D48EA3BA5B9E4BEBB626D6E3FEDB98",
+        "patches\\0007-runtime-controlled-stop-and-passive-observers.patch": "3043185B05C3E312F74F0063507D17D8A2AFC23FAD8B0FCA6200600FEA115BF0",
+        "patches\\0008-gpu-synchronous-guest-readback.patch": "026EF45573C1DC29F56E2A6DB39ADE46A95BB266EBF1F49C42AC912A8E0D8932",
+        "patches\\0009-input-retain-short-keyboard-presses.patch": "BF0F90A78D73E878B5FBBE1DED9CE91BF53356171CE0B41243555DDBC1F92507",
+        "patches\\0010-coverage-function-entries-and-disc-reads.patch": "AB3A3B8287944000F2C653630D7BBC8F3F69AE9BF16573E821B1109CB1441F7F",
+        "patches\\0011-runtime-propagate-guest-thread-failures.patch": "16E5EE1B940CA298046DB88B7CDF5A9D8CE23A284D39DC66F55E06BDCB20F149",
+        "port\\config\\bio2nov96.json": "4A37936811915F4D7C81EE577FDBACE0FC061F42F9E24D5B3AB742A4FD8A223B",
+        "port\\config\\funcmaps\\main.json": "CCB9CB0B97D0BF5F515FFD97691F09E109BB25DDDC52F60790FF024227DB0B7F",
+        "port\\config\\funcmaps\\stage1.json": "9AF6FBD969088CF25F41F165CB42B7A2A8BC32003119D6E9D3E0852584F5F132",
+        "port\\config\\funcmaps\\stage2.json": "B42F92C75CE4B930BD84092126AF131A16F231CB377E13779718B466CC1EC6FB",
+        "port\\config\\funcmaps\\stage3.json": "58B0F2FB9E732D4CA32ACAE51743E2C7155FFB10476C1C9AAD65040BFF49F9BF",
+        "port\\config\\funcmaps\\stage4.json": "015CB5E81587EEB52219236005DC2CD2626EB1DD6F00D9ED1C98268778B0A375",
+        "port\\config\\funcmaps\\stage5.json": "AE002D0E213010FBAADA005A9843F933E9AD8306E27BA85928ABAFBCB54B7D93",
+        "port\\config\\funcmaps\\stage6.json": "C9E6AC0AC07422C1AB3C0F0CF009060AC938F819BD107BD6A824D5EBAADEC979",
+        "port\\config\\funcmaps\\title.json": "712A49FDFD1C5EC302B239F3B3F1AF0D1207532BD89A98D0C95318FD9943A5DF",
+        "settings.json": "EF6761882408B55674B3EBE7EF03C03F25557CA1500EDD4E8C4AF1A2ADA5DE5E",
+        "interface.ini": "9BAEE2CBD58EEA6C4F0124CA164E74851E8FD90A3D216701A11992555B32C10E"
+      },
+      "functions": [
+        {
+          "overlay": "main",
+          "registered": 2175,
+          "entered": 531,
+          "unentered": 1644
+        },
+        {
+          "overlay": "stage1",
+          "registered": 668,
+          "entered": 12,
+          "unentered": 656
+        },
+        {
+          "overlay": "stage2",
+          "registered": 520,
+          "entered": 0,
+          "unentered": 520
+        },
+        {
+          "overlay": "stage3",
+          "registered": 626,
+          "entered": 0,
+          "unentered": 626
+        },
+        {
+          "overlay": "stage4",
+          "registered": 492,
+          "entered": 0,
+          "unentered": 492
+        },
+        {
+          "overlay": "stage5",
+          "registered": 628,
+          "entered": 0,
+          "unentered": 628
+        },
+        {
+          "overlay": "stage6",
+          "registered": 43,
+          "entered": 0,
+          "unentered": 43
+        },
+        {
+          "overlay": "title",
+          "registered": 38,
+          "entered": 32,
+          "unentered": 6
+        }
+      ]
+    },
+    {
+      "path": "out/gates/leon-thread-safe/route",
+      "revision": "5216b1a02961fc93c0a7544518980121eaa8cdba",
+      "dirty": "M port/RE15pc/Diagnostics/RunReport.cs\n M port/RE15pc/Options.cs\n M port/RE15pc/Program.cs\n M port/config/funcmaps/main.json\n M port/config/funcmaps/stage1.json\n M tests/RE15pc.Checks/Program.cs\n M tools/Test-FirstRoom.ps1\n?? docs/content-coverage.json\n?? docs/content-coverage.md\n?? patches/0010-coverage-function-entries-and-disc-reads.patch\n?? patches/0011-runtime-propagate-guest-thread-failures.patch\n?? port/RE15pc/Diagnostics/ContentCoverage.cs\n?? tests/RE15pc.Checks/CoverageChecks.cs\n?? tests/RE15pc.Checks/DecoderCopyChecks.cs\n?? tools/Test-ContentInventory.ps1\n?? tools/Test-ElzaEntry.ps1\n?? tools/Update-ContentCoverage.ps1",
+      "failureTracking": "guest-main-bios-and-host-v1",
+      "frames": 2700,
+      "input": "90:start,240:cross,300:cross,600:up:600,1250:cross,1800:right:17,1840:up:40,1890:square",
+      "configHashes": {
+        "patches\\0001-gpu-diagnostics-primitive-colour.patch": "1C306E7B92E2365DD59CCDF8FB8A154BBCFDD7131F3906EF743D050AA2056339",
+        "patches\\0002-gpu-diagnostics-render-target-lifecycle.patch": "11372688EB0AAC25C92EF39357A03B68AC59B2064A055DAB7147E4611FE67C64",
+        "patches\\0003-gpu-diagnostics-vram-transfers.patch": "40D4CF87AB12418F7677988A25EB182D9F2ACC0E54614A91172DA430A8CD0756",
+        "patches\\0004-gpu-diagnostics-interp-settle.patch": "52DACC9C96F298022BFF02AD9BF10A164DCCC676659F6E2E88101A5D8B565834",
+        "patches\\0005-diagnostics-dispatcher-call-trail.patch": "1DD24145A1759F371B57781B9DDAFBF1038D062E7713A7670A44E51F5DDA5098",
+        "patches\\0006-diagnostics-crash-call-path.patch": "E0A1307B4FBA5652038CD6B33179577D29D48EA3BA5B9E4BEBB626D6E3FEDB98",
+        "patches\\0007-runtime-controlled-stop-and-passive-observers.patch": "3043185B05C3E312F74F0063507D17D8A2AFC23FAD8B0FCA6200600FEA115BF0",
+        "patches\\0008-gpu-synchronous-guest-readback.patch": "026EF45573C1DC29F56E2A6DB39ADE46A95BB266EBF1F49C42AC912A8E0D8932",
+        "patches\\0009-input-retain-short-keyboard-presses.patch": "BF0F90A78D73E878B5FBBE1DED9CE91BF53356171CE0B41243555DDBC1F92507",
+        "patches\\0010-coverage-function-entries-and-disc-reads.patch": "AB3A3B8287944000F2C653630D7BBC8F3F69AE9BF16573E821B1109CB1441F7F",
+        "patches\\0011-runtime-propagate-guest-thread-failures.patch": "16E5EE1B940CA298046DB88B7CDF5A9D8CE23A284D39DC66F55E06BDCB20F149",
+        "port\\config\\bio2nov96.json": "4A37936811915F4D7C81EE577FDBACE0FC061F42F9E24D5B3AB742A4FD8A223B",
+        "port\\config\\funcmaps\\main.json": "CCB9CB0B97D0BF5F515FFD97691F09E109BB25DDDC52F60790FF024227DB0B7F",
+        "port\\config\\funcmaps\\stage1.json": "9AF6FBD969088CF25F41F165CB42B7A2A8BC32003119D6E9D3E0852584F5F132",
+        "port\\config\\funcmaps\\stage2.json": "B42F92C75CE4B930BD84092126AF131A16F231CB377E13779718B466CC1EC6FB",
+        "port\\config\\funcmaps\\stage3.json": "58B0F2FB9E732D4CA32ACAE51743E2C7155FFB10476C1C9AAD65040BFF49F9BF",
+        "port\\config\\funcmaps\\stage4.json": "015CB5E81587EEB52219236005DC2CD2626EB1DD6F00D9ED1C98268778B0A375",
+        "port\\config\\funcmaps\\stage5.json": "AE002D0E213010FBAADA005A9843F933E9AD8306E27BA85928ABAFBCB54B7D93",
+        "port\\config\\funcmaps\\stage6.json": "C9E6AC0AC07422C1AB3C0F0CF009060AC938F819BD107BD6A824D5EBAADEC979",
+        "port\\config\\funcmaps\\title.json": "712A49FDFD1C5EC302B239F3B3F1AF0D1207532BD89A98D0C95318FD9943A5DF",
+        "settings.json": "EF6761882408B55674B3EBE7EF03C03F25557CA1500EDD4E8C4AF1A2ADA5DE5E",
+        "interface.ini": "9BAEE2CBD58EEA6C4F0124CA164E74851E8FD90A3D216701A11992555B32C10E"
+      },
+      "functions": [
+        {
+          "overlay": "main",
+          "registered": 2175,
+          "entered": 493,
+          "unentered": 1682
+        },
+        {
+          "overlay": "stage1",
+          "registered": 668,
+          "entered": 12,
+          "unentered": 656
+        },
+        {
+          "overlay": "stage2",
+          "registered": 520,
+          "entered": 0,
+          "unentered": 520
+        },
+        {
+          "overlay": "stage3",
+          "registered": 626,
+          "entered": 0,
+          "unentered": 626
+        },
+        {
+          "overlay": "stage4",
+          "registered": 492,
+          "entered": 0,
+          "unentered": 492
+        },
+        {
+          "overlay": "stage5",
+          "registered": 628,
+          "entered": 0,
+          "unentered": 628
+        },
+        {
+          "overlay": "stage6",
+          "registered": 43,
+          "entered": 0,
+          "unentered": 43
+        },
+        {
+          "overlay": "title",
+          "registered": 38,
+          "entered": 32,
+          "unentered": 6
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "PSX.EXE",
+      "category": "resident-code",
+      "lba": 34260,
+      "size": 718848,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/STAGE1.BIN",
+      "category": "overlay-code",
+      "lba": 25,
+      "size": 137648,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/STAGE2.BIN",
+      "category": "overlay-code",
+      "lba": 93,
+      "size": 103216,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/STAGE3.BIN",
+      "category": "overlay-code",
+      "lba": 144,
+      "size": 129036,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/STAGE4.BIN",
+      "category": "overlay-code",
+      "lba": 208,
+      "size": 108064,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/STAGE5.BIN",
+      "category": "overlay-code",
+      "lba": 261,
+      "size": 133280,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/STAGE6.BIN",
+      "category": "overlay-code",
+      "lba": 327,
+      "size": 10324,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/BIN/TITLE.BIN",
+      "category": "overlay-code",
+      "lba": 333,
+      "size": 9932,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/AAA.TIM",
+      "category": "texture",
+      "lba": 339,
+      "size": 33312,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/C_BACK2.TIM",
+      "category": "texture",
+      "lba": 377,
+      "size": 153620,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/CONFIG.TIM",
+      "category": "texture",
+      "lba": 356,
+      "size": 33312,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/CORE00.ESP",
+      "category": "effect-container",
+      "lba": 373,
+      "size": 7092,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/ITEMALL.PIX",
+      "category": "image-data",
+      "lba": 453,
+      "size": 86400,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP01.PIX",
+      "category": "image-data",
+      "lba": 496,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP02.PIX",
+      "category": "image-data",
+      "lba": 512,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP03.PIX",
+      "category": "image-data",
+      "lba": 528,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP04.PIX",
+      "category": "image-data",
+      "lba": 544,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP05.PIX",
+      "category": "image-data",
+      "lba": 560,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP06.PIX",
+      "category": "image-data",
+      "lba": 576,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP07.PIX",
+      "category": "image-data",
+      "lba": 592,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP08.PIX",
+      "category": "image-data",
+      "lba": 608,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP09.PIX",
+      "category": "image-data",
+      "lba": 624,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP0A.PIX",
+      "category": "image-data",
+      "lba": 640,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP0B.PIX",
+      "category": "image-data",
+      "lba": 656,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP0C.PIX",
+      "category": "image-data",
+      "lba": 672,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MAP0D.PIX",
+      "category": "image-data",
+      "lba": 688,
+      "size": 32768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/MIXITEM.PIX",
+      "category": "image-data",
+      "lba": 704,
+      "size": 16800,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/ROOM115U.SCD",
+      "category": "script",
+      "lba": 713,
+      "size": 396,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/ROOM506U.SCD",
+      "category": "script",
+      "lba": 714,
+      "size": 390,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/SELECT.TIM",
+      "category": "texture",
+      "lba": 715,
+      "size": 66080,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/SELECTH.TIM",
+      "category": "texture",
+      "lba": 748,
+      "size": 153620,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/SELECTH2.TIM",
+      "category": "texture",
+      "lba": 824,
+      "size": 66080,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/SELECTH3.TIM",
+      "category": "texture",
+      "lba": 857,
+      "size": 66080,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/ST_00.TIM",
+      "category": "texture",
+      "lba": 890,
+      "size": 36640,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/TEX.TIM",
+      "category": "texture",
+      "lba": 908,
+      "size": 165408,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/TITLEJ.TIM",
+      "category": "texture",
+      "lba": 989,
+      "size": 153620,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/TITLEU.TIM",
+      "category": "texture",
+      "lba": 1065,
+      "size": 153620,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DATA/YOUDIED.TIM",
+      "category": "texture",
+      "lba": 1141,
+      "size": 66080,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/DOOR/DOOR00.DO2",
+      "category": "door-container",
+      "lba": 1175,
+      "size": 96996,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/EMD/CDEMD0.EMS",
+      "category": "model-container",
+      "lba": 1224,
+      "size": 4048896,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/EMD/CDEMD1.EMS",
+      "category": "model-container",
+      "lba": 3201,
+      "size": 4055040,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/EMD/SHITAI.TIM",
+      "category": "texture",
+      "lba": 5181,
+      "size": 16928,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/EMD/SHITAI.TM2",
+      "category": "texture-container",
+      "lba": 5190,
+      "size": 1396,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/ITEM/ITPS.ITP",
+      "category": "item-container",
+      "lba": 5192,
+      "size": 872448,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/MOVIE/CAPCOM.STR",
+      "category": "movie-container",
+      "lba": 5619,
+      "size": 2304000,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00.PLD",
+      "category": "character-model-and-animation",
+      "lba": 6746,
+      "size": 188940,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W00.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6839,
+      "size": 20256,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W01.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6849,
+      "size": 22960,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W02.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6861,
+      "size": 21768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W03.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6872,
+      "size": 22856,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W04.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6884,
+      "size": 22776,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W05.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6896,
+      "size": 24368,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W06.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6908,
+      "size": 21768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W07.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6919,
+      "size": 26888,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W08.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6933,
+      "size": 29572,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W09.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6948,
+      "size": 26792,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W0A.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6962,
+      "size": 26792,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W0B.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6976,
+      "size": 26792,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W0C.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 6990,
+      "size": 23104,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W0D.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7002,
+      "size": 25612,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W0E.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7015,
+      "size": 22776,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W0F.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7027,
+      "size": 24940,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W10.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7040,
+      "size": 23636,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W11.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7052,
+      "size": 23636,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W12.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7064,
+      "size": 24940,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W13.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7077,
+      "size": 23544,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL00W14.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7089,
+      "size": 23636,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL01.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7101,
+      "size": 174140,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL02.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7187,
+      "size": 175028,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7273,
+      "size": 189888,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W00.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7366,
+      "size": 18468,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W01.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7376,
+      "size": 22756,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W02.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7388,
+      "size": 19980,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W03.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7398,
+      "size": 23912,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W04.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7410,
+      "size": 22676,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W05.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7422,
+      "size": 21768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W06.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7433,
+      "size": 22852,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W07.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7445,
+      "size": 26708,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W08.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7459,
+      "size": 29392,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W09.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7474,
+      "size": 23636,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W0A.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7486,
+      "size": 21768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W0B.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7497,
+      "size": 20256,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W0C.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7507,
+      "size": 22884,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W0D.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7519,
+      "size": 25432,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W0E.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7532,
+      "size": 21768,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W0F.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7543,
+      "size": 22776,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W10.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7555,
+      "size": 24940,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W11.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7568,
+      "size": 23636,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W12.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7580,
+      "size": 20256,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W13.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7590,
+      "size": 23332,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL04W14.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7602,
+      "size": 20256,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL05.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7612,
+      "size": 174136,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL06.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7698,
+      "size": 174552,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL0D.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7784,
+      "size": 159912,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL0E.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7863,
+      "size": 123456,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL0F.PLD",
+      "category": "character-model-and-animation",
+      "lba": 7924,
+      "size": 128404,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/PLD/PL0FW00.PLW",
+      "category": "weapon-model-and-animation",
+      "lba": 7987,
+      "size": 15648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS00.EDH",
+      "category": "sound-bank-header",
+      "lba": 7998,
+      "size": 3128,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS00.VB",
+      "category": "sound-sample-container",
+      "lba": 8000,
+      "size": 35488,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS01.EDH",
+      "category": "sound-bank-header",
+      "lba": 8018,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS01.VB",
+      "category": "sound-sample-container",
+      "lba": 8020,
+      "size": 32432,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS02.EDH",
+      "category": "sound-bank-header",
+      "lba": 8036,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS02.VB",
+      "category": "sound-sample-container",
+      "lba": 8038,
+      "size": 34528,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS03.EDH",
+      "category": "sound-bank-header",
+      "lba": 8055,
+      "size": 3144,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS03.VB",
+      "category": "sound-sample-container",
+      "lba": 8057,
+      "size": 34528,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS04.EDH",
+      "category": "sound-bank-header",
+      "lba": 8074,
+      "size": 3144,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS04.VB",
+      "category": "sound-sample-container",
+      "lba": 8076,
+      "size": 34528,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS05.EDH",
+      "category": "sound-bank-header",
+      "lba": 8093,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS05.VB",
+      "category": "sound-sample-container",
+      "lba": 8095,
+      "size": 34528,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS06.EDH",
+      "category": "sound-bank-header",
+      "lba": 8112,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS06.VB",
+      "category": "sound-sample-container",
+      "lba": 8114,
+      "size": 34528,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS07.EDH",
+      "category": "sound-bank-header",
+      "lba": 8131,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS07.VB",
+      "category": "sound-sample-container",
+      "lba": 8133,
+      "size": 17392,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS08.EDH",
+      "category": "sound-bank-header",
+      "lba": 8142,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS08.VB",
+      "category": "sound-sample-container",
+      "lba": 8144,
+      "size": 35648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS09.EDH",
+      "category": "sound-bank-header",
+      "lba": 8162,
+      "size": 3156,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS09.VB",
+      "category": "sound-sample-container",
+      "lba": 8164,
+      "size": 4400,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0A.EDH",
+      "category": "sound-bank-header",
+      "lba": 8167,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0A.VB",
+      "category": "sound-sample-container",
+      "lba": 8169,
+      "size": 34528,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0B.EDH",
+      "category": "sound-bank-header",
+      "lba": 8186,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0B.VB",
+      "category": "sound-sample-container",
+      "lba": 8188,
+      "size": 34528,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0C.EDH",
+      "category": "sound-bank-header",
+      "lba": 8205,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0C.VB",
+      "category": "sound-sample-container",
+      "lba": 8207,
+      "size": 26896,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0D.EDH",
+      "category": "sound-bank-header",
+      "lba": 8221,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0D.VB",
+      "category": "sound-sample-container",
+      "lba": 8223,
+      "size": 17392,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0E.EDH",
+      "category": "sound-bank-header",
+      "lba": 8232,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0E.VB",
+      "category": "sound-sample-container",
+      "lba": 8234,
+      "size": 26896,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0F.EDH",
+      "category": "sound-bank-header",
+      "lba": 8248,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS0F.VB",
+      "category": "sound-sample-container",
+      "lba": 8250,
+      "size": 35648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS10.EDH",
+      "category": "sound-bank-header",
+      "lba": 8268,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS10.VB",
+      "category": "sound-sample-container",
+      "lba": 8270,
+      "size": 35648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS11.EDH",
+      "category": "sound-bank-header",
+      "lba": 8288,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS11.VB",
+      "category": "sound-sample-container",
+      "lba": 8290,
+      "size": 35648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS12.EDH",
+      "category": "sound-bank-header",
+      "lba": 8308,
+      "size": 3152,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS12.VB",
+      "category": "sound-sample-container",
+      "lba": 8310,
+      "size": 35648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS13.EDH",
+      "category": "sound-bank-header",
+      "lba": 8328,
+      "size": 3144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS13.VB",
+      "category": "sound-sample-container",
+      "lba": 8330,
+      "size": 26896,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS14.EDH",
+      "category": "sound-bank-header",
+      "lba": 8344,
+      "size": 3164,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/ARMS14.VB",
+      "category": "sound-sample-container",
+      "lba": 8346,
+      "size": 31984,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/CORE00.EDH",
+      "category": "sound-bank-header",
+      "lba": 8362,
+      "size": 3176,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/CORE00.VB",
+      "category": "sound-sample-container",
+      "lba": 8364,
+      "size": 32288,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/CORE01.EDH",
+      "category": "sound-bank-header",
+      "lba": 8380,
+      "size": 3176,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/CORE01.VB",
+      "category": "sound-sample-container",
+      "lba": 8382,
+      "size": 34496,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN00.BGM",
+      "category": "music-sequence-container",
+      "lba": 8399,
+      "size": 128308,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN01.BGM",
+      "category": "music-sequence-container",
+      "lba": 8462,
+      "size": 152288,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN02.BGM",
+      "category": "music-sequence-container",
+      "lba": 8537,
+      "size": 221724,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN03.BGM",
+      "category": "music-sequence-container",
+      "lba": 8646,
+      "size": 69272,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN04.BGM",
+      "category": "music-sequence-container",
+      "lba": 8680,
+      "size": 104320,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN05.BGM",
+      "category": "music-sequence-container",
+      "lba": 8731,
+      "size": 215004,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN06.BGM",
+      "category": "music-sequence-container",
+      "lba": 8836,
+      "size": 210948,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN07.BGM",
+      "category": "music-sequence-container",
+      "lba": 8940,
+      "size": 103644,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN09.BGM",
+      "category": "music-sequence-container",
+      "lba": 8991,
+      "size": 198300,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN0B.BGM",
+      "category": "music-sequence-container",
+      "lba": 9088,
+      "size": 193036,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN0D.BGM",
+      "category": "music-sequence-container",
+      "lba": 9183,
+      "size": 227808,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN0E.BGM",
+      "category": "music-sequence-container",
+      "lba": 9295,
+      "size": 151184,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN0F.BGM",
+      "category": "music-sequence-container",
+      "lba": 9369,
+      "size": 190972,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN10.BGM",
+      "category": "music-sequence-container",
+      "lba": 9463,
+      "size": 49844,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN12.BGM",
+      "category": "music-sequence-container",
+      "lba": 9488,
+      "size": 188892,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN13.BGM",
+      "category": "music-sequence-container",
+      "lba": 9581,
+      "size": 218428,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN14.BGM",
+      "category": "music-sequence-container",
+      "lba": 9688,
+      "size": 217568,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN15.BGM",
+      "category": "music-sequence-container",
+      "lba": 9795,
+      "size": 211240,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN16.BGM",
+      "category": "music-sequence-container",
+      "lba": 9899,
+      "size": 242048,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/MAIN3F.BGM",
+      "category": "music-sequence-container",
+      "lba": 10018,
+      "size": 51396,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_00.BGM",
+      "category": "music-sequence-container",
+      "lba": 10044,
+      "size": 100804,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_01.BGM",
+      "category": "music-sequence-container",
+      "lba": 10094,
+      "size": 29176,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_02.BGM",
+      "category": "music-sequence-container",
+      "lba": 10109,
+      "size": 70484,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_03.BGM",
+      "category": "music-sequence-container",
+      "lba": 10144,
+      "size": 29548,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_04.BGM",
+      "category": "music-sequence-container",
+      "lba": 10159,
+      "size": 25148,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_05.BGM",
+      "category": "music-sequence-container",
+      "lba": 10172,
+      "size": 120920,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_06.BGM",
+      "category": "music-sequence-container",
+      "lba": 10232,
+      "size": 94820,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_07.BGM",
+      "category": "music-sequence-container",
+      "lba": 10279,
+      "size": 10512,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_08.BGM",
+      "category": "music-sequence-container",
+      "lba": 10285,
+      "size": 62256,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_09.BGM",
+      "category": "music-sequence-container",
+      "lba": 10316,
+      "size": 88552,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_0A.BGM",
+      "category": "music-sequence-container",
+      "lba": 10360,
+      "size": 168548,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/SOUND/SUB_3F.BGM",
+      "category": "music-sequence-container",
+      "lba": 10443,
+      "size": 123744,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM102.BSS",
+      "category": "background-container",
+      "lba": 10506,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1020.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 10922,
+      "size": 158400,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1021.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 11000,
+      "size": 159052,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM103.BSS",
+      "category": "background-container",
+      "lba": 11078,
+      "size": 851968,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1030.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 11494,
+      "size": 197692,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1031.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 11591,
+      "size": 189708,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM104.BSS",
+      "category": "background-container",
+      "lba": 11684,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1040.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 11908,
+      "size": 213288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1041.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 12013,
+      "size": 213288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1060.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 12118,
+      "size": 1404,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM107.BSS",
+      "category": "background-container",
+      "lba": 12119,
+      "size": 524288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1070.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 12375,
+      "size": 181076,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1071.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 12464,
+      "size": 142200,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM109.BSS",
+      "category": "background-container",
+      "lba": 12534,
+      "size": 1048576,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1090.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 13046,
+      "size": 216124,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1091.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 13152,
+      "size": 215240,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM10B.BSS",
+      "category": "background-container",
+      "lba": 13258,
+      "size": 589824,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM10B0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 13546,
+      "size": 77724,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM10B1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 13584,
+      "size": 78352,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM110.BSS",
+      "category": "background-container",
+      "lba": 13623,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1100.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14039,
+      "size": 127392,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1101.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14102,
+      "size": 127392,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM115.BSS",
+      "category": "background-container",
+      "lba": 14165,
+      "size": 524288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1150.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14421,
+      "size": 140216,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1151.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14490,
+      "size": 179092,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM116.BSS",
+      "category": "background-container",
+      "lba": 14578,
+      "size": 262144,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1160.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14706,
+      "size": 36460,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1161.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14724,
+      "size": 36460,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM117.BSS",
+      "category": "background-container",
+      "lba": 14742,
+      "size": 393216,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1170.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 14934,
+      "size": 153976,
+      "status": "partial",
+      "evidence": [
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1171.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 15010,
+      "size": 154964,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM118.BSS",
+      "category": "background-container",
+      "lba": 15086,
+      "size": 655360,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1180.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 15406,
+      "size": 86640,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM119.BSS",
+      "category": "background-container",
+      "lba": 15449,
+      "size": 786432,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1190.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 15833,
+      "size": 179584,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1191.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 15921,
+      "size": 179584,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11A.BSS",
+      "category": "background-container",
+      "lba": 16009,
+      "size": 196608,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11A0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 16105,
+      "size": 85076,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11A1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 16147,
+      "size": 85076,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11B.BSS",
+      "category": "background-container",
+      "lba": 16189,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11B0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 16605,
+      "size": 174256,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11B1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 16691,
+      "size": 173436,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11C.BSS",
+      "category": "background-container",
+      "lba": 16776,
+      "size": 917504,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11C0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 17224,
+      "size": 105672,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11C1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 17276,
+      "size": 104568,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11E.BSS",
+      "category": "background-container",
+      "lba": 17328,
+      "size": 983040,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11E0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 17808,
+      "size": 166388,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11E1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 17890,
+      "size": 166388,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM11F.BSS",
+      "category": "background-container",
+      "lba": 17972,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM120.BSS",
+      "category": "background-container",
+      "lba": 18196,
+      "size": 262144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1200.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 18324,
+      "size": 167096,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1201.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 18406,
+      "size": 167104,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM121.BSS",
+      "category": "background-container",
+      "lba": 18488,
+      "size": 589824,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1210.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 18776,
+      "size": 140484,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM1211.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 18845,
+      "size": 140468,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM122.BSS",
+      "category": "background-container",
+      "lba": 18914,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM123.BSS",
+      "category": "background-container",
+      "lba": 18978,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM124.BSS",
+      "category": "background-container",
+      "lba": 19042,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM125.BSS",
+      "category": "background-container",
+      "lba": 19106,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE1/ROOM126.BSS",
+      "category": "background-container",
+      "lba": 19170,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM200.BSS",
+      "category": "background-container",
+      "lba": 19235,
+      "size": 1048576,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM2000.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 19747,
+      "size": 246496,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM2001.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 19868,
+      "size": 246496,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM201.BSS",
+      "category": "background-container",
+      "lba": 19989,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM203.BSS",
+      "category": "background-container",
+      "lba": 20405,
+      "size": 524288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM2030.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 20661,
+      "size": 233480,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM207.BSS",
+      "category": "background-container",
+      "lba": 20776,
+      "size": 917504,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM2070.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 21224,
+      "size": 267092,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM208.BSS",
+      "category": "background-container",
+      "lba": 21355,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM209.BSS",
+      "category": "background-container",
+      "lba": 21579,
+      "size": 720896,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM2090.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 21931,
+      "size": 102044,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM20B.BSS",
+      "category": "background-container",
+      "lba": 21981,
+      "size": 1048576,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM20B0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 22493,
+      "size": 144668,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE2/ROOM20B1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 22564,
+      "size": 110316,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM300.BSS",
+      "category": "background-container",
+      "lba": 22619,
+      "size": 262144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3000.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 22747,
+      "size": 114644,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3001.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 22803,
+      "size": 114640,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM301.BSS",
+      "category": "background-container",
+      "lba": 22859,
+      "size": 655360,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3010.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 23179,
+      "size": 166784,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3011.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 23261,
+      "size": 166784,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM302.BSS",
+      "category": "background-container",
+      "lba": 23343,
+      "size": 983040,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3020.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 23823,
+      "size": 117496,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM303.BSS",
+      "category": "background-container",
+      "lba": 23881,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3030.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 23945,
+      "size": 80940,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3031.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 23985,
+      "size": 80940,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM304.BSS",
+      "category": "background-container",
+      "lba": 24025,
+      "size": 983040,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3040.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 24505,
+      "size": 72412,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3041.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 24541,
+      "size": 72412,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM306.BSS",
+      "category": "background-container",
+      "lba": 24577,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3060.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 24801,
+      "size": 129380,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3061.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 24865,
+      "size": 130140,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM307.BSS",
+      "category": "background-container",
+      "lba": 24929,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3070.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 25345,
+      "size": 188904,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3071.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 25438,
+      "size": 189572,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM308.BSS",
+      "category": "background-container",
+      "lba": 25531,
+      "size": 262144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3080.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 25659,
+      "size": 169428,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3081.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 25742,
+      "size": 97376,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM309.BSS",
+      "category": "background-container",
+      "lba": 25790,
+      "size": 1048576,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3090.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 26302,
+      "size": 184816,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM3091.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 26393,
+      "size": 220184,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM30E.BSS",
+      "category": "background-container",
+      "lba": 26501,
+      "size": 131072,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM30E0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 26565,
+      "size": 14772,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE3/ROOM30E1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 26573,
+      "size": 14796,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM400.BSS",
+      "category": "background-container",
+      "lba": 26582,
+      "size": 524288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4000.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 26838,
+      "size": 212248,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4001.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 26942,
+      "size": 176176,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM401.BSS",
+      "category": "background-container",
+      "lba": 27029,
+      "size": 262144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4010.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 27157,
+      "size": 245312,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4011.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 27277,
+      "size": 244204,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM403.BSS",
+      "category": "background-container",
+      "lba": 27397,
+      "size": 393216,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4030.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 27589,
+      "size": 167652,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4031.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 27671,
+      "size": 167692,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM404.BSS",
+      "category": "background-container",
+      "lba": 27753,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM408.BSS",
+      "category": "background-container",
+      "lba": 28169,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM409.BSS",
+      "category": "background-container",
+      "lba": 28585,
+      "size": 262144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4090.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 28713,
+      "size": 20144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM4091.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 28723,
+      "size": 20144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM40A.BSS",
+      "category": "background-container",
+      "lba": 28733,
+      "size": 524288,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM40A0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 28989,
+      "size": 24500,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE4/ROOM40A1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 29001,
+      "size": 24604,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM501.BSS",
+      "category": "background-container",
+      "lba": 29015,
+      "size": 262144,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5010.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 29143,
+      "size": 223800,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5011.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 29253,
+      "size": 224588,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM503.BSS",
+      "category": "background-container",
+      "lba": 29363,
+      "size": 720896,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5030.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 29715,
+      "size": 166836,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5031.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 29797,
+      "size": 166836,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM504.BSS",
+      "category": "background-container",
+      "lba": 29879,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5040.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 30103,
+      "size": 209068,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5041.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 30206,
+      "size": 209068,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM506.BSS",
+      "category": "background-container",
+      "lba": 30309,
+      "size": 851968,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5060.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 30725,
+      "size": 211916,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5061.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 30829,
+      "size": 211916,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50A.BSS",
+      "category": "background-container",
+      "lba": 30933,
+      "size": 917504,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50A0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 31381,
+      "size": 156972,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50A1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 31458,
+      "size": 136608,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50C.BSS",
+      "category": "background-container",
+      "lba": 31525,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50C0.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 31749,
+      "size": 105664,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50C1.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 31801,
+      "size": 105648,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM50D.BSS",
+      "category": "background-container",
+      "lba": 31853,
+      "size": 65536,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM510.BSS",
+      "category": "background-container",
+      "lba": 31885,
+      "size": 655360,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5100.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 32205,
+      "size": 117348,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5101.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 32263,
+      "size": 117348,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM511.BSS",
+      "category": "background-container",
+      "lba": 32321,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5110.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 32545,
+      "size": 67996,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5111.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 32579,
+      "size": 67996,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM512.BSS",
+      "category": "background-container",
+      "lba": 32613,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5120.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 32837,
+      "size": 165336,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5121.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 32918,
+      "size": 165336,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM514.BSS",
+      "category": "background-container",
+      "lba": 32999,
+      "size": 917504,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5140.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 33447,
+      "size": 141924,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE5/ROOM5141.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 33517,
+      "size": 131620,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE6/ROOM603.BSS",
+      "category": "background-container",
+      "lba": 33583,
+      "size": 393216,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE6/ROOM6030.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 33775,
+      "size": 132372,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE6/ROOM6031.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 33840,
+      "size": 131688,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE6/ROOM604.BSS",
+      "category": "background-container",
+      "lba": 33905,
+      "size": 458752,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE6/ROOM6040.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 34129,
+      "size": 132148,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "PSX/STAGE6/ROOM6041.RDT",
+      "category": "room-data-and-scripts",
+      "lba": 34194,
+      "size": 132260,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    },
+    {
+      "path": "SYSTEM.CNF",
+      "category": "boot-configuration",
+      "lba": 34259,
+      "size": 65,
+      "status": "partial",
+      "evidence": [
+        "out/gates/elza-thread-safe/route/coverage.json",
+        "out/gates/leon-thread-safe/route/coverage.json"
+      ],
+      "notes": ""
+    },
+    {
+      "path": "ZNULL.DAT",
+      "category": "data",
+      "lba": 34611,
+      "size": 37044000,
+      "status": "unverified",
+      "evidence": [],
+      "notes": ""
+    }
+  ]
+}
