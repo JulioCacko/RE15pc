@@ -2450,3 +2450,29 @@ driven,   60s   voice volume peak 8975,  non-zero on 852  of 1707 frames   AUDIB
 The overlay check has the same shape but not the same trap - it works undriven, because overlays load by LBA from the guest's own CD calls rather than depending on the game reaching a state. **Which check needs input is a property of what is being verified**, and both are now recorded rather than assumed.
 
 That is the same class of error as `--skip-draws flat`: an instrument that was right about *what* it measured, misused as evidence about something else. It is the last of them found, and finding it required re-running what the documentation claimed instead of trusting that it had been checked when it was written.
+
+#### The game's sequence with aggressive input, and no controllable state in it
+
+Two hundred seconds driven as hard as the input format allows - cross every thirty frames and a direction held nearly continuously from frame 200 - produces exactly the same sequence as gentler input:
+
+```
+frame      2  buffer(0,0)      0   buffer(0,240)      0
+frame    100  buffer(0,0)  31801   buffer(0,240)      0     <- title
+frame    306  buffer(0,0)  61135   buffer(0,240)      0     <- FULL ROOM, 79.6%
+frame    308  buffer(0,0)  61135   buffer(0,240)  61135
+frame    566  buffer(0,0)  61135   buffer(0,240)      0     <- transition
+frame    568  buffer(0,0)      0   buffer(0,240)      0     <- wipe
+frame    640  buffer(0,0)   1253   buffer(0,240)      0     <- revealing, slowly
+frame    890  buffer(0,0)   4310   buffer(0,240)   4310
+frame   1204  buffer(0,0)   6753   buffer(0,240)   6753
+
+unmapped calls          : 0
+per-frame buffer changes: 15, guest frames 2..5943
+SMOKE VERDICT: PASS
+```
+
+**Directions change nothing at any point in it.** Holding them continuously across the room, the transition and the state that follows produces the same trajectory as holding nothing, so the sequence is the game's own and not a response to the pad. The room at frames 306 to 566 - a full 79.6 percent of both buffers - is not a state in which a character moves.
+
+So the port executes this build's opening sequence correctly and stops responding to input after it. That is what Phase 6's gate says, and this is the shape of it: **the room renders, and nothing in it moves.**
+
+Whether the sequence continues past frame 1204 into gameplay that the input never reaches, or whether the later state is waiting for something the input never presses, is not distinguished here and is the thing to determine next. The route documented in the README - logging the pad states the guest receives through PadReadEvent and correlating them with the state changes it makes - is the way to tell those apart without guessing, and it is where the remaining time is best spent by whoever continues this.
