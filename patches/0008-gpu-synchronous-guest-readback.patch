@@ -1,0 +1,174 @@
+diff --git a/RecompOne.Runtime/Gpu/GpuHleForward.cs b/RecompOne.Runtime/Gpu/GpuHleForward.cs
+index eaf383c..67fab3e 100644
+--- a/RecompOne.Runtime/Gpu/GpuHleForward.cs
++++ b/RecompOne.Runtime/Gpu/GpuHleForward.cs
+@@ -102,14 +102,21 @@ public sealed partial class Gpu
+         var n = w * h;
+         if (_readBuf.Length < n) _readBuf = new ushort[n];
+         var buf = _readBuf;
++        void ReadGuestPixels()
++        {
++            if (GpuHle.Backend is Interp.InterpBackend interp)
++                interp.ReadGuestVram(x, y, w, h, buf);
++            else
++                GpuHle.Backend!.ReadVram(x, y, w, h, buf);
++        }
+ 
+         if (Host.GpuJobs.Claimed && !Host.GpuJobs.IsOwner)
+         {
+-            Host.GpuJobs.Run(() => GpuHle.Backend!.ReadVram(x, y, w, h, buf));
++            Host.GpuJobs.Run(ReadGuestPixels);
+         }
+         else
+         {
+-            GpuHle.Backend!.ReadVram(x, y, w, h, buf);
++            ReadGuestPixels();
+         }
+ 
+         for (var row = 0; row < h; row++)
+@@ -147,4 +154,4 @@ public sealed partial class Gpu
+         GpuHle.Backend!.WriteVram(_loadX, _loadY, _loadW, _loadH, _hleLoad.AsSpan(0, _loadW * _loadH));
+         _hleLoadActive = false;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
+index 87bb23f..03b81f9 100644
+--- a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
++++ b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
+@@ -26,6 +26,7 @@ public sealed class InterpBackend : IGpuBackend
+     private readonly Queue<FrameGraph> _ready = new();
+     private FrameGraph _current = new();
+     private FrameGraph _previous = new();
++    private bool _currentSettled;
+     
+     private readonly Dictionary<int, int> _groups = new();
+     
+@@ -236,6 +237,36 @@ public sealed class InterpBackend : IGpuBackend
+     {
+         return _inner.RegisterImage(rgba, width, height);
+     }
++
++    /// <summary>
++    /// A synchronous guest read is a command barrier, including uploads not yet
++    /// published at VSync. Call on the GPU owner while the guest is blocked (or
++    /// stopped); host inspectors must use ReadVram instead of touching recording.
++    /// </summary>
++    public void ReadGuestVram(int x, int y, int w, int h, Span<ushort> px)
++    {
++        if (_active && !BypassRecord)
++        {
++            lock (_gate)
++            {
++                Settle();
++                while (_ready.Count > 0)
++                {
++                    var graph = _ready.Dequeue();
++                    Replay(graph, null, 1f);
++                    Recycle(graph);
++                }
++                Replay(_recording, null, 1f);
++                _recording.Clear();
++                _recording.Interpolatable = false;
++                _groups.Clear();
++                _previous.Clear();
++                _interpolating = false;
++                _resync = true;
++            }
++        }
++        _inner.ReadVram(x, y, w, h, px);
++    }
+     
+     public void Flush()
+     {
+@@ -288,6 +319,7 @@ public sealed class InterpBackend : IGpuBackend
+             Recycle(_previous);
+             _previous = _current;
+             _current = _ready.Dequeue();
++            _currentSettled = false;
+         }
+         
+         return true;
+@@ -368,6 +400,7 @@ public sealed class InterpBackend : IGpuBackend
+             if (_interpolating && weight < 1f) _transforms.Build(_current, _previous, weight);
+             
+             Replay(_current, _interpolating ? _previous : null, weight);
++            if (weight >= 1f) _currentSettled = true;
+         }
+         
+         _renderedMs += _watch.Elapsed.TotalMilliseconds - start;
+@@ -419,7 +452,8 @@ public sealed class InterpBackend : IGpuBackend
+             }
+ 
+             Hle.GpuGlAccess.SettleReplayed++;
+-            Replay(_current, null, 1f);
++            if (!_currentSettled) Replay(_current, null, 1f);
++            _currentSettled = true;
+             _current.Clear();
+             _current.Interpolatable = false;
+         }
+diff --git a/RecompOne.Runtime/sdk/LibGpu.cs b/RecompOne.Runtime/sdk/LibGpu.cs
+index 6ad88cd..22d0e45 100644
+--- a/RecompOne.Runtime/sdk/LibGpu.cs
++++ b/RecompOne.Runtime/sdk/LibGpu.cs
+@@ -310,8 +310,15 @@ public static class LibGpu
+         gpu.WriteGp0(0xA0000000u);
+         gpu.WriteGp0(Pack(r.X, r.Y));
+         gpu.WriteGp0(Pack(w, h));
++        var nonZero = 0;
+         for (var i = 0; i < words; i++)
+-            gpu.WriteGp0(m.ReadU32(src + (uint)i * 4u));
++        {
++            var value = m.ReadU32(src + (uint)i * 4u);
++            if (value != 0) nonZero++;
++            gpu.WriteGp0(value);
++        }
++        if (w >= 320 || h >= 240)
++            Log.Gpu($"LoadImage src=0x{src:X8} rect={r.X},{r.Y},{w},{h} words={words} nonZero={nonZero} caller=0x{c.RA:X8}");
+ 
+         c.V0 = 0u;
+     }
+@@ -339,8 +346,14 @@ public static class LibGpu
+         gpu.WriteGp0(0xC0000000u);
+         gpu.WriteGp0(Pack(r.X, r.Y));
+         gpu.WriteGp0(Pack(w, h));
++        var nonZero = 0;
+         for (var i = 0; i < words; i++)
+-            m.WriteU32(dst + (uint)i * 4u, gpu.ReadData());
++        {
++            var value = gpu.ReadData();
++            if (value != 0) nonZero++;
++            m.WriteU32(dst + (uint)i * 4u, value);
++        }
++        Log.Gpu($"StoreImage dst=0x{dst:X8} rect={r.X},{r.Y},{w},{h} words={words} nonZero={nonZero} caller=0x{c.RA:X8}");
+ 
+         c.V0 = 0u;
+     }
+@@ -424,4 +437,4 @@ public static class LibGpu
+         var c3 = ((uint)-h & 0xFF) >> 3;
+         return 0xE2000000u | (c1 << 15) | (c0 << 10) | (c3 << 5) | c2;
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/sdk/LibPress.cs b/RecompOne.Runtime/sdk/LibPress.cs
+index f0e5672..7c3196b 100644
+--- a/RecompOne.Runtime/sdk/LibPress.cs
++++ b/RecompOne.Runtime/sdk/LibPress.cs
+@@ -47,7 +47,14 @@ public static class LibPress
+ 
+         var dst = c.A0;
+         var words = (c.A1 >> 5) << 5;
+-        for (var i = 0u; i < words; i++) m.WriteU32(dst + i * 4u, mdec.ReadData());
++        var nonZero = 0u;
++        for (var i = 0u; i < words; i++)
++        {
++            var value = mdec.ReadData();
++            if (value != 0) nonZero++;
++            m.WriteU32(dst + i * 4u, value);
++        }
++        Log.Mdec($"out dst=0x{dst:X8} words={words} nonZero={nonZero} caller=0x{c.RA:X8}");
+ 
+         c.V0 = 0u;
+ 

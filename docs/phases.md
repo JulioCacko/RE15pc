@@ -14,17 +14,23 @@ boot investigation. A smoke pass does not complete a gameplay gate.
 ## Phase 1 evidence
 
 See [acceptance.md](acceptance.md). The local native suite passed at
-`out/gates/harness-v2`; the focused suite now has 33 passing checks.
+`out/gates/harness-v2`; the focused suite now has 40 passing checks.
 Recompilation compared all ten generated files byte-for-byte successfully.
-All seven tracked patches exactly reconstruct the current upstream changes.
+The tracked patch series reconstructs the upstream changes. The GPU readback
+repair also passes the native harness at `out/gates/readback-fixed`.
 
 ## Phase 2 evidence
 
 A 2100-frame run reached STAGE1 around frame 1470 following Cross at frame
 1250. The held direction at frames 600–1199 happened before gameplay, so it
 cannot demonstrate player movement. Computer Use directly observed character
-selection. At the end of the run a small character rendered against a black
-background. The background and control behavior remain under investigation.
+selection. At the end of that run a small character rendered against a black
+background. The synchronous GPU readback defect causing that missing background
+is now fixed; see [background-readback.md](background-readback.md).
+The rooftop renders, and post-entry Up input triggers two camera-image changes.
+An otherwise identical idle control at frame 2100 stays at the initial camera,
+providing paired input, visual, and background-transfer evidence for movement.
+Collision, deliberate doors, and the complete first-room gate remain open.
 
 Circle at frames 240 and 420 left the game at character selection through
 frame 1200. Menu inputs must be tied to observed game state rather than inferred

@@ -18,7 +18,9 @@ and rejection of a nonempty output directory. The focused checks include
 failure aggregation, log rollover, input boundaries, stale overlay eviction,
 resident functions, and restoration of the active maps.
 
-Latest local gate: `out/gates/harness-v2`, PASS. The final focused suite has 33 passing checks (including case-insensitive release-token validation).
+Latest local gate: `out/gates/harness-v2`, PASS. The focused suite had 33 passing checks at that checkpoint; the GPU readback
+regression raises the current total to 40, with the native gate passing again
+at `out/gates/readback-fixed`.
 Both positive native cases stopped at exactly 180 frames with exit 0.
 The audio-negative case stopped at frame 1 with exit 1; the timeout case
 failed at frame 0 with exit 1. All 10 generated files remained byte-identical.
@@ -70,7 +72,9 @@ rendering overrides cannot produce a preservation acceptance pass.
 Computer Use inspection of the native 2100-frame scripted run showed the
 “PLEASE SELECT MAIN CAST” screen with Leon and Elza. Previous pixel counts
 described as a playable room do not identify a controllable gameplay state.
-No movement, collision, door, inventory, combat or save/load gate is complete.
+The STAGE1 background has since been repaired and verified in the native
+window; see [background-readback.md](background-readback.md). No complete
+movement/collision/door, inventory, combat or save/load gate is established.
 
 GitHub Actions currently cannot start because of the account billing/spending
 limit. Local checks do not substitute for a passing required remote release check.

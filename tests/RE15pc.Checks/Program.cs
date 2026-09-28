@@ -70,6 +70,7 @@ Dispatcher.Load("stage1");
 var overlays = OverlayVerification.Verify();
 Check(overlays.Passed, overlays.Detail);
 Check(Dispatcher.ActiveNames.SequenceEqual(new[] { "main", "stage1" }), "synthetic verification restores active maps");
+GpuReadbackChecks.Run(Check);
 Console.WriteLine($"ALL {count} CHECKS PASSED");
 
 sealed class FakeOverlay(string name, int index) : IOverlay

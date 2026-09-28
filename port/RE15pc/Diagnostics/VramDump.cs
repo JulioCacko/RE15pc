@@ -155,7 +155,10 @@ public static class VramDump
         var buffer = new ushort[width * height];
         if (GpuJobs.IsOwner)
         {
-            backend.ReadVram(0, 0, width, height, buffer);
+            if (Runtime.GameStopped && backend is RecompOne.Runtime.Interp.InterpBackend interp)
+                interp.ReadGuestVram(0, 0, width, height, buffer);
+            else
+                backend.ReadVram(0, 0, width, height, buffer);
             return (buffer, "");
         }
         Exception? failure = null;

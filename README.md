@@ -6,8 +6,10 @@ MIPS executable and seven overlays with [RecompOne](https://github.com/BlackLabe
 
 **Current status: acceptance harness repaired; gameplay and gold are unverified.**
 The native host boots, reaches character selection, and executes STAGE1.
-That is not evidence of controllable gameplay. Live inspection showed that an
-earlier scene described as a room was the character-selection screen.
+The STAGE1 rooftop background now renders after a synchronous GPU readback fix.
+A directional-input run triggers camera changes; collision and doors remain
+unverified. See [the repair evidence](docs/background-readback.md).
+Earlier pixel counts had confused character selection with a playable room.
 
 ## Build
 
@@ -70,7 +72,7 @@ reproducible build, and passing release checks. Unknown behavior blocks the
 relevant gate. Emulator setup is not required.
 
 Synthetic dispatch success, nonzero audio, pixel counts, and a clean smoke run
-do not establish playability. Movement, collision, doors, interactions, combat,
+do not establish playability. Full movement acceptance, collision, doors, interactions, combat,
 inventory, save/load, full content coverage, and the stability gate remain open.
 GitHub Actions is currently blocked from starting by account billing/spending
 limits; local passes do not establish a remote check pass.
