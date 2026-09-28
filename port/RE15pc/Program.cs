@@ -91,6 +91,7 @@ public static class Program
         ConfigManager.SaveGame();
 
         OverlayPolicy.Attach();
+        GpuActivity.Attach();
 
         // Scripted input is what makes an unattended run able to get past the first screen
         // that waits for a pad. Only attached when asked for, so a normal interactive run
@@ -162,7 +163,7 @@ public static class Program
         var vram = "";
         try
         {
-            vram = VramDump.Dump(Runtime.Gpu, options.OutDir);
+            vram = VramDump.Dump(Runtime.Gpu, options.OutDir) + Environment.NewLine + GpuActivity.Describe();
         }
         catch (Exception ex)
         {

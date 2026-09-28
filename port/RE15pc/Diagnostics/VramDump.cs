@@ -1,5 +1,7 @@
 using RecompOne.Runtime;
 using RecompOne.Runtime.Assets;
+using RecompOne.Runtime.Hle;
+using RecompOne.Runtime.Host;
 
 namespace RE15pc.Diagnostics;
 
@@ -37,7 +39,7 @@ public static class VramDump
     {
         if (gpu is null) return "  VRAM                    : unavailable (Runtime.Gpu is null)";
 
-        var vram = gpu.Vram;
+        var (vram, source) = AcquireVram(gpu);
         const int width = Gpu.VramWidth;
         const int height = Gpu.VramHeight;
 
@@ -69,6 +71,7 @@ public static class VramDump
         var dh = Math.Clamp(gpu.DisplayHeight, 0, height);
 
         var summary = new System.Text.StringBuilder();
+        summary.AppendLine($"  VRAM source             : {source}");
         summary.AppendLine($"  display enabled         : {gpu.DisplayEnabled}");
         summary.AppendLine($"  display area            : {dw}x{dh} at VRAM ({dx},{dy})" +
                            (gpu.Pal ? ", PAL" : ", NTSC") +
@@ -122,6 +125,71 @@ public static class VramDump
         }
 
         return summary.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Obtains video memory, preferring the GL backend whenever the HLE is active.
+    /// </summary>
+    /// <remarks>
+    /// This distinction is not cosmetic, it decides whether the dump means anything.
+    /// <c>GpuHleForward</c> routes rasterisation to the GL backend as soon as
+    /// <c>GpuHle.Active</c> and the backend is ready, so once that is true the software
+    /// shadow in <c>Gpu.Vram</c> only ever receives CPU-to-VRAM uploads and VRAM-to-VRAM
+    /// copies. Anything the guest *drew* is on the GL side and never appears in the shadow.
+    ///
+    /// Reading the shadow in that state produces a picture of the uploaded textures with a
+    /// black framebuffer, which reads exactly like "the game renders nothing" and is
+    /// completely wrong. The source is reported alongside the dump so a future reader can
+    /// tell which of the two they are looking at.
+    ///
+    /// GL work has to happen on the thread that owns the context, so this hands the read to
+    /// the GPU job queue the presentation loop drains. That queue has no timeout, and the
+    /// presentation loop stops draining once the guest thread ends, so the wait is bounded
+    /// here and falls back to the shadow rather than hanging the run it is diagnosing.
+    /// </remarks>
+    private static (ushort[] Data, string Source) AcquireVram(Gpu gpu)
+    {
+        var shadow = gpu.Vram;
+
+        if (!GpuHle.Active)
+            return (shadow, "software shadow (GPU HLE inactive, so the shadow IS authoritative)");
+
+        if (GpuHle.Backend is not { Ready: true } backend)
+            return (shadow, "software shadow (GL backend not ready)");
+
+        if (!GpuJobs.Claimed)
+            return (shadow, "software shadow (GPU job queue not claimed yet)");
+
+        var buffer = new ushort[Gpu.VramWidth * Gpu.VramHeight];
+        var done = new ManualResetEventSlim(false);
+
+        var reader = new Thread(() =>
+        {
+            try
+            {
+                GpuJobs.Run(() => backend.ReadVram(0, 0, Gpu.VramWidth, Gpu.VramHeight, buffer));
+            }
+            catch
+            {
+                // Reported by the timeout/fallback below; the exception itself is only
+                // interesting if the read also fails to complete.
+            }
+            finally
+            {
+                done.Set();
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "vram-read"
+        };
+
+        reader.Start();
+
+        if (!done.Wait(TimeSpan.FromSeconds(5)))
+            return (shadow, "software shadow (GL read timed out; presentation loop may have stopped)");
+
+        return (buffer, "GL backend (authoritative while the HLE is active)");
     }
 
     /// <summary>

@@ -33,6 +33,13 @@ public sealed class ProgressSampler : IDisposable
     private readonly object _gate = new();
     private readonly List<Observation> _samples = [];
 
+    /// <summary>
+    /// Distinct display geometries seen, as "x,y w*h". The display origin is only readable
+    /// at the instant of a dump, so sampling it over time is the only way to find out whether
+    /// the game ever points the display somewhere other than where it was at the end.
+    /// </summary>
+    private readonly HashSet<string> _displayGeometries = [];
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -58,6 +65,14 @@ public sealed class ProgressSampler : IDisposable
                 if (_samples.Count > 0 && _samples[^1].Hash == hash) return;
                 _samples.Add(new Observation(_clock.Elapsed.TotalSeconds, hash));
             }
+
+            if (RecompOne.Runtime.Runtime.Gpu is { } gpu)
+                lock (_gate)
+                {
+                    _displayGeometries.Add(
+                        $"{gpu.DisplayX},{gpu.DisplayY} {gpu.DisplayWidth}x{gpu.DisplayHeight}" +
+                        (gpu.DisplayEnabled ? "" : " (disabled)"));
+                }
         }
         catch
         {
@@ -115,6 +130,7 @@ public sealed class ProgressSampler : IDisposable
             sb.AppendLine($"last change at          : {(_samples.Count == 0 ? "never" : $"{_samples[^1].Seconds:0.0}s")}");
             sb.AppendLine($"seconds since change    : {SecondsSinceLastChange:0.0}");
             sb.AppendLine($"verdict                 : {(Stalled ? "STALLED - guest stopped writing memory" : "PROGRESSING")}");
+            sb.AppendLine($"display geometries seen : {(_displayGeometries.Count == 0 ? "(none sampled)" : string.Join(" | ", _displayGeometries.OrderBy(d => d)))}");
 
             if (_samples.Count > 0)
             {
