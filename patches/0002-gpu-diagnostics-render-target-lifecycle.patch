@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..17eaa64 100644
+index 45a0f96..5df9d4d 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -139,7 +139,7 @@ index 45a0f96..17eaa64 100644
          if (_legacy)
          {
              _gl.Disable(EnableCap.Blend);
-@@ -914,6 +953,33 @@ public sealed class GlCore : IGpuBackend
+@@ -914,6 +953,45 @@ public sealed class GlCore : IGpuBackend
          _gl.Disable(EnableCap.ScissorTest);
          if (rt != null)
          {
@@ -166,14 +166,26 @@ index 45a0f96..17eaa64 100644
 +                        if (vy > vyMax) vyMax = vy;
 +                    }
 +
-+                    GpuGlAccess.NoteVertexHash(hash, _count, litAfter == 0, vyMin, vyMax, rt?.Y ?? -1);
++                    // The count of vertices actually inside the target's band, rather than the range
++                    // they span. A batch whose range straddles the band can still hold almost all of
++                    // its geometry outside it, and the range test cannot tell the two apart.
++                    var bandTop = rt?.Y ?? -1;
++                    var inBand = 0;
++                    if (bandTop >= 0)
++                        for (var vi = 0; vi < _count; vi++)
++                        {
++                            var vy = _verts[vi].Y;
++                            if (vy >= bandTop && vy < bandTop + 240) inBand++;
++                        }
++
++                    GpuGlAccess.NoteVertexHash(hash, _count, litAfter == 0, inBand, vyMin, vyMax, bandTop);
 +                }
 +            }
 +
              rt.Dirty = true;
              rt.LastDrawFrame = _frame;
          }
-@@ -990,7 +1056,7 @@ public sealed class GlCore : IGpuBackend
+@@ -990,7 +1068,7 @@ public sealed class GlCore : IGpuBackend
          for (var i = 0; i < _rts.Length; i++)
          {
              if (_rts[i] is not { } rt) continue;

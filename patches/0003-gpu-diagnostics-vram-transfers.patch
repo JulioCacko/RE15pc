@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..56a7839 100644
+index bc045ae..7dcff32 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,713 @@ public static class GpuGlAccess
+@@ -17,6 +17,727 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -637,10 +637,10 @@ index bc045ae..56a7839 100644
 +    /// partition cleanly mean the inputs genuinely differ and the fault is further back.
 +    /// </remarks>
 +    private static readonly object HashGate = new();
-+    private static readonly Dictionary<ulong, (long Empty, long Drawn, int Verts, float MinY, float MaxY, int TargetY)> _vertexHashes = [];
++    private static readonly Dictionary<ulong, (long Empty, long Drawn, int Verts, int InBand, float MinY, float MaxY, int TargetY)> _vertexHashes = [];
 +    private static long _hashConsidered;
 +
-+    public static void NoteVertexHash(ulong hash, int count, bool empty, float minY, float maxY, int targetY)
++    public static void NoteVertexHash(ulong hash, int count, bool empty, int inBand, float minY, float maxY, int targetY)
 +    {
 +        if (count < 64) return;
 +
@@ -649,8 +649,8 @@ index bc045ae..56a7839 100644
 +            _hashConsidered++;
 +            _vertexHashes.TryGetValue(hash, out var s);
 +            _vertexHashes[hash] = empty
-+                ? (s.Empty + 1, s.Drawn, count, minY, maxY, targetY)
-+                : (s.Empty, s.Drawn + 1, count, minY, maxY, targetY);
++                ? (s.Empty + 1, s.Drawn, count, inBand, minY, maxY, targetY)
++                : (s.Empty, s.Drawn + 1, count, inBand, minY, maxY, targetY);
 +        }
 +    }
 +
@@ -678,20 +678,33 @@ index bc045ae..56a7839 100644
 +            // scissor and produces nothing - correctly. If every never-rendering content is of that
 +            // kind, then "the target was empty after the batch" was measuring correct behaviour rather
 +            // than a defect, and the headline reading built on it has to be withdrawn.
-+            static bool IntersectsFramebuffer((long Empty, long Drawn, int Verts, float MinY, float MaxY, int TargetY) s)
++            static bool IntersectsFramebuffer((long Empty, long Drawn, int Verts, int InBand, float MinY, float MaxY, int TargetY) s)
 +                => s.MaxY >= 0 && s.MinY < 480;
 +
 +            // A batch is drawn into one target, and vertices outside that target's band are clipped away
 +            // by the scissor. If a never-rendering batch's vertices lie in the OTHER buffer's band, then
 +            // the batch was classified into the wrong target and clipped away wholesale - which is the
 +            // one mechanism that makes real geometry, inside the framebuffer, render nothing.
-+            static bool MatchesItsTarget((long Empty, long Drawn, int Verts, float MinY, float MaxY, int TargetY) s)
++            static bool MatchesItsTarget((long Empty, long Drawn, int Verts, int InBand, float MinY, float MaxY, int TargetY) s)
 +                => s.MaxY >= s.TargetY && s.MinY < s.TargetY + 240;
++
++            // The real test, which the range-based one above cannot make: how many of the batch's
++            // vertices actually lie inside the band of the target it was drawn into. A batch that is
++            // mostly outside its target with a few degenerate triangles inside would render nothing
++            // while looking perfectly reasonable in every aggregate measured so far.
++            static bool MostlyInsideItsTarget((long Empty, long Drawn, int Verts, int InBand, float MinY, float MaxY, int TargetY) s)
++                => s.Verts > 0 && s.InBand * 2 >= s.Verts;
 +
 +            var offScreen = failing.Count(s => !IntersectsFramebuffer(s));
 +            var onScreen = failing.Count(IntersectsFramebuffer);
 +            var wrongBand = failing.Count(s => IntersectsFramebuffer(s) && !MatchesItsTarget(s));
 +            var targetsSeen = string.Join("/", failing.Select(s => s.TargetY).Distinct().OrderBy(v => v));
++            var reallyInside = failing.Count(MostlyInsideItsTarget);
++            var inBandShape = failing.Count == 0
++                ? "none"
++                : $"in-band vertices {failing.Min(x => x.InBand)}..{failing.Max(x => x.InBand)} of " +
++                  $"{failing.Min(x => x.Verts)}..{failing.Max(x => x.Verts)}; " +
++                  $"{reallyInside} have at least half their vertices inside their own target";
 +
 +            var failingShape = failing.Count == 0
 +                ? "none"
@@ -699,7 +712,8 @@ index bc045ae..56a7839 100644
 +                  $"y {failing.Min(x => x.MinY):0}..{failing.Max(x => x.MaxY):0}; " +
 +                  $"{offScreen} lie wholly outside both framebuffer bands (legitimately nothing), {onScreen} intersect one, " +
 +                  $"of which {wrongBand} lie in the band of the OTHER buffer and are clipped away" +
-+                  $" (targets seen: {targetsSeen})";
++                  $" (targets seen: {targetsSeen})" + Environment.NewLine +
++                  $"                            {inBandShape}";
 +
 +            var verdict = both > 0
 +                ? "identical input produced BOTH outcomes"

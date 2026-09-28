@@ -1870,3 +1870,25 @@ Three things follow, and one hypothesis died on the way. It is not misclassifica
 #### Next probe
 
 Characterise the 55 failing contents by something other than their range: the fraction of their vertices that actually fall inside the target's band, the texpage and clut they carry, and their per-primitive spans. A batch that is mostly outside its target with a few degenerate triangles inside would render nothing while looking perfectly reasonable in every aggregate measured so far.
+
+
+#### The failing batches are real geometry, not an artefact
+
+The measurement from the previous round used a content's y *range* against the target's band, which cannot tell a batch that reaches into the band from one whose range merely straddles it. Counting the vertices that actually fall inside the band corrects that, and the finding survives:
+
+```nthe ones that never render: 54 content(s), verts 444..1617, y 0..1263
+  2 lie wholly outside both framebuffer bands (legitimately nothing)
+  52 intersect one, of which 0 lie in the band of the OTHER buffer
+  in-band vertices 0..1617 of 444..1617
+  52 have at least half their vertices inside their own target
+```
+
+**52 of the 54 failing contents have at least half their vertices inside the target they were drawn into.** So these are not off-screen batches, not a range artefact, and not misclassification into the other buffer. They are real geometry, inside the correct framebuffer, drawn into the right target, under a state identical to the batches that work - and they render nothing, deterministically, every time.
+
+Together with the previous round this gives a clean partition in the failing configuration: **172 contents render, 54 never do**, and the difference between them is in the vertex data itself, since no content appears in both groups and the working configuration has no failing group at all.
+
+That is worth stating plainly because it is the first thing in many rounds that narrowed rather than merely eliminated. The question is no longer where in the pipeline the pixels are lost - every stage from the guest command to VRAM is measured correct - but what property of those 54 vertex contents stops them rendering while their neighbours' identical-looking batches succeed.
+
+#### Next probe
+
+Count the non-degenerate triangles in each batch: three vertices that are distinct and enclose area, rather than three that coincide or are collinear. A batch of several hundred vertices whose primitives are all degenerate renders nothing while looking entirely reasonable in every aggregate measured so far - the vertex count is unremarkable, the bounding range is unremarkable, and the vertices are genuinely inside the target. Degenerate primitives were observed early in this investigation and never connected to anything.
