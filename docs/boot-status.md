@@ -858,6 +858,68 @@ of a framebuffer region *and* at every textured draw landing in one, and read ou
 within a frame. That is a small extension of the instrumentation now in place, and it decides between a
 one-line ordering fix and a return to the draw path.
 
+#### The fork is resolved, and it refutes the ordering fix
+
+```
+  in-framebuffer textured draws after the last framebuffer clear, at each frame end:
+    min 0, max 36620, frames 700
+    frame    689     301 textured draw(s) after the clear
+    frame    700     305 textured draw(s) after the clear
+```
+
+**About 301 in-framebuffer textured draws are issued after the clear, every frame, consistently.** So
+the room's draws follow the per-frame black upload rather than preceding it. Possibility 1 - that the
+clear erases what was just drawn, and the fix is an ordering one - is **refuted**. The draws are issued,
+in the right order, after the clear, and the frame is still black.
+
+#### And the modulation colour is the strongest lead yet
+
+The one value never measured for the primitives that actually draw the room:
+
+```
+  textured colours (in-fb): #292929:20811, #26262B:18039, #808080:3406, #646469:2973, #5A5A5F:2835
+  in-fb textured raw      : 0 raw, 206094 not raw
+  ... raw colours         : (none)
+  ... non-raw colours     : #292929:20811, #26262B:18039, #808080:3406
+```
+
+**Not one of the 206,094 in-framebuffer textured primitives is raw.** That matters because
+`GlCore.V()` forces a raw primitive's modulation colour to neutral 128 and otherwise uses the vertex
+colour as given:
+
+```csharp
+var raw = f.Textured && f.RawTexture;
+float cr = raw ? 128f : v.R, cg = ..., cb = ...;
+```
+
+So for every one of these, the vertex colour is applied as a modulation, and the dominant colours are
+**41 of 255 and 38 of 255** - roughly a sixth of full brightness, with only 3,406 of about 48,000
+carrying a neutral 128.
+
+The shader multiplies a texel by that modulation and quantises to five bits:
+
+```glsl
+ivec3 t8 = ivec3(texel.rgb * 31.0 + 0.5) << 3;
+ivec3 c8 = (t8 * ivec3(vColor.rgb * 255.0 + 0.5)) >> 7;      // vColor/128 as a multiplier
+FragColor = vec4(quant5(c8), ...);
+```
+
+At a modulation of 41, that multiplier is 0.32, and `quant5` then keeps only five bits - so a texel has
+to be brighter than about an eighth of full scale before it survives as anything but zero. That is the
+combination this document has spent many rounds looking for: **geometry correct, texture addressing
+correct, sampled data present, blend chain correct, draws landing, draws in the right order - and a
+black result, because the modulation collapses the output to zero.**
+
+#### Next probe
+
+The one-line experiment, and it is worth doing before anything else: force the modulation to neutral
+128 for in-framebuffer textured primitives and see whether the room appears. If it does, the question
+becomes whether those primitives are *meant* to be raw - in which case GP0 bit 24, which is what sets
+`RawTexture`, is being decoded wrongly - or whether the modulation really is that dark and the
+multiply-then-quantise is losing it. Either way the answer is in `GpuRaster`'s colour decode, not in the
+render target plumbing, the blend state, or the draw order, all of which this document has now measured
+and cleared.
+
 
 #### What can be said with confidence
 

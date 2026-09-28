@@ -118,6 +118,31 @@ public static class GpuActivity
     private static readonly Dictionary<int, long> _flatColors = [];
     private static readonly Dictionary<int, long> _flatScreenColors = [];
 
+    /// <summary>
+    /// Colours of textured primitives that land in a framebuffer - the ones that draw the room.
+    ///
+    /// This was the one value still unmeasured for the primitives that matter. In the shader a texel is
+    /// multiplied by the vertex colour, <c>c8 = (t8 * vColor * 255) &gt;&gt; 7</c>, so a vertex colour of
+    /// zero makes every textured draw black while leaving geometry, addressing and blend state
+    /// perfectly correct - which is exactly the combination that has been measured for many rounds.
+    /// Raw-textured primitives are exempt, since the runtime forces their colour to neutral 128.
+    /// </summary>
+    private static readonly Dictionary<int, long> _texColors = [];
+
+    /// <summary>
+    /// How many in-framebuffer textured primitives are raw, and their colours split accordingly.
+    ///
+    /// This matters because GlCore.V() forces a raw primitive's modulation colour to neutral 128 and
+    /// otherwise uses the vertex colour. The room's tiles were measured carrying a modulation of about
+    /// 41 of 255, and under the shader's 5-bit quantisation that drives most texels to zero - so if
+    /// they are not raw, they cannot produce anything but black. RawTexture is set from GP0 bit 24, so
+    /// the guest decides; this measures what it actually chose.
+    /// </summary>
+    private static long _texRaw, _texNotRaw;
+
+    private static readonly Dictionary<int, long> _texRawColors = [];
+    private static readonly Dictionary<int, long> _texNotRawColors = [];
+
     /// <summary>All flat primitives, in-framebuffer or not, and how many cover most of a frame.</summary>
     private static long _flatAll, _flatAllSemi, _flatScreenSized;
     private static int _flatMinX = int.MaxValue, _flatMaxX = int.MinValue;
@@ -363,6 +388,26 @@ public static class GpuActivity
                 // what the backend will be handed.
                 if (e.Textured && RecompOne.Runtime.Runtime.Gpu is { } primGpu)
                 {
+                    var texColour = (RecompOne.Runtime.Gpu.DiagR << 16)
+                                    | (RecompOne.Runtime.Gpu.DiagG << 8)
+                                    | RecompOne.Runtime.Gpu.DiagB;
+
+                    lock (Gate)
+                    {
+                        _texColors[texColour] = _texColors.TryGetValue(texColour, out var tc) ? tc + 1 : 1;
+
+                        if (e.Raw)
+                        {
+                            _texRaw++;
+                            _texRawColors[texColour] = _texRawColors.TryGetValue(texColour, out var rc) ? rc + 1 : 1;
+                        }
+                        else
+                        {
+                            _texNotRaw++;
+                            _texNotRawColors[texColour] = _texNotRawColors.TryGetValue(texColour, out var nc) ? nc + 1 : 1;
+                        }
+                    }
+
                     var stat = primGpu.ReadStat();
                     var tpage = (int)(stat & 0xF) | (int)((stat >> 4) & 1) << 4
                                 | (int)((stat >> 5) & 3) << 5 | (int)((stat >> 7) & 3) << 7;
@@ -469,6 +514,25 @@ public static class GpuActivity
                       $"(max {Interlocked.Read(ref _maxAfterAnyFlat)})");
         sb.AppendLine($"  flat colours (all)      : {colourDesc}");
         sb.AppendLine($"  flat colours (screen)   : {screenColourDesc}");
+
+        var texColourDesc = _texColors.Count == 0
+            ? "(none)"
+            : string.Join(", ", _texColors.OrderByDescending(k => k.Value).Take(8)
+                .Select(k => $"#{k.Key:X6}:{k.Value}"));
+
+        sb.AppendLine($"  textured colours (in-fb): {texColourDesc}");
+
+        var rawDesc = _texRawColors.Count == 0
+            ? "(none)"
+            : string.Join(", ", _texRawColors.OrderByDescending(k => k.Value).Take(5).Select(k => $"#{k.Key:X6}:{k.Value}"));
+
+        var notRawDesc = _texNotRawColors.Count == 0
+            ? "(none)"
+            : string.Join(", ", _texNotRawColors.OrderByDescending(k => k.Value).Take(5).Select(k => $"#{k.Key:X6}:{k.Value}"));
+
+        sb.AppendLine($"  in-fb textured raw      : {_texRaw} raw, {_texNotRaw} not raw");
+        sb.AppendLine($"  ... raw colours         : {rawDesc}");
+        sb.AppendLine($"  ... non-raw colours     : {notRawDesc}");
         sb.AppendLine($"  screen-covering flat quads: {Interlocked.Read(ref _screenQuads)}, " +
                       $"max textured draws after one: {Interlocked.Read(ref _maxAfterScreenQuad)}, " +
                       $"after the LAST one: {Interlocked.Read(ref _afterScreenQuad)}");

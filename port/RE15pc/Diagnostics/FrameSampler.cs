@@ -54,6 +54,18 @@ public static class FrameSampler
     /// <summary>Only transfers touching a framebuffer region are recorded, to keep the log readable.</summary>
     private static bool TouchesFramebuffer(string what) => true;
 
+    /// <summary>
+    /// In-framebuffer textured draws seen since the last framebuffer upload, recorded at each frame end.
+    ///
+    /// This is the fork. Each frame the guest loads a black image into both framebuffers, and the room
+    /// is supposed to be drawn on top of it. If this count is large at frame end, the draws come after
+    /// the clear and the problem is in what they produce; if it is near zero, the clears come last and
+    /// the room is being erased, which is an ordering fix rather than a rendering one.
+    /// </summary>
+    private static long _texturedSinceClear;
+
+    private static readonly List<(long Frame, long AfterClear)> FrameOrder = [];
+
     private static readonly object Gate = new();
 
     public static void Attach()
@@ -65,6 +77,27 @@ public static class FrameSampler
 
         GpuGlAccess.RtObserver = OnRenderTargetEvent;
         GpuGlAccess.TransferObserver = OnTransfer;
+
+        Event.AddListener<RenderPrimEvent>(OnPrimitive);
+    }
+
+    /// <summary>
+    /// Counts textured primitives that land in a framebuffer, since the last framebuffer upload. The
+    /// event runs immediately before the draw, so this orders draws against clears within a frame.
+    /// </summary>
+    private static void OnPrimitive(RenderPrimEvent e)
+    {
+        if (!e.Textured) return;
+
+        var inFramebuffer = true;
+        for (var i = 0; i < 3; i++)
+            if (e.X[i] is < 0 or > 319 || e.Y[i] is < 0 or > 479)
+            {
+                inFramebuffer = false;
+                break;
+            }
+
+        if (inFramebuffer) Interlocked.Increment(ref _texturedSinceClear);
     }
 
     /// <summary>
@@ -73,6 +106,10 @@ public static class FrameSampler
     /// </summary>
     private static void OnTransfer(string what)
     {
+        // A framebuffer-sized upload is the per-frame clear; it resets the ordering counter.
+        if (what.StartsWith("upload", StringComparison.Ordinal) && what.Contains("320x240"))
+            Interlocked.Exchange(ref _texturedSinceClear, 0);
+
         if (Runtime.Gpu is not { } gpu) return;
         if (gpu.Vram.Length < Gpu.VramWidth * Gpu.VramHeight) return;
 
@@ -107,6 +144,13 @@ public static class FrameSampler
     private static void OnVSync(VSyncEvent e)
     {
         _frame = e.Frame;
+
+        lock (Gate)
+        {
+            if (FrameOrder.Count < 700)
+                FrameOrder.Add((_frame, Interlocked.Read(ref _texturedSinceClear)));
+        }
+
         if (_frame % EveryNthFrame != 0) return;
 
         if (Runtime.Gpu is not { } gpu) return;
@@ -176,6 +220,18 @@ public static class FrameSampler
 
                 foreach (var (frame, lit0, lit240, what) in TransferEvents.TakeLast(24))
                     sb.AppendLine($"    frame {frame,6}  (0,0) {lit0,6}  (0,240) {lit240,6}   {what}");
+
+                if (FrameOrder.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("  in-framebuffer textured draws after the last framebuffer clear, at each frame end:");
+                    sb.AppendLine($"    min {FrameOrder.Min(f => f.AfterClear)}, " +
+                                  $"max {FrameOrder.Max(f => f.AfterClear)}, " +
+                                  $"frames {FrameOrder.Count}");
+
+                    foreach (var (frame, afterClear) in FrameOrder.TakeLast(12))
+                        sb.AppendLine($"    frame {frame,6}  {afterClear,6} textured draw(s) after the clear");
+                }
             }
 
             return sb.ToString().TrimEnd();
