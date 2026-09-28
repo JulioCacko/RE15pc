@@ -496,6 +496,9 @@ public static class GpuActivity
                       $"available={Interp.Available} " +
                       $"enabled={Interp.Enabled} " +
                       $"effective={Interp.EffectiveTarget}");
+
+        sb.AppendLine($"  draw classification     : {Interlocked.Read(ref GpuGlAccess.TargetDraws)} into a render target, " +
+                      $"{Interlocked.Read(ref GpuGlAccess.NullTargetDraws)} with no target (full VRAM)");
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");

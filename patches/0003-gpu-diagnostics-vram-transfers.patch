@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..392efc1 100644
+index bc045ae..7440170 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,52 @@ public static class GpuGlAccess
+@@ -17,6 +17,63 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -35,6 +35,17 @@ index bc045ae..392efc1 100644
 +    /// path is the defect. If it does not, the modulation is not what is losing the frame.
 +    /// </remarks>
 +    public static bool ForceNeutralModulation;
++
++    /// <summary>
++    /// Diagnostics only: draws classified into a render target, and draws that were not.
++    /// </summary>
++    /// <remarks>
++    /// When <c>Classify</c> returns null the draw goes into the full-VRAM texture instead of a
++    /// framebuffer-sized target, and the paths differ in <c>TargetWidth</c> - 4096 against 1280. The
++    /// asynchronous GL sampler only ever saw 1280 across a handful of samples, far too few to conclude
++    /// anything. These counters measure the ratio across every draw in the batch path.
++    /// </remarks>
++    public static long TargetDraws, NullTargetDraws;
 +
 +    /// <summary>
 +    /// Diagnostics only: called for every whole-region VRAM transfer - a fill, a VRAM-to-VRAM copy,
