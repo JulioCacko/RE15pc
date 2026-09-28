@@ -5,8 +5,10 @@ not "done" because the work feels finished; it is done when the gate below it ho
 
 Legend: **DONE** · **PARTIAL** · **ACTIVE** · **TODO**
 
-Current position: **Phase 4, partially met.** The port boots and runs real game code; one
-rendering defect is identified. See `docs/boot-status.md` for the evidence.
+Current position: **Phase 4, partially met; Phase 5 done.** The port boots, runs real game code
+and reaches STAGE1; the blocker is that the composed frame comes out black, localised to the
+HLE path that fills the framebuffer after the stage transition. See `docs/boot-status.md` for
+the evidence.
 
 ---
 
@@ -58,7 +60,6 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 **Gate met:** `[Dispatcher] loaded overlay: main` appears and the process survives frames.
 
 ## Phase 4 — Boot to title — PARTIAL
-
 - [x] Guest code executes: `ResetGraph:jtb=8007e308,env=8007e350` is guest output, not
       runtime output.
 - [x] **Zero unmapped calls** in a 60 second run with `Dispatcher.Tolerant = false`.
@@ -74,21 +75,28 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 - [ ] Animation not yet observed across frames, only a single frame compared.
 - [ ] Audio not proven to play at all.
 
-## Phase 5 — Overlay dispatch and determinism — PARTIAL
+## Phase 5 — Overlay dispatch and determinism — DONE
 
 - [x] Settled: overlays are copied into RAM **verbatim**, leading 4-byte word included, so
       `skip` is correctly 0. Proven by byte comparison against a live RAM dump, with STAGE1
       as a negative control. See `docs/overlay-load-verbatim.md`.
 - [x] `stage1` vs `title` region overlap handled host-side; `OverlayPolicy` reports its
       evictions.
-- [ ] Recompile twice and confirm byte-identical `generated/` output. Not yet done, and it
-      is what decides whether `generated/` may stay ignored.
+- [x] Recompiling twice produces byte-identical output: all 10 files in `generated/` match.
+      Checked by `tools/Test-RecompileDeterminism.ps1`, which also fails correctly when a
+      generated file is perturbed by hand. `generated/` may therefore stay ignored, which is
+      the decision this gate existed to make.
 
 The original open question was whether each `.BIN` is copied verbatim or has a leading word
 stripped. It is verbatim. The decisive evidence was a live dump: RAM at `0x80100000` began
 `0E 00 00 00 53 65 6C 65 63 74 68 33 2E 74 69 6D`, i.e. `TITLE.BIN`'s own leading word
 followed by `Selecth3.tim`. Under a shift-by-4 rule the match would have been zero bytes; it
 was 9924 of 9932, the single difference being a guest write at `0x801026C4`.
+
+Determinism matters more than it looks. The recompiled C# is a pure function of the disc and
+the configuration, and that is what makes a later change in game behaviour attributable to the
+port rather than to recompiler drift. Run the gate after touching the configuration, the
+function maps, or anything in `patches/`.
 
 ## Phase 6 — First playable room — TODO
 
