@@ -176,6 +176,11 @@ public static class GpuActivity
             // matter very differently: all of the in-framebuffer flat primitives happen to use
             // subtract, so the two explanations are otherwise indistinguishable.
             "subtract" => blendMode == 2,
+            // The set the previous run narrowed this to: flat primitives using the average blend.
+            // 224 of the 856 flat primitives, and the only ones left once blend mode 2 was ruled out.
+            "flatblend0" => !e.Textured && blendMode == 0,
+            // Every primitive using the average blend, textured or not, as a control on the above.
+            "blend0" => blendMode == 0,
             _ => false
         };
 
