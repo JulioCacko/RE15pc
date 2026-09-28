@@ -2070,3 +2070,31 @@ Two things follow, and both are useful rather than merely negative:
 Sixteen rounds have gone into this defect. Twenty-five mechanisms have been proposed and refuted, and the refutations have been earned - each was killed by measuring the specific thing it predicted. What remains is genuinely narrow: something about a batch beyond its first triangles, in data or state that no instrument built here observes, and the two obvious ways to look at it from outside the recorder are closed.
 
 Meanwhile the rest of the objective stands where it did: the recompiled code is buildable and deterministic, the host boots the game, all seven overlays dispatch, audio produces output, the build is reproducible, the repository carries no game data, and the whole diagnostic apparatus is committed as reproducible patches. What is not done is playability, and it is blocked by this one defect.
+
+
+#### The batch-size conclusion is withdrawn: it compared different points in the game
+
+Chasing the vertex-count difference - a run's vertex count is a property of the guest's commands and should not depend on host grouping - produced the answer, and it is not the one the previous rounds were built on.
+
+`
+flushEvery   guest frames   recorder draws   display
+off                  553           187034   350 (0.5%)
+3                    321            42929   34912 (45.5%)
+`
+
+**Forcing a flush slows the host, so the guest gets fewer frames in the same eighteen wall-clock seconds: 321 against 553.** The two configurations were never the same frame of the game. Every conclusion drawn from varying the batch size - that a batch renders about two triangles' worth and then degrades, that the grouping is at fault - was drawn by comparing one point in the game against another, and all of it is withdrawn. The recorder accepted 185308 draws against 42929 for the same reason and no deeper one.
+
+So the vertex-count difference is explained, and it is not a defect: fewer frames, fewer draws.
+
+**The main instrument survives the same test.** --skip-draws flat reaches frame 553, exactly the default's, so that comparison has always been between the same frame of the game:
+
+`
+configuration   guest frames   display
+none                   553      350 ( 0.5%)    6 colours
+flat                   553    67602 (88.0%) 1360 colours
+textured               554        0 ( 0.0%)    1 colour
+`
+
+And the blackness is not a transient state that a longer run would leave behind: at 30 seconds the game reaches frame 927 and the display still holds 584 non-black pixels, 0.8 percent. Fifty-four percent of frames render the room and forty-six do not, at every point in the run that has been measured.
+
+What this round is worth is a method rather than a mechanism: **any instrument that changes how fast the host runs changes where the game is, and two configurations can only be compared at the same frame count.** That check had never been made, and it cost several rounds of conclusions that did not survive it. Every result in this document predating it should be read with that in mind; the ones built on --skip-draws are the ones that hold.

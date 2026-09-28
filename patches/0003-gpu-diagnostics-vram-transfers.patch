@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..d91b7cc 100644
+index bc045ae..aee540d 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,836 @@ public static class GpuGlAccess
+@@ -17,6 +17,848 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -74,6 +74,18 @@ index bc045ae..d91b7cc 100644
 +    /// diverge, the vertices are being lost between the two.
 +    /// </remarks>
 +    public static long TrisIn, DrawsOut, VertsOut;
++
++    /// <summary>
++    /// Diagnostics only: draws the recorder accepted, against draws the replayer emitted.
++    /// </summary>
++    /// <remarks>
++    /// TrisIn counts calls reaching the backend, which the replayer makes; it came out at 187026 in one
++    /// configuration and 40651 in the other, over the same 18-second run - 297 draws per frame against
++    /// 64, and 297 is exactly the room's textured draw count. So the difference may not be in what the
++    /// guest submits at all, but in how much of the recorded graph the replayer emits. These two
++    /// counters side by side separate those.
++    /// </remarks>
++    public static long RecordedTris;
 +
 +    /// <summary>
 +    /// Diagnostics only: what <c>InterpBackend.Settle</c> found when a readback asked it to catch up.

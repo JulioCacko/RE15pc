@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
-index e8d2299..c27ab36 100644
+index e8d2299..87bb23f 100644
 --- a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
 +++ b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
 @@ -36,7 +36,17 @@ public sealed class InterpBackend : IGpuBackend
@@ -30,7 +30,7 @@ index e8d2299..c27ab36 100644
          {
              _inner.SetDrawEnv(env);
              return;
-@@ -55,9 +65,22 @@ public sealed class InterpBackend : IGpuBackend
+@@ -55,14 +65,29 @@ public sealed class InterpBackend : IGpuBackend
          _recording.Add(GraphOp.DrawEnv, _recording.Envs.Count - 1);
      }
      
@@ -54,7 +54,14 @@ index e8d2299..c27ab36 100644
          {
              _inner.DrawTri(in a, in b, in c, in f);
              return;
-@@ -145,7 +168,7 @@ public sealed class InterpBackend : IGpuBackend
+         }
+         
++        Hle.GpuGlAccess.RecordedTris++;
++
+         var offsetX = (float)(Runtime.Gpu?.DrawOffsetX ?? 0);
+         var offsetY = (float)(Runtime.Gpu?.DrawOffsetY ?? 0);
+         
+@@ -145,7 +170,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void DrawRect(in HleRect r, in PrimFlags f)
      {
@@ -63,7 +70,7 @@ index e8d2299..c27ab36 100644
          {
              _inner.DrawRect(in r, in f);
              return;
-@@ -156,7 +179,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -156,7 +181,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void DrawLine(in HleVertex a, in HleVertex b, in PrimFlags f)
      {
@@ -72,7 +79,7 @@ index e8d2299..c27ab36 100644
          {
              _inner.DrawLine(in a, in b, in f);
              return;
-@@ -168,7 +191,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -168,7 +193,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void FillRect(int x, int y, int w, int h, ushort color15)
      {
@@ -81,7 +88,7 @@ index e8d2299..c27ab36 100644
          {
              _inner.FillRect(x, y, w, h, color15);
              return;
-@@ -179,7 +202,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -179,7 +204,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void CopyVram(int sx, int sy, int dx, int dy, int w, int h)
      {
@@ -90,7 +97,7 @@ index e8d2299..c27ab36 100644
          {
              _inner.CopyVram(sx, sy, dx, dy, w, h);
              return;
-@@ -190,7 +213,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -190,7 +215,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void WriteVram(int x, int y, int w, int h, ReadOnlySpan<ushort> px)
      {
@@ -99,7 +106,7 @@ index e8d2299..c27ab36 100644
          {
              _inner.WriteVram(x, y, w, h, px);
              return;
-@@ -229,7 +252,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -229,7 +254,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void Publish()
      {
@@ -108,7 +115,7 @@ index e8d2299..c27ab36 100644
          
          lock (_gate)
          {
-@@ -242,7 +265,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -242,7 +267,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public bool Acquire()
      {
@@ -117,7 +124,7 @@ index e8d2299..c27ab36 100644
          
          lock (_gate)
          {
-@@ -276,7 +299,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -276,7 +301,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public int BeginPresent()
      {
@@ -126,7 +133,7 @@ index e8d2299..c27ab36 100644
          
          _source = VideoRate.Rate;
          
-@@ -333,7 +356,7 @@ public sealed class InterpBackend : IGpuBackend
+@@ -333,7 +358,7 @@ public sealed class InterpBackend : IGpuBackend
      
      public void Compose(int index)
      {
@@ -135,7 +142,7 @@ index e8d2299..c27ab36 100644
          
          var weight = _interpolating && index < _frames ? _clock.Weights(_frames)[index] : 1f;
          var start = _watch.Elapsed.TotalMilliseconds;
-@@ -379,12 +402,21 @@ public sealed class InterpBackend : IGpuBackend
+@@ -379,12 +404,21 @@ public sealed class InterpBackend : IGpuBackend
      
      private void Settle()
      {
@@ -160,7 +167,7 @@ index e8d2299..c27ab36 100644
              Replay(_current, null, 1f);
              _current.Clear();
              _current.Interpolatable = false;
-@@ -401,6 +433,31 @@ public sealed class InterpBackend : IGpuBackend
+@@ -401,6 +435,31 @@ public sealed class InterpBackend : IGpuBackend
          var fills = CollectionsMarshal.AsSpan(graph.Fills);
          var copies = CollectionsMarshal.AsSpan(graph.Copies);
          var writes = CollectionsMarshal.AsSpan(graph.Writes);

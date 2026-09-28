@@ -517,6 +517,12 @@ public static class GpuActivity
                       $"{Interlocked.Read(ref GpuGlAccess.NullTargetDraws)} with no target (full VRAM)");
         sb.AppendLine($"  target sync vs writeback: synced from VRAM {Interlocked.Read(ref GpuGlAccess.SyncRtCalls)}x, " +
                       $"written back to VRAM {Interlocked.Read(ref GpuGlAccess.WritebackCalls)}x");
+        sb.AppendLine($"  submitted vs drawn       : {Interlocked.Read(ref GpuGlAccess.TrisIn)} DrawTri calls reaching the backend " +
+                      $"({Interlocked.Read(ref GpuGlAccess.TrisIn) * 3} vertices), " +
+                      $"{Interlocked.Read(ref GpuGlAccess.DrawsOut)} batches drawn carrying " +
+                      $"{Interlocked.Read(ref GpuGlAccess.VertsOut)} vertices");
+        sb.AppendLine($"  recorded vs emitted      : recorder accepted {Interlocked.Read(ref GpuGlAccess.RecordedTris)} draws, " +
+                      $"replayer emitted {Interlocked.Read(ref GpuGlAccess.TrisIn)}");
         sb.AppendLine(GpuGlAccess.DescribeVertices());
         sb.AppendLine(GpuGlAccess.DescribeFlushes());
         sb.AppendLine(GpuGlAccess.DescribeFlushesByTarget());
