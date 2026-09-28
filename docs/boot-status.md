@@ -2123,3 +2123,26 @@ Which raises the question the whole investigation has been circling: **is the ov
 #### Next probe
 
 Measure the order within a frame between the room's textured draws and the opaque black rectangles. If the black rectangles follow the room every frame, then either the guest draws them there or the replayer reorders them, and the two are distinguishable by logging the order the recorder accepted against the order the replayer emitted. If they precede the room, then the overlay is a clear and the blackness has another explanation - and the grey rectangles, whose value is rising, become the thing to follow instead.
+
+
+#### The mechanism: subtract rectangles drawn every frame onto a target that is not re-cleared
+
+Running the game much longer than any previous attempt shows the overlays settling into a stable state:
+
+```n 18s  frame  554   display 350 (0.5%)   opaque black 320x327, then grey 216 semi
+ 40s  frame 1225   display 581 (0.8%)   x 0..575 y 0..1023 (575x1023) rgb=(63,63,63) semi=True blend=2
+                                        x 0..575 y 240..1263 (575x1023) rgb=(15,15,15) semi=True blend=2
+ 75s  frame 2276   display 583 (0.8%)   identical to 40s
+```
+
+From frame 1225 onward the frame is stable and consists of **two enormous semi-transparent rectangles, 575 by 1023, covering well beyond the framebuffer, drawn every frame, with blend mode 2** - which on this hardware is **subtract**. They are not a screen-sized overlay of the kind a fade would use; they span y 0..1023 and y 240..1263, far outside the two 240-row framebuffers.
+
+**A subtract rectangle is a legitimate fade operation.** Subtract is how a fade to black is done, and drawing one per frame is exactly how a fade is animated. The mechanism that accounts for everything measured is that these are applied to a target which is **not re-seeded from a cleared VRAM between frames**, so the subtraction accumulates instead of being applied once to a fresh image. Repeated subtraction converges on black, at a rate that depends on how much drawing happened in between - which is the 46/54 split, why the room can be measured at 90.3 percent within a frame and black at frame end, and why the displayed buffer is black while the target momentarily holds the room.
+
+And it explains the instrument that has dominated this investigation: **the subtract rectangles are flat primitives**, so --skip-draws flat removes the fade and leaves the room at full brightness. That is not a comparison between a broken frame and a working one; it is a comparison between a faded frame and an unfaded one, and every conclusion drawn from it needs re-reading with that in mind.
+
+**What would make it a defect rather than intended behaviour** is the accumulation. On the original hardware the framebuffer is cleared every frame, so a subtract applied to it darkens one frame's image by a fixed amount; here it appears to darken what was already darkened. The measurement that decides it is whether a render target is re-seeded from a cleared VRAM **before** its frame's draws - SyncRtsFromVram running ahead of the room's textured draws rather than after them.
+
+#### Next probe
+
+Measure the order, within a frame, of SyncRtsFromVram against the room's textured draws and against the subtract rectangles. If the sync follows the draws, the accumulation is confirmed and the fix is to make the clear take effect first. The earlier ordering test cannot answer this: it looked only at WriteVram, Fill and CopyVram, and the subtract rectangles are draws, so they were never in it.
