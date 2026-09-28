@@ -2051,3 +2051,22 @@ Twenty-odd mechanisms have been proposed and refuted. What is established, by me
 - Writebacks are not the cause, and the vertex-count difference remains unexplained.
 
 The honest summary is that the defect is now located in a small region - something about a batch beyond its first triangles, in data or state that no instrument built so far observes - and that fifteen rounds of instrumentation have failed to observe it. The next step worth taking is not another instrument along the same line.
+
+
+#### The recorder cannot simply be removed, and that is itself a finding
+
+Every instrument built so far has measured inside the record-and-replay arrangement, so the obvious next line was to take the arrangement out. It does not come out.
+
+Disabling it outright - _active is assigned exactly once, in the constructor, and every method passes straight through to the backend when it is false - stops the run with no diagnostic output at all. Bypassing only the draw calls while leaving the frame machinery intact does the same.
+
+**The reason is threading.** The replay is what issues the GL calls, and it does so on the GL thread; InterpBackend is a pass-through on the guest's thread otherwise. Sending draws straight to the backend moves those GL calls onto the guest thread, which does not own the context, so the run cannot proceed. This is consistent with the earlier measurement that every batch runs on one thread - id 2 - which is the replay thread, not the guest's.
+
+Two things follow, and both are useful rather than merely negative:
+
+- **The recorder is load-bearing for threading, not only for grouping.** It is the mechanism by which guest-thread draw commands become GL-thread work, so the batch grouping and the frame pacing are the same object and cannot be varied independently. That closes off a whole class of experiments.\n- **The bypass is not a viable instrument**, so it is left in place as a documented dead end rather than as a flag worth trying again. Both switches remain, off by default, with the reason recorded next to them.
+
+#### Strategic position
+
+Sixteen rounds have gone into this defect. Twenty-five mechanisms have been proposed and refuted, and the refutations have been earned - each was killed by measuring the specific thing it predicted. What remains is genuinely narrow: something about a batch beyond its first triangles, in data or state that no instrument built here observes, and the two obvious ways to look at it from outside the recorder are closed.
+
+Meanwhile the rest of the objective stands where it did: the recompiled code is buildable and deterministic, the host boots the game, all seven overlays dispatch, audio produces output, the build is reproducible, the repository carries no game data, and the whole diagnostic apparatus is committed as reproducible patches. What is not done is playability, and it is blocked by this one defect.

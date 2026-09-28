@@ -1,13 +1,147 @@
 diff --git a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
-index e8d2299..457c6e4 100644
+index e8d2299..c27ab36 100644
 --- a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
 +++ b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
-@@ -379,12 +379,21 @@ public sealed class InterpBackend : IGpuBackend
+@@ -36,7 +36,17 @@ public sealed class InterpBackend : IGpuBackend
+     public InterpBackend(IGpuBackend inner)
+     {
+         _inner = inner;
+-        _active = inner.Ready;
++
++        // Diagnostic only, set by RE15PC_NO_INTERP: leave the recorder out entirely, so every call goes
++        // straight to the backend. _active is assigned exactly once, here, so this disables recording
++        // and replay for the whole run.
++        //
++        // Every instrument built so far has measured inside this arrangement - calls in, replay out -
++        // and none of them has found the fault. Drawing with the recorder removed tests the one part of
++        // the path that has never been taken out of the picture, and the guards on every method make it
++        // a pure pass-through rather than a second code path to reason about.
++        _active = inner.Ready && Environment.GetEnvironmentVariable("RE15PC_NO_INTERP") != "1";
++
+         Interp.Backend = this;
+     }
+     
+@@ -46,7 +56,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void SetDrawEnv(in HleDrawEnv env)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.SetDrawEnv(env);
+             return;
+@@ -55,9 +65,22 @@ public sealed class InterpBackend : IGpuBackend
+         _recording.Add(GraphOp.DrawEnv, _recording.Envs.Count - 1);
+     }
+     
++    /// <summary>
++    /// Diagnostic only: send draws straight to the backend, keeping the recorder's frame pacing.
++    /// </summary>
++    /// <remarks>
++    /// Set by RE15PC_BYPASS_RECORD. Disabling the recorder outright stops the run, because the same
++    /// object drives frame pacing through Publish, Acquire and Compose - so only the draw calls are
++    /// bypassed here and everything else is left alone. This takes the record-and-replay arrangement out
++    /// of the draw path without taking the frame machinery with it, which is the one part of the path no
++    /// instrument built so far has removed.
++    /// </remarks>
++    private static readonly bool BypassRecord =
++        Environment.GetEnvironmentVariable("RE15PC_BYPASS_RECORD") == "1";
++
+     public void DrawTri(in HleVertex a, in HleVertex b, in HleVertex c, in PrimFlags f)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.DrawTri(in a, in b, in c, in f);
+             return;
+@@ -145,7 +168,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void DrawRect(in HleRect r, in PrimFlags f)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.DrawRect(in r, in f);
+             return;
+@@ -156,7 +179,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void DrawLine(in HleVertex a, in HleVertex b, in PrimFlags f)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.DrawLine(in a, in b, in f);
+             return;
+@@ -168,7 +191,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void FillRect(int x, int y, int w, int h, ushort color15)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.FillRect(x, y, w, h, color15);
+             return;
+@@ -179,7 +202,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void CopyVram(int sx, int sy, int dx, int dy, int w, int h)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.CopyVram(sx, sy, dx, dy, w, h);
+             return;
+@@ -190,7 +213,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void WriteVram(int x, int y, int w, int h, ReadOnlySpan<ushort> px)
+     {
+-        if (!_active)
++        if (!_active || BypassRecord)
+         {
+             _inner.WriteVram(x, y, w, h, px);
+             return;
+@@ -229,7 +252,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void Publish()
+     {
+-        if (!_active) return;
++        if (!_active || BypassRecord) return;
+         
+         lock (_gate)
+         {
+@@ -242,7 +265,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public bool Acquire()
+     {
+-        if (!_active) return false;
++        if (!_active || BypassRecord) return false;
+         
+         lock (_gate)
+         {
+@@ -276,7 +299,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public int BeginPresent()
+     {
+-        if (!_active) return 1;
++        if (!_active || BypassRecord) return 1;
+         
+         _source = VideoRate.Rate;
+         
+@@ -333,7 +356,7 @@ public sealed class InterpBackend : IGpuBackend
+     
+     public void Compose(int index)
+     {
+-        if (!_active) return;
++        if (!_active || BypassRecord) return;
+         
+         var weight = _interpolating && index < _frames ? _clock.Weights(_frames)[index] : 1f;
+         var start = _watch.Elapsed.TotalMilliseconds;
+@@ -379,12 +402,21 @@ public sealed class InterpBackend : IGpuBackend
      
      private void Settle()
      {
+-        if (!_active) return;
 +        Hle.GpuGlAccess.SettleCalls++;
-         if (!_active) return;
++        if (!_active || BypassRecord) return;
          
          lock (_gate)
          {
@@ -26,7 +160,7 @@ index e8d2299..457c6e4 100644
              Replay(_current, null, 1f);
              _current.Clear();
              _current.Interpolatable = false;
-@@ -401,6 +410,31 @@ public sealed class InterpBackend : IGpuBackend
+@@ -401,6 +433,31 @@ public sealed class InterpBackend : IGpuBackend
          var fills = CollectionsMarshal.AsSpan(graph.Fills);
          var copies = CollectionsMarshal.AsSpan(graph.Copies);
          var writes = CollectionsMarshal.AsSpan(graph.Writes);
