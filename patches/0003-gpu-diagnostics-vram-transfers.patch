@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..5ff757b 100644
+index bc045ae..e9ac397 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,395 @@ public static class GpuGlAccess
+@@ -17,6 +17,434 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -393,6 +393,45 @@ index bc045ae..5ff757b 100644
 +        return $"  target at writeback      : {_wbReads} sample(s), {_wbEmpty} entirely black, " +
 +               $"non-black mean {mean:0} of {strip}, best {_wbMaxLit} of {strip} " +
 +               $"({100.0 * _wbMaxLit / strip:0.0}% at best)";
++    }
++
++    /// <summary>
++    /// Diagnostics only: whether a replayed frame's last whole-region write follows its last draw.
++    /// </summary>
++    /// <remarks>
++    /// Both buffers receive the same drawing - 343197 vertices against 343929, within 0.2% - and each is
++    /// black in 46% of its own frame-end flushes. So the split is between frames, not between buffers:
++    /// about 46% of frames come out black despite having been drawn into, and the rest hold the room.
++    /// Nothing about the draws differs, so order is what remains.
++    ///
++    /// A frame whose last whole-region write follows its last draw would have that write - the guest's
++    /// per-frame black clear, performed through LoadImage - composited over its own drawing. If roughly
++    /// 46% of replayed graphs show that order, this is the mechanism.
++    /// </remarks>
++    private static long _replayGraphs, _regionAfterDraw, _drawAfterRegion, _drawsOnly, _regionOnly;
++
++    public static void NoteReplayOrder(int lastDraw, int lastRegion)
++    {
++        _replayGraphs++;
++
++        if (lastDraw < 0 && lastRegion < 0) return;
++        if (lastDraw < 0) { _regionOnly++; return; }
++        if (lastRegion < 0) { _drawsOnly++; return; }
++
++        if (lastRegion > lastDraw) _regionAfterDraw++;
++        else _drawAfterRegion++;
++    }
++
++    public static string DescribeReplayOrder()
++    {
++        if (_replayGraphs == 0) return "  replay order            : no graphs replayed";
++
++        var ordered = _regionAfterDraw + _drawAfterRegion;
++
++        return $"  replay order            : {_replayGraphs} graph(s); " +
++               $"{_regionAfterDraw} ended with a whole-region write AFTER the last draw, " +
++               $"{_drawAfterRegion} with draws after it, {_drawsOnly} draws only, {_regionOnly} writes only" +
++               $"  ({100.0 * _regionAfterDraw / Math.Max(1, ordered):0.0}% in the suspect order)";
 +    }
 +
      public static void Bind()

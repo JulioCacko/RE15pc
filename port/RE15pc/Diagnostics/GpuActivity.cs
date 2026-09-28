@@ -520,6 +520,7 @@ public static class GpuActivity
         sb.AppendLine(GpuGlAccess.DescribeVertices());
         sb.AppendLine(GpuGlAccess.DescribeFlushes());
         sb.AppendLine(GpuGlAccess.DescribeFlushesByTarget());
+        sb.AppendLine(GpuGlAccess.DescribeReplayOrder());
         sb.AppendLine(GpuGlAccess.DescribeDrawEnvs());
         sb.AppendLine(GpuGlAccess.DescribeWritebacks());
         sb.AppendLine(GpuGlAccess.DescribeWritebacksByOrigin());

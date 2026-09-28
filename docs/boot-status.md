@@ -1310,17 +1310,41 @@ So the defect is a **frame-level** alternation. The same draws reach the same ta
 roughly every other frame the result is black - which is the strongest form of the question, because
 nothing about the draws differs between a good frame and a bad one.
 
+#### Refuted: the ordering mechanism, and what the graph composition shows instead
+
+```
+                                   graphs   region write after draws   draws after   draws only   writes only
+DEFAULT                              638              7   (1.9%)           371           219            1
+--skip-draws flat                    638              0   (0.0%)           313           136           66
+```
+
+A frame whose last whole-region write followed its last draw would composite its own black clear over
+its own drawing, and roughly 46% of frames would have to show that order to account for 46% of frames
+being black. **Seven of 638 do**, so the ordering mechanism is refuted. The draws are followed by the
+region write in the great majority of graphs in both configurations, which is the correct order.
+
+The composition difference is real and worth recording even though it does not yet explain anything.
+In the default configuration almost every graph that contains a region write also contains draws - 378
+of 379 - and there is essentially one graph in the whole run that writes regions without drawing. In the
+working configuration that split is 66 to 313, with 123 graphs empty of both against 40 in the default.
+
+So the working configuration's frames are far more fragmented: clears and drawing routinely land in
+different published graphs, and a fifth of its graphs are empty. The failing configuration concentrates
+both into the same graph almost every time. Nothing about that is obviously wrong - the order within a
+graph is correct in both - but it is the largest structural difference found so far, and it is the kind
+of difference that a timing-sensitive defect would produce.
+
+This is the eighth mechanism withdrawn. Five of the last six were refuted by measuring the specific
+thing the mechanism predicted, which is the right way to lose them, but it also means the reasoning has
+been running ahead of the evidence for several rounds.
+
 #### Next probe
 
-Compare a black frame against a good one at the level of the recorded operations. The frame graph is
-replayed in order, so the candidate is an ordering difference: a `WriteVram` - the per-frame black
-640x480 clear the guest performs through `LoadImage` - landing after a frame's draws instead of before
-them would composite black over a drawn frame, and would do it intermittently if the clear for the next
-frame is recorded into the current frame's graph.
-
-Logging, per frame, the operation indices of the last draw and the last `WriteVram` in the replayed
-graph would settle it directly: if a frame's last `WriteVram` follows its last draw, that frame
-composites black.
+Verify the blit itself. The target is written into, in the correct order, into both buffers - so the
+remaining step that has never been checked is what `Writeback` actually copies. Reading the target's
+strip immediately before the blit and VRAM's strip immediately after it, and comparing the two, would
+show whether the blit carries the content across or produces an empty result. Everything up to the blit
+has been measured; the blit has not.
 
 
 #### Where thirty rounds of measurement leave this

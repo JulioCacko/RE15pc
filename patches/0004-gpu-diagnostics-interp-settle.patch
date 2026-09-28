@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
-index e8d2299..cf3b570 100644
+index e8d2299..457c6e4 100644
 --- a/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
 +++ b/RecompOne.Runtime/Gpu/Interp/InterpBackend.cs
 @@ -379,12 +379,21 @@ public sealed class InterpBackend : IGpuBackend
@@ -26,3 +26,35 @@ index e8d2299..cf3b570 100644
              Replay(_current, null, 1f);
              _current.Clear();
              _current.Interpolatable = false;
+@@ -401,6 +410,31 @@ public sealed class InterpBackend : IGpuBackend
+         var fills = CollectionsMarshal.AsSpan(graph.Fills);
+         var copies = CollectionsMarshal.AsSpan(graph.Copies);
+         var writes = CollectionsMarshal.AsSpan(graph.Writes);
++
++        // Diagnostics: does this graph's last whole-region write follow its last draw? Order is the only
++        // thing left that can differ between a frame that renders and one that comes out black, since
++        // both receive the same draws into the same targets - 343197 vertices against 343929.
++        {
++            var lastDrawIndex = -1;
++            var lastRegionIndex = -1;
++
++            for (var i = 0; i < ops.Length; i++)
++                switch (ops[i])
++                {
++                    case GraphOp.Tri:
++                    case GraphOp.Rect:
++                    case GraphOp.Line:
++                        lastDrawIndex = i;
++                        break;
++                    case GraphOp.Fill:
++                    case GraphOp.CopyVram:
++                    case GraphOp.WriteVram:
++                        lastRegionIndex = i;
++                        break;
++                }
++
++            Hle.GpuGlAccess.NoteReplayOrder(lastDrawIndex, lastRegionIndex);
++        }
+         
+         for (var i = 0; i < ops.Length; i++)
+         {
