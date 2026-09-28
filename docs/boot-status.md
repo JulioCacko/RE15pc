@@ -213,26 +213,29 @@ frame graph, and `InterpBackend.Replay` renders them. `GlCore` is a different ob
 `HostWindow` uses for VRAM and presentation - which is why reading `GlCore` to reason about the
 draw path was misleading.
 
-**And `InterpBackend` applies the drawing offset a second time.** `InterpBackend.cs:66`:
+**And the interpolation wrapper's offset handling is correct.** `InterpBackend.DrawTri` reads
+`Runtime.Gpu.DrawOffsetX/Y` and stores the triangle with the offset *removed*:
 
 ```csharp
-var offsetX = (float)(Runtime.Gpu?.DrawOffsetX ?? 0);
+A = Detach(in a, offsetX, offsetY),      // InterpBackend.cs:75   Detach subtracts, :483-484
+OffsetX = offsetX, OffsetY = offsetY
 ```
 
-That is consistent with the frame graph holding pre-offset screen coordinates, which is what
-`InterpBackend`'s own replay needs. But the vertices it is handed have **already** had the
-offset added by `GpuRaster`, and the event coordinates confirm they are in VRAM space:
-`VRAM vs VRAM clip: 202407` counts primitives whose minimum vertex y is at least 240, which
-cannot happen for screen-space coordinates on a 320x240 display.
+and `ReplayTri` puts it back before handing the triangle to the inner backend:
 
-So for the second buffer, with draw offset `(0,240)` and vertices already at y `240..479`, the
-offset is added again and the geometry is pushed to y `480..719`. VRAM is 512 rows tall, so
-that content either wraps or falls outside the visible region - and the displayed buffer stays
-black. This is the inverse of the earlier retracted claim: the offset is applied twice, not
-zero times.
+```csharp
+var va = Attach(in a, tri.OffsetX, tri.OffsetY);   // InterpBackend.cs:473   Attach adds, :491-492
+_inner.DrawTri(in va, in vb, in vc, in tri.Flags);
+```
 
-This does not yet explain why the *first* buffer (draw offset `0,0`, where a doubled zero
-changes nothing) is also nearly empty, so it is a strong candidate rather than a closed case.
+Detach and Attach are exact inverses, and each record carries the offset that was in force when
+it was recorded rather than the current one, which is what makes this survive the per-frame
+buffer flip. So the offset is applied **exactly once** through the whole chain: added by
+`GpuRaster`, removed for interpolation, restored for replay.
+
+**The offset is therefore eliminated in both directions** - it is not missing, and it is not
+doubled. Two successive hypotheses died here, and both are recorded above with the evidence
+that killed them, because each looked convincing from the code alone.
 
 #### Eliminated
 
@@ -242,17 +245,27 @@ changes nothing) is also nearly empty, so it is a strong candidate rather than a
 
 #### Remaining probes
 
-1. **Test the double offset directly.** `GpuRaster` writes the offset into `Vert.X/Y` and then,
-   after dispatching `RenderPrimEvent`, overwrites them from the event:
-   `v[i].X = e.X[i]` (`GpuRaster.cs:124`). If those two disagree about which space they are in,
-   that assignment is where the confusion starts. Confirming which of `v.X` and `v.Px` the
-   backend actually receives, and whether `v.Precise` is set, would settle it in one run.
-2. **Instrument the frame graph.** Whether primitives reach `InterpBackend`'s graph and are
-   replayed is separable from whether `GlCore`'s render target receives them and flushes.
+Geometry, the drawing offset and the interpolation wrapper are all eliminated, so the fault is
+narrower than it was: it is in what happens to a correctly positioned, correctly offset
+primitive inside the GL path - the render target it is drawn into, the texture and CLUT it
+samples, or the flush that composites it back into VRAM.
+
+1. **Texture and CLUT sampling.** The background sits at texpage X = 5, which is unusually high
+   - most games keep textures in the low pages - so a page-resolution bug that no other game
+   would exercise is a live possibility. Sampling VRAM at the resolved page for a known tile
+   and comparing against the decoded background at (320,256) would show it directly.
+2. **The render target and its flush.** `GlCore.Classify()` picks a `GlDisplayRt` from a
+   two-slot display-rect ring and `ClassifySlow` can also return null, in which case drawing
+   goes into the full-VRAM texture. Whether a target is chosen at all, and whether it is
+   flushed back, separates "drawn into the wrong place" from "drawn and never composited".
 3. **Force the software rasteriser.** `GpuHle.Active` is a settable static; with it false,
    `GpuRaster`'s own path draws into the shadow and `VramDump` reads that. If the room appears
-   there, the fault is isolated to the HLE/GL path. The host must re-assert it, because the
-   window code sets `GpuHle.Active` from backend readiness.
+   there, the fault is isolated to the GL path specifically. The host must re-assert it,
+   because `InterpBackend` sets `_active` from `_inner.Ready`.
+4. **PGXP / `Transform` grouping.** `InterpBackend.Group` and `Mix` key off
+   `HleVertex.Transform`, and `Mix` accumulates texture-coordinate ranges and page masks per
+   group. If those ranges feed a batched or replaced texture, geometry can be perfect and the
+   result still black. Worth checking with PGXP off as well as on.
 
 ---
 
