@@ -808,6 +808,56 @@ and read both stores immediately either side of frames 596 and 598. Both stores 
 operations, so a single entry showing both falling to zero at the same frame identifies the operation
 and settles whether the clear precedes or follows the room's arrival.
 
+#### The wipe is a CPU upload, and it happens every frame
+
+That probe was run, and it answers the question while refuting two of this document's own conclusions.
+
+```
+    frame    594  (0,0)  61135  (0,240)  70483   upload (272,240) 16x240
+    frame    595  (0,0)  61135  (0,240)      0   upload (0,240) 320x240
+    frame    596  (0,0)  61135  (0,240)      0   upload (0,0)   320x240
+    frame    597  (0,0)      0  (0,240)      0   upload (0,240) 320x240
+    frame    598+  every frame: upload (0,240) 320x240 then upload (0,0) 320x240
+```
+
+**The operation is a CPU upload, not a fill and not a copy.** The guest loads a full 320x240 image
+into each framebuffer, alternating between them, and from frame 595 onward it does so **every frame**.
+Each upload takes the region's non-black count to zero, so what it loads is black.
+
+**So "one-off" was wrong, and "per-frame" is right.** The per-frame sampler of two rounds ago reported
+six changes in 868 frames and this document drew a one-off erasure from it. That reading was an
+artefact of the timeline collapsing runs of equal readings: once the buffers are black, an upload that
+writes black every frame produces no *change*, so a per-frame wipe is invisible to a change log. The
+caveat recorded at the time - that the instrument cannot see inside a frame - was the right caveat, and
+it was not carried far enough: the collapse also hides repetition across frames, not just within one.
+
+**And the candidate set was wrong too.** `FillRect` and `CopyVram` were named as the only remaining
+whole-buffer writers, on the reasoning that they write both stores. Uploads do as well, and were
+overlooked - `StoreImageHalfword` writes the software shadow and `HleLoadFlush` forwards to the
+backend, so an upload writes both stores exactly as a fill or a copy would.
+
+#### What this actually means
+
+The per-frame black upload is almost certainly **the game's own screen clear**, done through `LoadImage`
+rather than GP0 0x02 - which is a normal technique, and the reason no fill was ever observed. If that is
+what it is, the clear is legitimate and the room is supposed to be drawn on top of it every frame.
+
+That makes the ordering question sharper rather than answering it. Each frame the guest clears both
+buffers and then draws, and with flat drawing suppressed the result survives at 88% while with it
+present the buffers read zero. Two possibilities remain, and they are now easy to tell apart:
+
+1. **The room's draws precede the clear in the command stream**, so the clear erases what was just
+   drawn. The fix would be an ordering one, and the flat primitives would be a red herring that merely
+   shifts timing.
+2. **The room's draws follow the clear but produce nothing** - which is where this document stood
+   several rounds ago, and which the measured 79.6%/88% composition argues against, since the 8.4%
+   that textured drawing adds is demonstrably produced when flat drawing is suppressed.
+
+The next measurement that separates them is the obvious one: note the guest frame at every `LoadImage`
+of a framebuffer region *and* at every textured draw landing in one, and read out which comes last
+within a frame. That is a small extension of the instrumentation now in place, and it decides between a
+one-line ordering fix and a return to the draw path.
+
 
 #### What can be said with confidence
 

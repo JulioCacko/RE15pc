@@ -41,6 +41,19 @@ public static class FrameSampler
     /// </summary>
     private static readonly List<(long Frame, int Lit0, int Lit240, string What)> RtEvents = [];
 
+    /// <summary>
+    /// Whole-region VRAM transfers - fills, VRAM-to-VRAM copies and CPU uploads - with the framebuffer
+    /// contents at that instant.
+    ///
+    /// These write both stores, so if the two buffers fall to zero in the same entry as one of these,
+    /// that entry is the wipe. Nothing else in the runtime writes both stores, and the wipe was shown
+    /// to be neither per-frame nor coincident with a render target event.
+    /// </summary>
+    private static readonly List<(long Frame, int Lit0, int Lit240, string What)> TransferEvents = [];
+
+    /// <summary>Only transfers touching a framebuffer region are recorded, to keep the log readable.</summary>
+    private static bool TouchesFramebuffer(string what) => true;
+
     private static readonly object Gate = new();
 
     public static void Attach()
@@ -51,6 +64,25 @@ public static class FrameSampler
         Event.AddListener<VSyncEvent>(OnVSync);
 
         GpuGlAccess.RtObserver = OnRenderTargetEvent;
+        GpuGlAccess.TransferObserver = OnTransfer;
+    }
+
+    /// <summary>
+    /// Records a whole-region transfer with the framebuffer contents at that instant. Called from the
+    /// guest thread as commands are decoded.
+    /// </summary>
+    private static void OnTransfer(string what)
+    {
+        if (Runtime.Gpu is not { } gpu) return;
+        if (gpu.Vram.Length < Gpu.VramWidth * Gpu.VramHeight) return;
+
+        var lit0 = Count(gpu.Vram, 0);
+        var lit240 = Count(gpu.Vram, 240);
+
+        lock (Gate)
+        {
+            if (TransferEvents.Count < 400) TransferEvents.Add((_frame, lit0, lit240, what));
+        }
     }
 
     /// <summary>
@@ -137,6 +169,12 @@ public static class FrameSampler
                 sb.AppendLine($"  render target lifecycle   : {RtEvents.Count} event(s), guest frame shown for each");
 
                 foreach (var (frame, lit0, lit240, what) in RtEvents.TakeLast(20))
+                    sb.AppendLine($"    frame {frame,6}  (0,0) {lit0,6}  (0,240) {lit240,6}   {what}");
+
+                sb.AppendLine();
+                sb.AppendLine($"  whole-region transfers    : {TransferEvents.Count} event(s) recorded");
+
+                foreach (var (frame, lit0, lit240, what) in TransferEvents.TakeLast(24))
                     sb.AppendLine($"    frame {frame,6}  (0,0) {lit0,6}  (0,240) {lit240,6}   {what}");
             }
 

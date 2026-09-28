@@ -1,0 +1,79 @@
+diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
+index bc045ae..4183975 100644
+--- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
++++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
+@@ -17,6 +17,38 @@ public static class GpuGlAccess
+     public static int Scale => GlVram.Scale;
+     public static bool Available => Gl != null && TargetFbo != 0;
+ 
++    /// <summary>
++    /// Diagnostics only: called when a render target is created or destroyed, with its rectangle.
++    /// </summary>
++    /// <remarks>
++    /// <c>GetOrCreateRt</c> is the only path that destroys a render target, and it does so when it
++    /// needs a slot at a different position or size. A room load is exactly the kind of event that
++    /// changes the display geometry, so it is exactly the kind that forces an eviction - and a
++    /// replacement is seeded from VRAM by <c>SyncRtFromVram</c>, so whether that seeding covers the
++    /// framebuffer region decides whether the eviction is harmless or wipes the buffer.
++    ///
++    /// This exists because the framebuffers were measured holding 79.6% of a frame and then falling
++    /// to zero exactly once, two frames apart, one buffer at a time - which is what an eviction looks
++    /// like and is not what a fill or a stale writeback looks like.
++    /// </remarks>
++    public static Action<string>? RtObserver;
++
++    /// <summary>
++    /// Diagnostics only: called for every whole-region VRAM transfer - a fill, a VRAM-to-VRAM copy,
++    /// or the start of a CPU upload - with its rectangle.
++    /// </summary>
++    /// <remarks>
++    /// These three are the only operations that write a whole region of VRAM at once, and each writes
++    /// BOTH the software shadow and, through the HLE, the backend. That is what a wipe of both stores
++    /// at the same instant requires, and no draw-path operation can produce it, because draws reach
++    /// only the backend.
++    ///
++    /// This exists because the framebuffers were measured holding 79.6% and then falling to zero
++    /// exactly once, and that wipe was shown neither to be per-frame nor to coincide with any render
++    /// target event, which leaves these.
++    /// </remarks>
++    public static Action<string>? TransferObserver;
++
+     public static void Bind()
+     {
+         if (Gl == null) return;
+diff --git a/RecompOne.Runtime/Gpu/GpuCommands.cs b/RecompOne.Runtime/Gpu/GpuCommands.cs
+index a4fd7af..3d092d7 100644
+--- a/RecompOne.Runtime/Gpu/GpuCommands.cs
++++ b/RecompOne.Runtime/Gpu/GpuCommands.cs
+@@ -1,3 +1,5 @@
++using RecompOne.Runtime.Hle;
++
+ namespace RecompOne.Runtime;
+ 
+ public sealed partial class Gpu
+@@ -125,6 +127,7 @@ public sealed partial class Gpu
+ 
+         Assets.Textures.VramTracker.MarkCpuWrite(x, y, w, h);
+ 
++        GpuGlAccess.TransferObserver?.Invoke($"fill   ({x},{y}) {w}x{h} colour=0x{color:X4}");
+         if (HleOn) HleFill(x, y, w, h, color);
+     }
+ 
+@@ -149,6 +152,7 @@ public sealed partial class Gpu
+ 
+         Assets.Textures.VramTracker.MarkCpuWrite(dx, dy, w, h);
+ 
++        GpuGlAccess.TransferObserver?.Invoke($"copy   ({sx},{sy})->({dx},{dy}) {w}x{h}");
+         if (HleOn) HleCopy(sx, sy, dx, dy, w, h);
+     }
+ 
+@@ -166,6 +170,9 @@ public sealed partial class Gpu
+         if (_loadH == 0) _loadH = 0x200;
+         _loadPx = 0;
+         _loadImage = true;
++
++        GpuGlAccess.TransferObserver?.Invoke($"upload ({_loadX},{_loadY}) {_loadW}x{_loadH}");
++
+         HleLoadBegin();
+         _fifoCount = 0;
+     }

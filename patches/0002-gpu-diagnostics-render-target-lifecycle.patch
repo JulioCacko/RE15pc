@@ -28,30 +28,3 @@ index 45a0f96..c370463 100644
          return fresh;
      }
  
-diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..19e4dc9 100644
---- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-+++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,22 @@ public static class GpuGlAccess
-     public static int Scale => GlVram.Scale;
-     public static bool Available => Gl != null && TargetFbo != 0;
- 
-+    /// <summary>
-+    /// Diagnostics only: called when a render target is created or destroyed, with its rectangle.
-+    /// </summary>
-+    /// <remarks>
-+    /// <c>GetOrCreateRt</c> is the only path that destroys a render target, and it does so when it
-+    /// needs a slot at a different position or size. A room load is exactly the kind of event that
-+    /// changes the display geometry, so it is exactly the kind that forces an eviction - and a
-+    /// replacement is seeded from VRAM by <c>SyncRtFromVram</c>, so whether that seeding covers the
-+    /// framebuffer region decides whether the eviction is harmless or wipes the buffer.
-+    ///
-+    /// This exists because the framebuffers were measured holding 79.6% of a frame and then falling
-+    /// to zero exactly once, two frames apart, one buffer at a time - which is what an eviction looks
-+    /// like and is not what a fill or a stale writeback looks like.
-+    /// </remarks>
-+    public static Action<string>? RtObserver;
-+
-     public static void Bind()
-     {
-         if (Gl == null) return;
