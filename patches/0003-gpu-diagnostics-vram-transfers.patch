@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..ef3ad10 100644
+index bc045ae..b93f5c5 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,754 @@ public static class GpuGlAccess
+@@ -17,6 +17,766 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -753,6 +753,18 @@ index bc045ae..ef3ad10 100644
 +
 +        return $"{deg} of {tris} triangles ({(tris == 0 ? 0 : 100.0 * deg / tris):0.0}%), page X in {{{pageList}}}";
 +    }
++
++    /// <summary>
++    /// Diagnostic only: when positive, flush a batch once it reaches this many vertices.
++    /// </summary>
++    /// <remarks>
++    /// Set from RE15PC_FLUSH_EVERY. Skipping the whole flat category restores the frame while skipping
++    /// no subset of it does, and the vertex contents reaching the driver differ between the failing and
++    /// working configurations - so the grouping of draws into batches is the suspect, not any primitive.
++    /// Varying the batch size is the experiment that separates those.
++    /// </remarks>
++    public static int ForceFlushEvery { get; } =
++        int.TryParse(Environment.GetEnvironmentVariable("RE15PC_FLUSH_EVERY"), out var v) && v > 0 ? v : 0;
 +
      public static void Bind()
      {

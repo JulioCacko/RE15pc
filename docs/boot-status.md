@@ -1911,3 +1911,43 @@ Something else came out of running these several times. The set fingerprint is n
 #### Next probe
 
 Compare the per-vertex fields not yet examined between the two groups: the clut each batch carries, the vertex colours, and the U/V ranges. Those are the last fields in a GlVertex that have not been put side by side. Everything else - counts, ranges, in-band share, degeneracy, sampled pages - is now known to be alike in both groups, so either one of these three differs, or the difference is not in the vertex data at all and the partition is a consequence of something else entirely.
+
+
+#### The defect is multi-primitive batching, and it is now proven by experiment
+
+Round after round of instrumentation narrowed this without finding it. Two experiments found it, and neither needed a new measurement - only a change to how the existing ones were taken.
+
+**First, bisecting the flat category.** --skip-draws takes subsets, so it is possible to ask which flat primitives matter. Only skipping all of them restores the frame:
+
+```nnone          581 ( 0.8%)   119 colours
+textured        0 (  0.0%)    1 colour    <- textured drawing is essential; it IS the room
+flat        67558 (88.0%)  1341 colours   <- only this works
+flatblend0    626 ( 0.8%)   119 colours
+blackflat     626 ( 0.8%)   119 colours
+greyflat      581 ( 0.8%)   119 colours
+subtract      581 ( 0.8%)   119 colours
+```
+
+No subset suffices, so no particular primitive is to blame - only flat drawing being present at all. And 	extured alone gives 0.0%, confirming the room is the textured drawing.
+
+**Second, forcing the batch size**, via a diagnostic that flushes at a fixed vertex budget:
+
+```nvertices per batch   triangles   display
+   3                    1       34916 (45.5%)  1000 colours   <- renders
+   6                    2       34939 (45.5%)  1003 colours   <- renders
+   9                    3        6758 ( 8.8%)   391 colours
+  12                    4        7762 (10.1%)   335 colours
+  18                    6        5905 ( 7.7%)   214 colours
+  24                    8         474 ( 0.6%)    18 colours
+  48                   16         350 ( 0.5%)     6 colours
+```
+
+**A batch renders about two triangles' worth and then degrades to nothing as it grows.** That is the defect: not a wrong value anywhere, not a wrong target, not a lost vertex - but a batch that stops producing output after its first triangle or two.
+
+It also explains both instruments at once, and why they were the only two things that ever changed the outcome: skipping flat drawing changes what gets grouped into batches, and forcing small batches changes the grouping directly. Neither addresses a primitive; both address the grouping.
+
+Two things are ruled out on inspection rather than by measurement. The vertex buffer is allocated for MaxVerts of  x40000 vertices, so no batch can exceed it, and the six attribute pointers describe a 40-byte stride of X,Y, R,G,B, Clut, Texpage, U,V, W - which matches the fields GlCore.V writes, in the order it writes them.
+
+#### Next probe
+
+Why the third triangle in a batch produces nothing. The three candidates, in the order worth testing: the depth state, since every vertex is written with z = 0 and a depth test left enabled would reject all but the first triangle of a batch - the numbers do not fit that cleanly, because two triangles per batch renders as fully as one, but it is cheap to rule out. The varying declarations, since pageBase, clutBase, 	exMode, Dither and RepClut are lat and take their value from the provoking vertex, so a per-triangle value that is only correct for the first triangle would show exactly this. And the vertex upload, since BufferSubData is given _count vertices from _verts and a short or misplaced upload would leave the later triangles reading another batch's data.

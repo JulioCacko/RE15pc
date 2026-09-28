@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..b585b26 100644
+index 45a0f96..4de8baf 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -77,7 +77,20 @@ index 45a0f96..b585b26 100644
              }
      }
  
-@@ -528,7 +542,7 @@ public sealed class GlCore : IGpuBackend
+@@ -387,6 +401,12 @@ public sealed class GlCore : IGpuBackend
+         var target = Classify();
+         if (_count > 0 && (target != _kTarget || !DesiredMatches(transparent, blend, image))) Flush();
+         if (_count + vertsNeeded > MaxVerts) Flush();
++
++        // Diagnostic only, off unless the environment asks for it: flush at a fixed vertex budget so the
++        // batching can be varied without touching anything else. Skipping flat drawing restores the
++        // frame while skipping no subset of it does, which points at the grouping of draws into batches
++        // rather than at any particular primitive - and forcing small batches tests that directly.
++        if (GpuGlAccess.ForceFlushEvery > 0 && _count >= GpuGlAccess.ForceFlushEvery) Flush();
+         CheckTextureFeedback(f);
+ 
+         if (target != null) ClearMargin(target);
+@@ -528,7 +548,7 @@ public sealed class GlCore : IGpuBackend
  
      private GlVertex V(in HleVertex v, in PrimFlags f, bool dither)
      {
@@ -86,7 +99,7 @@ index 45a0f96..b585b26 100644
          float cr = raw ? 128f : v.R, cg = raw ? 128f : v.G, cb = raw ? 128f : v.B;
          var tpage = f.UseImage ? 0x4000 : f.Textured ? f.TPage & 0x1FF : 0x8000;
          if (dither && _pendingRepTex == 0) tpage |= 0x400;
-@@ -547,6 +561,8 @@ public sealed class GlCore : IGpuBackend
+@@ -547,6 +567,8 @@ public sealed class GlCore : IGpuBackend
              if (v.Y > _drawMaxY) _drawMaxY = v.Y;
          }
  
@@ -95,7 +108,7 @@ index 45a0f96..b585b26 100644
          return new GlVertex
          {
              X = v.X, Y = v.Y,
-@@ -560,6 +576,7 @@ public sealed class GlCore : IGpuBackend
+@@ -560,6 +582,7 @@ public sealed class GlCore : IGpuBackend
  
      public void DrawTri(in HleVertex a, in HleVertex b, in HleVertex c, in PrimFlags f)
      {
@@ -103,7 +116,7 @@ index 45a0f96..b585b26 100644
          ResolveReplacement(f,
              (int)Math.Min(a.U, Math.Min(b.U, c.U)), (int)Math.Min(a.V, Math.Min(b.V, c.V)),
              (int)Math.Max(a.U, Math.Max(b.U, c.U)), (int)Math.Max(a.V, Math.Max(b.V, c.V)));
-@@ -752,6 +769,10 @@ public sealed class GlCore : IGpuBackend
+@@ -752,6 +775,10 @@ public sealed class GlCore : IGpuBackend
          var destH = rt == null ? GlVram.Height : rt.TexH;
  
          GpuGlAccess.Gl = _gl;
@@ -114,7 +127,7 @@ index 45a0f96..b585b26 100644
          GpuGlAccess.TargetFbo = rt == null ? _vram.Fbo : rt.Fbo;
          GpuGlAccess.TargetWidth = destW;
          GpuGlAccess.TargetHeight = destH;
-@@ -871,6 +892,24 @@ public sealed class GlCore : IGpuBackend
+@@ -871,6 +898,24 @@ public sealed class GlCore : IGpuBackend
          _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
          _gl.BufferSubData<GlVertex>(BufferTargetARB.ArrayBuffer, 0, _verts.AsSpan(0, _count));
  
@@ -139,7 +152,7 @@ index 45a0f96..b585b26 100644
          if (_legacy)
          {
              _gl.Disable(EnableCap.Blend);
-@@ -914,6 +953,68 @@ public sealed class GlCore : IGpuBackend
+@@ -914,6 +959,68 @@ public sealed class GlCore : IGpuBackend
          _gl.Disable(EnableCap.ScissorTest);
          if (rt != null)
          {
@@ -208,7 +221,7 @@ index 45a0f96..b585b26 100644
              rt.Dirty = true;
              rt.LastDrawFrame = _frame;
          }
-@@ -990,7 +1091,7 @@ public sealed class GlCore : IGpuBackend
+@@ -990,7 +1097,7 @@ public sealed class GlCore : IGpuBackend
          for (var i = 0; i < _rts.Length; i++)
          {
              if (_rts[i] is not { } rt) continue;
