@@ -2318,3 +2318,36 @@ What the map says is the real finding:
 **This is a concrete and testable fix path**: emit `0x800100AC`, `0x80010114`, `0x8001012C`, `0x800101C4` and `0x800101DC` as their own function entries in `port/config/funcmaps/main.json`, each bounded by the next address and the last by the end of the containing function, then recompile. If the dispatcher then resolves them, the guest continues past frame 704 and the rest of the disc becomes reachable.
 
 The reason this was never found by measurement is worth recording: every instrument built here looked at what the GPU was drawing, and this is a control-flow gap in the recompiled image. It only surfaced once the run was driven hard enough with input to reach frame 704, which the default script never did.
+
+#### Fixed: the computed-jump gap, verified over 5414 frames
+
+The blocker is gone. A 180-second strict run now finishes clean:
+
+```
+unmapped calls          : 0
+verdict                 : PASS
+last change at          : 180,0s
+verdict                 : PROGRESSING
+per-frame buffer changes: 13, guest frames 2..5414
+[gl] display crop       : 6962/76800 non-black (9,1%), 520 distinct colours
+SMOKE VERDICT: PASS
+```
+
+**5414 guest frames, no unmapped call, still changing state at the end of the run.** Before the fix the same input stopped at frame 704 with an unmapped call at 22.5 seconds.
+
+The progression across the two batches is what shows the diagnosis was right rather than an edit having been lucky:
+
+```
+before any fix                 unmapped 0x800100AC at 22.5s, frame  704
+after the first five targets   unmapped 0x80010454 at 24.0s
+after 21 harvested tolerant    frame 3607 at 120s, 21 still outstanding
+after the last six             no unmapped call at all
+```
+
+**Twenty-seven entries were added to the generated function map**, taking main from 2139 functions to 2171. Each one is an address the guest reaches by a computed jump - an indexed dispatch table whose entries the function detector had merged into their neighbours, because a detector keyed on function boundaries has no reason to split a block the guest only ever enters in the middle.
+
+The map is generated, so this is deliberate curation and is recorded as such: `--autoconfigure` would discard it and reintroduce the blocker, and `FunctionMapLoader` reads addresses verbatim, so the addresses themselves are what matter. A tolerant pass harvests every unmapped call in one run, which is how the remaining targets were found rather than one crash at a time.
+
+**What this does not yet establish is playability.** The guest no longer stops, and that is a real change in what the port can do; but a completed run is not a played game. The display figure reflects wherever the scripted input left the game, not a room walked or a door opened.
+
+Two claims made earlier in this investigation are withdrawn alongside the fix. The dispatcher's call-trail instrumentation never recorded anything - its recording line failed to apply, the field was never assigned, and the compiler said so in a warning that was not read - so the claim that an empty trail proved the run's first indirect call rested on nothing. And the claim that the failing address lay in the zeroed EXE header came from reading the header's file offset as though it were the loaded image, which it is not: the text loads at the load address, and the address was real code all along.
