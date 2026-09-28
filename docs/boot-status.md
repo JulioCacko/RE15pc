@@ -1044,6 +1044,26 @@ title screen and the room, but the shadow cannot see it and never could. The bac
 what it shows is that the room's drawn output never arrives there.
 
 
+#### Next probe
+
+The measurement that splits the remaining space in two, attempted in the final round and not completed:
+**read the render target's own pixels rather than VRAM's.**
+
+Every reading taken so far has come from VRAM, whether the software shadow or the backend store. But
+draws do not go to VRAM - they go into a render target, and reach VRAM only through `Writeback`. So
+the two remaining possibilities have never been separated:
+
+- the room **is** in the render target, and the writeback is what fails; or
+- the target is empty too, and the draw itself produces nothing.
+
+`GpuGlAccess` already exposes what is needed: `TargetFbo`, `TargetWidth` and `TargetHeight` are public,
+so binding that framebuffer and reading its pixels answers the question directly. The attempt stalled
+on Silk.NET's `ReadPixels` overload resolution - the pointer form wins over the span form in this
+version - and was reverted rather than left half-integrated, so the tree is clean and builds.
+
+That is one small piece of API work, not a research problem, and it is the first thing to do next.
+
+
 #### Where thirty rounds of measurement leave this
 
 Every component between a guest GP0 command and the framebuffer has now been measured rather than
