@@ -299,14 +299,48 @@ settles at ~580 pixels, which is the small text element, and the shadow at zero.
 background never arrives after the transition, and a single dump taken at the end shows only
 that final state - which is why it read as a uniformly black screen for so long.
 
+#### The likely mechanism
+
+Reading `GlCore`'s render-target handling gives a mechanism that matches the timeline exactly.
+
+Targets exist because a framebuffer region is drawn into an FBO and then composited back:
+
+- `SyncRtFromVram(rt, ...)` blits **from** `_vram` **into** the render target - this is what seeds a
+  target with existing VRAM contents.
+- `Writeback(rt)` blits **from** the target **into** `_vram`, and it does so for the **entire
+  target rectangle**, not just the region that was drawn:
+  ```csharp
+  _gl.BlitFramebuffer(rt.Margin * s, 0, (rt.Margin + rt.W) * s, rt.H * s,      // whole source
+      rt.X * s, rt.Y * s, (rt.X + rt.W) * s, (rt.Y + rt.H) * s,                // whole dest
+      ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+  ```
+- `WritebackDirtyIntersecting` flushes any target marked dirty that intersects the region.
+- `SyncRtsFromVram` is called from `WriteVram` and `CopyVram` - so a target is re-seeded from VRAM
+  **when an upload or a VRAM copy reaches `GlCore`**.
+
+Put those together with the deferral and the hazard is an ordering one. `InterpBackend` records
+both the uploads (`WriteVram`, `CopyVram`) and the drawing (`DrawTri`) into the same frame graph
+and applies them later in `Replay`. A target is only seeded once the upload has actually reached
+`GlCore`. If a **dirty target is flushed before the upload covering it has been replayed**, the
+flush writes the whole surface back - and that surface holds what was drawn over a region that
+was never seeded, i.e. mostly nothing. Uploaded VRAM contents are overwritten with emptiness.
+
+That is precisely the observed signature: the backend loses two thirds of its display content
+(31906 to 13203) while the shadow, which receives uploads directly and is never written back
+from a target, is unchanged at 31801.
+
+It also explains why disabling the HLE sidesteps everything: with `_hleLoadActive` false the
+uploads are never deferred, so they reach the shadow immediately and no target flush can precede
+them.
+
 #### Next probes
 
-1. **`GlCore`'s render targets.** Whether a target covering the framebuffer is seeded from
-   `_vram` before drawing, and whether `WritebackDirtyIntersecting` composites only the pixels
-   actually drawn or the whole surface. `SyncRtsFromVram` and `WritebackDirtyIntersecting` are
-   the two functions to read; the timeline predicts that a flush is destroying uploaded content.
-2. **Instrument `Replay`.** Whether the deferred `WriteVram` and `CopyVram` operations in the
-   frame graph are visited, since those are what keep the render targets in sync with an upload.
+1. **Verify the ordering.** Confirm that `InterpBackend.Replay` visits the recorded operations in
+   order and that `Settle()` is invoked before any draw or flush that could precede a pending
+   `WriteVram`/`CopyVram`. If a flush can be issued between a recorded upload and its replay, that
+   is the defect, and the fix is to seed the target from the pending graph rather than from
+   `_vram`.
+2. **`GlCore.Flush`** - what it flushes and in what order relative to `Writeback`.
 3. **PGXP grouping.** `InterpBackend.Group`/`Mix` key off `HleVertex.Transform` and accumulate
    texture-coordinate ranges and page masks per group. Worth a run with PGXP off.
 
@@ -522,12 +556,12 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Read `GlCore.SyncRtsFromVram` and `WritebackDirtyIntersecting`.** The per-store timeline
-   predicts that a render-target flush is destroying uploaded content: the backend holds 31906
-   non-black pixels at 4 s, agreeing with the shadow, and only 13203 four seconds later while
-   the shadow is unchanged. Confirming whether a target covering the framebuffer is seeded from
-   `_vram`, and whether the flush composites the whole surface or only what was drawn, is the
-   blocker.
+1. **Verify the render-target ordering.** The mechanism is in the section above: `Writeback`
+   blits the whole target surface into `_vram`, targets are seeded only when an upload reaches
+   `GlCore`, and `InterpBackend` defers uploads into a frame graph. If a flush can be issued
+   between a recorded upload and its replay, uploaded VRAM contents are overwritten with
+   emptiness - which is what the timeline shows. Confirm the ordering, then seed targets from
+   the pending graph rather than from `_vram`.
 2. **Turn reaching STAGE1 into a one-line regression check.** It currently needs a hand-written
    `--input` script; naming a standard script for it would make every later phase cheap to
    re-verify.
