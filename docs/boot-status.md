@@ -538,27 +538,61 @@ That is the third mechanism in this document to be retracted after being written
 The pattern is consistent: each was derived by following the code's *intent* rather than reading what
 the code actually does with the values it has.
 
-#### A tool that was not being used: GpuGlAccess
+#### First observed GL state, rather than inferred
 
-`GpuGlAccess` is public and exposes the GL state the backend is actually using:
+`GlStateSampler` reads the live GL state through `GpuGlAccess.Gl` on the GPU job queue, every eighth
+progress tick. Six samples per run, which is a small number and is treated as such below.
 
-```csharp
-public static GL? Gl { get; internal set; }
-public static uint TargetFbo { get; internal set; }
-public static int TargetWidth, TargetHeight { get; internal set; }
-public static int TargetOriginX, TargetOriginY, TargetMargin { get; internal set; }
-public static bool Available => Gl != null && TargetFbo != 0;
+The black run and the correct run differ:
+
+```
+DEFAULT (black), 6 samples, 4 distinct states
+  x3  blend=True  eqRgb=FUNC_REVERSE_SUBTRACT  srcRgb=0x88F9 dstRgb=SRC1_COLOR srcA=ONE dstA=ZERO  fbo=1 origin=(0,240) margin=0 target=1280x960
+  x1  blend=False eqRgb=FUNC_REVERSE_SUBTRACT  ...  origin=(0,240)
+  x1  blend=True  eqRgb=FUNC_REVERSE_SUBTRACT  ...  origin=(0,0)
+  x1  blend=False eqRgb=FUNC_ADD               ...  origin=(0,0)
+
+--skip-draws flat (correct), 6 samples, 4 distinct states
+  x2  blend=False eqRgb=FUNC_ADD  srcRgb=0x88F9 dstRgb=SRC1_COLOR srcA=ONE dstA=ZERO  origin=(0,240)
+  x2  blend=True  eqRgb=FUNC_REVERSE_SUBTRACT  ...  origin=(0,0)
+  x1  blend=False eqRgb=FUNC_ADD  srcRgb=ONE    dstRgb=ZERO      srcA=ONE dstA=ZERO  origin=(0,240)
+  x1  blend=False eqRgb=FUNC_ADD  srcRgb=ONE    dstRgb=ZERO      srcA=ONE dstA=ZERO  origin=(0,0)
 ```
 
-Because `Gl` is the live `GL` object, the *actual* GL state is queryable from the host at any point -
-`GetInteger` for the blend source and destination factors, the blend equation, the bound draw and
-read framebuffers, the viewport - rather than inferred from the runtime's intentions. `TargetOriginX`
-and `TargetOriginY` also say which VRAM region the last draw was classified into, which is the direct
-answer to the `Classify` question that the earlier `VramTracker` proxy could only approach
-indirectly.
+Four things are established by this and are worth separating from what is only suggested.
 
-Everything reasoned about the blend path in this document was reasoned from the source. This is the
-first way to *observe* it instead, and it is where the next round should start.
+**The render target alternates between both buffers, and `Classify` is working.** Origin appears as
+both `(0,240)` and `(0,0)` in both runs. `margin=0` throughout, so no widescreen bias is in play.
+
+**`fbo=1` on every sample.** The bound draw framebuffer is the same object in all six samples of both
+runs even though the target origin alternates. Either the two buffers share one framebuffer object
+with the origin supplied as a uniform, or `Classify` reuses one target - the latter would be worth
+knowing, given the two buffers are supposed to be independent.
+
+**The blend factors are the dual-source ones** from `GlCore.cs:887` - `dstRgb` reads as `SRC1_COLOR`
+and `srcA=ONE`, `dstA=ZERO` - which is consistent with the core path using `PrimFs` and its
+`BlendColor` output. So the dual-source design really is what runs, and it is not a leftover.
+
+**`srcRgb` reads as `0x88F9`, which is not a blend factor.** It is constant across every sample of
+both runs. Either the enum used for the query does not mean what it is assumed to mean, or a factor
+is being set to a value that is not a valid `GLenum`. This needs decoding before the factors can be
+read at all, and the sampler's `Factor` mapping should not be trusted until it is.
+
+#### What is suggested but not established
+
+The blend equation in the black run is `FUNC_REVERSE_SUBTRACT` in five samples of six, and `FUNC_ADD`
+in four of six in the correct run. That is the first difference in *observed* state between the two
+configurations, and it matches the mechanism hypothesised earlier - a reverse subtract left in state
+by a subtract-blended draw.
+
+It is not enough to call it the cause, for two reasons. The sample is six readings taken on a timer,
+so it reflects whatever draw happened to be in flight, and `FUNC_REVERSE_SUBTRACT` is the *expected*
+transient state during a subtract-blended draw's second pass - seeing it mid-draw proves nothing. And
+blending is disabled on the samples that matter, where a stale equation cannot affect the result.
+
+Sampling on a timer cannot separate those. The next step is to sample at a **deterministic point** -
+immediately after the guest's `VSync`, once the frame's draws are complete - and repeat enough times
+to compare like with like. Only then does a difference in final state mean anything.
 
 ---
 
