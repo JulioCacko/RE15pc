@@ -111,6 +111,18 @@ public static class GpuActivity
     private static int _flatMinX = int.MaxValue, _flatMaxX = int.MinValue;
     private static int _flatMinY = int.MaxValue, _flatMaxY = int.MinValue;
 
+    /// <summary>
+    /// How many textured primitives are drawn after the most recent screen-covering flat quad, and
+    /// the largest such count seen.
+    ///
+    /// This is the draw-order question, and it decides what the quad means. A screen-covering flat
+    /// quad drawn *before* the scene is a clear, and the scene is supposed to cover it; one drawn
+    /// *after* is an overlay, most plausibly a fade, and a fade that never completes leaves the
+    /// screen black exactly as observed. If textured draws routinely follow the quad then the order
+    /// is fine and the quad is not the defect; if almost nothing follows it, it is drawn last.
+    /// </summary>
+    private static long _afterScreenQuad, _maxAfterScreenQuad, _screenQuads;
+
     /// <summary>Textured primitives drawn while CheckMask was set - i.e. while they could be skipped.</summary>
     private static long _texUnderCheckMask;
 
@@ -190,6 +202,17 @@ public static class GpuActivity
             Interlocked.Increment(ref _suppressed);
         }
 
+        // Textured draws that follow the most recent screen-covering flat quad: the draw-order test.
+        if (e.Textured)
+        {
+            var after = Interlocked.Increment(ref _afterScreenQuad);
+
+            lock (Gate)
+            {
+                if (after > _maxAfterScreenQuad) _maxAfterScreenQuad = after;
+            }
+        }
+
         Interlocked.Increment(ref _prims);
 
         // Flat primitives are characterised for ALL of them, before the in-framebuffer test. That
@@ -217,7 +240,12 @@ public static class GpuActivity
                 if (e.Y[i] > fmaxY) fmaxY = e.Y[i];
             }
 
-            if (fmaxX - fminX >= 300 && fmaxY - fminY >= 200) Interlocked.Increment(ref _flatScreenSized);
+            if (fmaxX - fminX >= 300 && fmaxY - fminY >= 200)
+            {
+                Interlocked.Increment(ref _flatScreenSized);
+                Interlocked.Increment(ref _screenQuads);
+                Interlocked.Exchange(ref _afterScreenQuad, 0);
+            }
 
             lock (Gate)
             {
@@ -377,6 +405,8 @@ public static class GpuActivity
 
         sb.AppendLine($"  flat mask state         : {maskDesc}");
         sb.AppendLine($"  textured under CheckMask: {Interlocked.Read(ref _texUnderCheckMask)}");
+        sb.AppendLine($"  screen-covering flat quads: {Interlocked.Read(ref _screenQuads)}, " +
+                      $"max textured draws after one: {Interlocked.Read(ref _maxAfterScreenQuad)}");
 
         // The decisive question: for the texture pages these primitives actually use, does the VRAM
         // region that page resolves to contain any image, or is it empty? An empty source explains
