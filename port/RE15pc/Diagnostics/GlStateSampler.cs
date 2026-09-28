@@ -41,6 +41,10 @@ public static class GlStateSampler
     /// </summary>
     public static string LastReading { get; private set; } = "";
 
+    /// <summary>OpenGL errors drained from the queue, by name, and samples that found none.</summary>
+    private static readonly Dictionary<string, int> _glErrors = [];
+    private static int _noErrorSamples;
+
     public static void Attach() => _attached = true;
 
     public static void Sample()
@@ -97,12 +101,45 @@ public static class GlStateSampler
 
         var blend = gl.IsEnabled(EnableCap.Blend);
 
+        // Never asked in thirty-seven rounds: whether OpenGL itself is reporting an error. A silent
+        // INVALID_OPERATION from a bad uniform, a missing attachment or a state mismatch would produce
+        // exactly the symptom - draws issued correctly and no pixels - and nothing else measured so
+        // far would see it. Drain the error queue, since GetError clears one flag at a time.
+        var errors = new List<string>();
+        for (var i = 0; i < 8; i++)
+        {
+            var err = gl.GetError();
+            if (err == GLEnum.NoError) break;
+            errors.Add(Name(err));
+        }
+
+        lock (Gate)
+        {
+            if (errors.Count == 0) _noErrorSamples++;
+            foreach (var e in errors) _glErrors[e] = _glErrors.TryGetValue(e, out var c) ? c + 1 : 1;
+        }
+
         return $"blend={blend,-5} eqRgb={Name(gl.GetInteger(GLEnum.BlendEquationRgb))} " +
                $"srcRgb={Factor(gl.GetInteger(GLEnum.BlendSrcRgb))} dstRgb={Factor(gl.GetInteger(GLEnum.BlendDstRgb))} " +
                $"srcA={Factor(gl.GetInteger(GLEnum.BlendSrcAlpha))} dstA={Factor(gl.GetInteger(GLEnum.BlendDstAlpha))} " +
                $"fbo={gl.GetInteger(GLEnum.DrawFramebufferBinding)} " +
                $"origin=({GpuGlAccess.TargetOriginX},{GpuGlAccess.TargetOriginY}) margin={GpuGlAccess.TargetMargin} " +
-               $"target={GpuGlAccess.TargetWidth}x{GpuGlAccess.TargetHeight}";
+               $"target={GpuGlAccess.TargetWidth}x{GpuGlAccess.TargetHeight} " +
+               $"glError={(errors.Count == 0 ? "none" : string.Join("+", errors))}";
+    }
+
+    private static string Name(GLEnum error)
+    {
+        return error switch
+        {
+            GLEnum.InvalidEnum => "INVALID_ENUM",
+            GLEnum.InvalidValue => "INVALID_VALUE",
+            GLEnum.InvalidOperation => "INVALID_OPERATION",
+            GLEnum.InvalidFramebufferOperation => "INVALID_FRAMEBUFFER_OPERATION",
+            GLEnum.OutOfMemory => "OUT_OF_MEMORY",
+            GLEnum.NoError => "NO_ERROR",
+            _ => error.ToString()
+        };
     }
 
     private static string Name(int equation)
@@ -151,7 +188,14 @@ public static class GlStateSampler
                 return $"  GL state samples       : none taken ({_attempts} attempted, {_readings} read)";
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"  GL state samples       : {_readings}/{_attempts} read, {States.Count} distinct state(s)");
+            sb.AppendLine($"  GL state samples       : {_readings}/{_attempts} read, {States.Count} distinct state(s), " +
+                          $"{_noErrorSamples} with no GL error");
+
+            if (_glErrors.Count > 0)
+                sb.AppendLine($"  GL errors reported     : " +
+                              string.Join(", ", _glErrors.OrderByDescending(k => k.Value).Select(k => $"{k.Key}:{k.Value}")));
+            else
+                sb.AppendLine($"  GL errors reported     : none");
 
             foreach (var (state, count) in States.OrderByDescending(k => k.Value).Take(6))
                 sb.AppendLine($"    x{count,-5} {state}");
