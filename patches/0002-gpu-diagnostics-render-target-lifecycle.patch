@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..110b52c 100644
+index 45a0f96..4913884 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -289,9 +289,13 @@ public sealed class GlCore : IGpuBackend
@@ -16,7 +16,7 @@ index 45a0f96..110b52c 100644
          }
  
          var fresh = new GlDisplayRt
-@@ -302,6 +306,11 @@ public sealed class GlCore : IGpuBackend
+@@ -302,11 +306,17 @@ public sealed class GlCore : IGpuBackend
          fresh.Create(_gl);
          _rts[slot] = fresh;
          SyncRtFromVram(fresh, fbX, fbY, fbW, fbH);
@@ -28,7 +28,21 @@ index 45a0f96..110b52c 100644
          return fresh;
      }
  
-@@ -528,7 +537,7 @@ public sealed class GlCore : IGpuBackend
+     private void Writeback(GlDisplayRt rt)
+     {
++        GpuGlAccess.WritebackCalls++;
+         var s = GlVram.Scale;
+         _gl.Disable(EnableCap.ScissorTest);
+         _gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, rt.Fbo);
+@@ -321,6 +331,7 @@ public sealed class GlCore : IGpuBackend
+ 
+     private void SyncRtFromVram(GlDisplayRt rt, int rx, int ry, int rw, int rh)
+     {
++        GpuGlAccess.SyncRtCalls++;
+         int x0 = Math.Max(rx, rt.X), y0 = Math.Max(ry, rt.Y);
+         int x1 = Math.Min(rx + rw, rt.X + rt.W), y1 = Math.Min(ry + rh, rt.Y + rt.H);
+         if (x0 >= x1 || y0 >= y1) return;
+@@ -528,7 +539,7 @@ public sealed class GlCore : IGpuBackend
  
      private GlVertex V(in HleVertex v, in PrimFlags f, bool dither)
      {
@@ -37,7 +51,7 @@ index 45a0f96..110b52c 100644
          float cr = raw ? 128f : v.R, cg = raw ? 128f : v.G, cb = raw ? 128f : v.B;
          var tpage = f.UseImage ? 0x4000 : f.Textured ? f.TPage & 0x1FF : 0x8000;
          if (dither && _pendingRepTex == 0) tpage |= 0x400;
-@@ -752,6 +761,10 @@ public sealed class GlCore : IGpuBackend
+@@ -752,6 +763,10 @@ public sealed class GlCore : IGpuBackend
          var destH = rt == null ? GlVram.Height : rt.TexH;
  
          GpuGlAccess.Gl = _gl;

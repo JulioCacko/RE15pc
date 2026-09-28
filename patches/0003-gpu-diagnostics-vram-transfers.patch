@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..7440170 100644
+index bc045ae..7fbde22 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,63 @@ public static class GpuGlAccess
+@@ -17,6 +17,79 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -46,6 +46,22 @@ index bc045ae..7440170 100644
 +    /// anything. These counters measure the ratio across every draw in the batch path.
 +    /// </remarks>
 +    public static long TargetDraws, NullTargetDraws;
++
++    /// <summary>
++    /// Diagnostics only: how often render targets are synced FROM VRAM versus written back TO it.
++    /// </summary>
++    /// <remarks>
++    /// Uploads and drawings reach the backend store by different routes, and only uploads have been
++    /// observed arriving: the title screen, an uploaded image, reaches 41.5% of the framebuffer while
++    /// the drawn room never appears at all. <c>WriteVram</c> writes VRAM directly and then calls
++    /// <c>SyncRtsFromVram</c>, copying VRAM into any intersecting target; drawings land in a target and
++    /// reach VRAM only through <c>Writeback</c>, which runs for dirty targets.
++    ///
++    /// If syncing happens far more often than writing back, then the guest's per-frame black upload
++    /// re-seeds the target from black VRAM before the room that was drawn into it is ever written back,
++    /// and the room is lost every frame without anything being wrong with the draws themselves.
++    /// </remarks>
++    public static long SyncRtCalls, WritebackCalls;
 +
 +    /// <summary>
 +    /// Diagnostics only: called for every whole-region VRAM transfer - a fill, a VRAM-to-VRAM copy,

@@ -499,6 +499,8 @@ public static class GpuActivity
 
         sb.AppendLine($"  draw classification     : {Interlocked.Read(ref GpuGlAccess.TargetDraws)} into a render target, " +
                       $"{Interlocked.Read(ref GpuGlAccess.NullTargetDraws)} with no target (full VRAM)");
+        sb.AppendLine($"  target sync vs writeback: synced from VRAM {Interlocked.Read(ref GpuGlAccess.SyncRtCalls)}x, " +
+                      $"written back to VRAM {Interlocked.Read(ref GpuGlAccess.WritebackCalls)}x");
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
