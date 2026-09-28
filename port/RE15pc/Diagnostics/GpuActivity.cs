@@ -1,3 +1,5 @@
+using RecompOne.Runtime;
+using RecompOne.Runtime.Assets.Textures;
 using RecompOne.Runtime.Events;
 using RecompOne.Runtime.Hle;
 
@@ -84,6 +86,23 @@ public static class GpuActivity
 
     /// <summary>Draw-area top values seen, with counts.</summary>
     private static readonly Dictionary<int, long> DrawTops = [];
+
+    /// <summary>
+    /// Bounds and semi-transparency of the flat (untextured) primitives, and the same for the
+    /// textured ones. The two classes have opposite effects on the frame, so describing them
+    /// separately is what says which is which.
+    /// </summary>
+    private static long _flatCount, _flatSemi;
+    private static int _flatMinX = int.MaxValue, _flatMaxX = int.MinValue;
+    private static int _flatMinY = int.MaxValue, _flatMaxY = int.MinValue;
+
+    /// <summary>
+    /// Texture page and CLUT combinations used by textured primitives that land in a framebuffer,
+    /// with counts. <c>RenderPrimEvent.TexPage</c> is hardcoded to 0 in the runtime, so the page is
+    /// read from <c>Gpu.ReadStat()</c> instead - and because this listener runs immediately before
+    /// the primitive is drawn, that returns the same page the draw will use.
+    /// </summary>
+    private static readonly Dictionary<(int TPage, int Clut), long> TexturedPages = [];
 
     public static long Primitives => Interlocked.Read(ref _prims);
     public static long Textured => Interlocked.Read(ref _textured);
@@ -191,6 +210,34 @@ public static class GpuActivity
                     if (e.Y[i] < _onMinY) _onMinY = e.Y[i];
                     if (e.Y[i] > _onMaxY) _onMaxY = e.Y[i];
                 }
+
+                // Texture page actually in force for this primitive. ReadStat packs page X in bits
+                // 0-3, page Y in bit 4, blend in bits 5-6 and depth in bits 7-8, which is exactly
+                // how the runtime assembles PrimFlags.TPage, so reassembling it here reproduces
+                // what the backend will be handed.
+                if (e.Textured && RecompOne.Runtime.Runtime.Gpu is { } primGpu)
+                {
+                    var stat = primGpu.ReadStat();
+                    var tpage = (int)(stat & 0xF) | (int)((stat >> 4) & 1) << 4
+                                | (int)((stat >> 5) & 3) << 5 | (int)((stat >> 7) & 3) << 7;
+                    var key = (tpage, e.Clut);
+
+                    if (TexturedPages.Count < 64 || TexturedPages.ContainsKey(key))
+                        TexturedPages[key] = TexturedPages.TryGetValue(key, out var c) ? c + 1 : 1;
+                }
+                else if (!e.Textured)
+                {
+                    _flatCount++;
+                    if (e.SemiTransparent) _flatSemi++;
+
+                    for (var i = 0; i < 3; i++)
+                    {
+                        if (e.X[i] < _flatMinX) _flatMinX = e.X[i];
+                        if (e.X[i] > _flatMaxX) _flatMaxX = e.X[i];
+                        if (e.Y[i] < _flatMinY) _flatMinY = e.Y[i];
+                        if (e.Y[i] > _flatMaxY) _flatMaxY = e.Y[i];
+                    }
+                }
             }
 
             if (e.X[0] == e.X[1] && e.X[1] == e.X[2] && e.Y[0] == e.Y[1] && e.Y[1] == e.Y[2])
@@ -255,6 +302,61 @@ public static class GpuActivity
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
         sb.AppendLine($"  cluts seen              : {Cluts.Count}");
+        sb.AppendLine($"  flat primitives         : {_flatCount} ({_flatSemi} semi-transparent), " +
+                      $"bounds x {(_flatCount > 0 ? _flatMinX : 0)}..{(_flatCount > 0 ? _flatMaxX : 0)}, " +
+                      $"y {(_flatCount > 0 ? _flatMinY : 0)}..{(_flatCount > 0 ? _flatMaxY : 0)}");
+
+        // The decisive question: for the texture pages these primitives actually use, does the VRAM
+        // region that page resolves to contain any image, or is it empty? An empty source explains
+        // a black result with perfect geometry and is the difference between a page-resolution bug
+        // and something further down.
+        if (TexturedPages.Count > 0 && RecompOne.Runtime.Runtime.Gpu is { } gpu)
+        {
+            var vram = gpu.Vram;
+
+            sb.AppendLine();
+            sb.AppendLine("  texture pages used by in-framebuffer textured primitives, and what they resolve to:");
+
+            foreach (var ((tpage, clut), count) in TexturedPages.OrderByDescending(k => k.Value).Take(8))
+            {
+                var pageX = tpage & 0xF;
+                var pageY = (tpage >> 4) & 1;
+                var blend = (tpage >> 5) & 3;
+                var depth = (tpage >> 7) & 3;
+                var bpp = depth switch { 0 => 4, 1 => 8, 2 => 16, _ => 4 };
+
+                TileRect rect;
+                try
+                {
+                    rect = TextureTile.Describe(tpage, clut, 0, 0, 16, 16);
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"    page {pageX},{pageY} clut 0x{clut:X4}: Describe threw {ex.GetType().Name}");
+                    continue;
+                }
+
+                var lit = 0;
+                var total = rect.VramW * rect.H;
+                if (rect.VramW > 0 && rect.H > 0)
+                {
+                    for (var y = 0; y < rect.H; y++)
+                    {
+                        var row = ((rect.VramY + y) & (Gpu.VramHeight - 1)) * Gpu.VramWidth;
+                        for (var x = 0; x < rect.VramW; x++)
+                        {
+                            var px = vram[row + ((rect.VramX + x) & (Gpu.VramWidth - 1))];
+                            if (px != 0 && px != 0x8000) lit++;
+                        }
+                    }
+                }
+
+                var pct = total > 0 ? 100.0 * lit / total : 0.0;
+                sb.AppendLine($"    page X={pageX} Y={pageY} blend={blend} {bpp}bpp clut=0x{clut:X4}  x{count} prims" +
+                              $"  -> samples VRAM ({rect.VramX},{rect.VramY}) {rect.VramW}x{rect.H}, " +
+                              $"{lit}/{total} non-black ({pct:0.0}%)");
+            }
+        }
         return sb.ToString().TrimEnd();
     }
 }
