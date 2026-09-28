@@ -19,7 +19,7 @@ namespace RE15pc;
 /// </remarks>
 public static class DiscIdentity
 {
-    /// <summary>Byte length of the November 6, 1996 prototype image.</summary>
+    /// <summary>Byte length of the Biohazard 1.5 (November 6, 1996) prototype image.</summary>
     public const long ExpectedLength = 124_300_848;
 
     /// <summary>SHA-256 recorded in disc-manifest.json.</summary>
@@ -118,7 +118,7 @@ public static class DiscIdentity
         if (length != ExpectedLength)
         {
             return $"wrong disc image: {Path.GetFileName(imagePath)} is {length} bytes, " +
-                   $"expected {ExpectedLength}. This port requires the Biohazard 2 " +
+                   $"expected {ExpectedLength}. This port requires the Biohazard 1.5 " +
                    "(November 6, 1996) prototype.";
         }
 

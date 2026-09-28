@@ -21,7 +21,7 @@ namespace RE15pc;
 /// </remarks>
 public static class Program
 {
-    private const string WindowTitle = "RE15pc - Biohazard 2 (Nov 6, 1996 prototype)";
+    private const string WindowTitle = "RE15pc - Biohazard 1.5 (Nov 6, 1996 prototype)";
 
     private static readonly object FinishGate = new();
     private static bool _finished;
@@ -48,7 +48,7 @@ public static class Program
         {
             Console.Error.WriteLine($"disc image not found: {cue}");
             Console.Error.WriteLine();
-            Console.Error.WriteLine("RE15pc requires your own copy of the Biohazard 2 (Nov 6, 1996)");
+            Console.Error.WriteLine("RE15pc requires your own copy of the Biohazard 1.5 (Nov 6, 1996)");
             Console.Error.WriteLine("prototype. Place Bio2Nov96.bin and Bio2Nov96.cue in the repository");
             Console.Error.WriteLine("root, or pass --cue <path>.");
             return 2;

@@ -167,7 +167,7 @@ public sealed class Options
 
     public static void PrintUsage()
     {
-        Console.WriteLine("RE15pc - native PC port of the Biohazard 2 (Nov 6, 1996) prototype.");
+        Console.WriteLine("RE15pc - native PC port of the Biohazard 1.5 (Nov 6, 1996) prototype.");
         Console.WriteLine();
         Console.WriteLine("usage: RE15pc [options]");
         Console.WriteLine();
