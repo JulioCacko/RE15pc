@@ -1,0 +1,36 @@
+# Validates that every new commit follows Conventional Commits v1.0.0.
+#
+# The local hook in .githooks/commit-msg enforces the same rules, but it only runs
+# where it is installed and it cannot see a commit made through the GitHub web
+# editor. This workflow is the enforcement that actually holds.
+#
+# Only the commits being introduced are checked, so pre-existing history is not
+# re-litigated on every push.
+
+name: commits
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth 0 so the range can be resolved. A shallow clone cannot see
+      # the parent of the pushed range and the check would silently pass.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          sh ci/check-commits.sh "$RANGE"

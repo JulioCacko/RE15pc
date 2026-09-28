@@ -97,6 +97,24 @@ Conventional Commits footer and keeps history phase-aware.
 `git commit --no-verify` skips the hook. Reserve it for genuinely exempt cases;
 the point of the hook is that `git log` stays machine-readable.
 
+### Enforcement in CI
+
+The hook only runs where it is installed, and it cannot see a commit made through the
+GitHub web editor — this history already contains one such commit. So
+`.github/workflows/commits.yml` runs `ci/check-commits.sh` on every push and pull request,
+validating only the commits being introduced so pre-existing history is not re-litigated
+each time.
+
+Run the same check locally:
+
+```sh
+sh ci/check-commits.sh HEAD~5..HEAD
+sh ci/check-commits.sh            # validates HEAD only
+```
+
+It falls back to checking the tip when the range is unusable, which is what happens on a
+first push (an all-zero "before" sha) or after a force push.
+
 ---
 
 ## Scope of contributions
