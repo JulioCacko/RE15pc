@@ -99,6 +99,23 @@ public sealed class ProgressSampler : IDisposable
     /// </summary>
     private readonly List<(double Seconds, int Lit0, int Lit240)> _bufferTimeline = [];
 
+    /// <summary>
+    /// Non-black pixels in each framebuffer of the BACKEND store, tracked over the run.
+    /// </summary>
+    /// <remarks>
+    /// The software shadow only receives CPU writes - uploads, fills and VRAM copies - so its contents
+    /// say nothing about whether anything was drawn. Its fall to zero is fully explained by the guest's
+    /// own per-frame black uploads and is not evidence about rendering at all.
+    ///
+    /// Drawn output reaches the backend store instead, and that has only ever been read at the end of a
+    /// run. Two measurements in this project have now been right about what they sampled and wrong about
+    /// when, so the peak matters more than the endpoint: if the backend ever holds the room, then it
+    /// renders and the end-of-run reading was simply taken at a bad moment.
+    /// </remarks>
+    private readonly int[] _gpuBufferNow = new int[2];
+    private readonly int[] _gpuBufferPeak = new int[2];
+    private int _gpuSamples;
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -171,7 +188,24 @@ public sealed class ProgressSampler : IDisposable
         if (tick % BackendEvery == 0)
         {
             var (gl, _) = VramDump.TryReadBackend(width, height);
-            if (gl != null) backendLit = CountLit(gl, width, height, dx, dy, dw, dh);
+
+            if (gl != null)
+            {
+                backendLit = CountLit(gl, width, height, dx, dy, dw, dh);
+
+                // Both buffers of the backend store, tracked by peak as well as current value.
+                for (var b = 0; b < 2; b++)
+                {
+                    var lit = CountLit(gl, width, height, 0, b * 240, 320, 240);
+
+                    lock (_gate)
+                    {
+                        _gpuBufferNow[b] = lit;
+                        if (lit > _gpuBufferPeak[b]) _gpuBufferPeak[b] = lit;
+                        if (b == 0) _gpuSamples++;
+                    }
+                }
+            }
 
             // Reads real GL state, so it is on the same slow cadence as the backend read.
             GlStateSampler.Sample();
@@ -371,6 +405,11 @@ public sealed class ProgressSampler : IDisposable
                               $"generation changed {s.GenerationChanges}x, " +
                               $"non-black now {s.LastLit}, peak {s.MaxLit}");
             }
+
+            if (_gpuSamples > 0)
+                for (var b = 0; b < 2; b++)
+                    sb.AppendLine($"backend store (0,{b * 240,-3})      : non-black now {_gpuBufferNow[b]}, " +
+                                  $"peak {_gpuBufferPeak[b]} over {_gpuSamples} sample(s)");
 
             if (_vramTimeline.Count > 0)
             {

@@ -978,6 +978,42 @@ in the chain is cleared. `uScale`, the other uniform never seen being assigned, 
 `SetScaleUniform` to `GlVram.Scale`, so that is cleared as well - and it died before being tested, which
 is the right order for once.
 
+#### The shadow is not evidence about rendering, and much of what was read from it is void
+
+Two measurements in this project have been right about *what* they sampled and wrong about *when* -
+the "one-off erasure" and the "silent audio". Applying that lesson to the black frame was the obvious
+next step, and it does not rescue it. But it does expose a mistake of a different kind, in *what* was
+being sampled.
+
+```
+DEFAULT:    backend store (0,0):   non-black now 581,   peak 31906  (41.5%)
+            backend store (0,240): non-black now 578,   peak 31906
+skip-flat:  backend store (0,0):   non-black now 67559, peak 67601  (88.0%)
+
+shadow:     non-black now 0, peak 61135, in both configurations
+```
+
+**The backend's peak in the default configuration is 31,906, which is exactly the title screen's 41.5%
+- an uploaded image.** The room, which is over 67,000, never reaches the backend store at any point in
+the run. So the room genuinely does not render, the endpoint was not merely a bad moment, and the
+"When" hypothesis is dead for this defect.
+
+**What that also shows is that the software shadow is not evidence about rendering at all.** The shadow
+receives only CPU writes - uploads, fills and VRAM copies - plus what a guest readback copies into it.
+Draw output goes to the backend store and never touches the shadow. So the shadow's contents record
+what the CPU put in VRAM and nothing about what was drawn.
+
+That matters because several earlier conclusions in this document were drawn from shadow figures:
+that the framebuffers "reach 61135 and then fall to zero", and the whole "the defect is an erasure"
+reframing built on it. Both describe **uploaded** content only. The guest uploads a black 320x240 image
+to each framebuffer every frame from frame 595 onward, so the shadow's zero is exactly what those
+uploads produce, and it never was evidence of anything being destroyed.
+
+The reframing is therefore not wrong so much as misattributed: something *is* being lost between the
+title screen and the room, but the shadow cannot see it and never could. The backend store can, and
+what it shows is that the room's drawn output never arrives there.
+
+
 #### Where thirty rounds of measurement leave this
 
 Every component between a guest GP0 command and the framebuffer has now been measured rather than
