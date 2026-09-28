@@ -2022,3 +2022,32 @@ So the position is: large batches produce a frame that renders nothing, *more* w
 #### Next probe
 
 Follow the vertex-count difference, since it is the one that should not exist. The number of vertices a run submits is a property of the guest's commands, and the guest's commands should not depend on how the host groups them. Instrumenting what the guest does differently - which overlay paths it takes, how many DrawTri calls reach the HLE per frame, and how many primitives are dropped by the spanX > 1023 || spanY > 511 guard in HleTri - would show whether the guest is genuinely submitting more geometry or whether the extra vertices are host-side duplication.
+
+
+#### Writebacks are not the cause, but they carry part of the small-batch advantage
+
+A run's vertex count is a property of the guest's commands and should not depend on how the host groups them, yet large batches submit 592470 vertices where small ones submit 113937. The only channel by which host-side grouping can reach the guest is VRAM, so every writeback was suppressed and the render target read directly - the display being useless for this, since it is fed by writeback:
+
+```nflush=off  writebacks on    target now 193700   peak 510496
+flush=3    writebacks on    target now 558562   peak 558562
+flush=off  writebacks off   target now 194068   peak 510496
+flush=3    writebacks off   target now 119471   peak 510496
+```
+
+**Suppressing every writeback leaves the failing configuration unchanged** - 194068 against 193700, a difference of 0.2%. Whatever makes the default configuration black, it is not the writeback channel, and the chain that three rounds pointed at is not the cause after all.
+
+But it costs the working configuration most of its advantage: 558562 falls to 119471. So part of what small batches buy runs through writeback, which means the batch-size experiment was measuring two things at once and the confound is partial rather than absent.
+
+Worth stating plainly: the drawn content of the two configurations, with writebacks suppressed so that only drawing can contribute, is 194068 for the default against 119471 for small batches. **The default draws more**, not less. Its display is black because of something else - and one candidate has now been eliminated twice from different directions.
+
+#### Where this stands after fifteen rounds on one defect
+
+Twenty-odd mechanisms have been proposed and refuted. What is established, by measurement rather than by argument:
+
+- The room renders: 90.3% of a target at writeback in every configuration.
+- The pipeline from guest command to VRAM is verified at every stage: decode, vertices, clip, classification, operation order, vertex counts, upload contents, attribute layout, driver state, and the blit.
+- Batches of one or two triangles render; three or more degrade toward nothing.
+- The driver state is constant and correct, splitting the draw changes nothing, and the vertex buffer holds exactly what the source array holds.
+- Writebacks are not the cause, and the vertex-count difference remains unexplained.
+
+The honest summary is that the defect is now located in a small region - something about a batch beyond its first triangles, in data or state that no instrument built so far observes - and that fifteen rounds of instrumentation have failed to observe it. The next step worth taking is not another instrument along the same line.

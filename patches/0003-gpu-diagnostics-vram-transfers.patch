@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..b7ba3ce 100644
+index bc045ae..d91b7cc 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,821 @@ public static class GpuGlAccess
+@@ -17,6 +17,836 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -779,6 +779,21 @@ index bc045ae..b7ba3ce 100644
 +    /// </remarks>
 +    public static bool SkipFeedbackWriteback { get; } =
 +        Environment.GetEnvironmentVariable("RE15PC_SKIP_FEEDBACK_WB") == "1";
++
++    /// <summary>
++    /// Diagnostic only: drop every writeback, so the guest's view of VRAM stops changing. Set by
++    /// RE15PC_SKIP_ALL_WB.
++    /// </summary>
++    /// <remarks>
++    /// A run's vertex count is a property of the guest's commands and should not depend on how the host
++    /// groups them, yet large batches submit 592470 vertices where small ones submit 113937. The only
++    /// channel by which host-side grouping can reach the guest is VRAM, and writebacks are what put
++    /// drawn content there: 516 with large batches against 277 with small. Suppressing all of them and
++    /// reading the render target directly - rather than the display, which depends on writeback - tests
++    /// whether the writebacks are the cause or merely another symptom.
++    /// </remarks>
++    public static bool SkipAllWriteback { get; } =
++        Environment.GetEnvironmentVariable("RE15PC_SKIP_ALL_WB") == "1";
 +
 +    public static bool SplitDraw { get; } =
 +        Environment.GetEnvironmentVariable("RE15PC_SPLIT_DRAW") == "1";
