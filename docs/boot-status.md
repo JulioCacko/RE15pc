@@ -14,9 +14,12 @@ STAGE1**. Guest code executes, receives interrupts, decodes images through MDEC,
 `title` overlay and is driven by scripted controller input past the title and character
 select until the `stage1` overlay loads. There are **zero unmapped calls**.
 
-The immediate blocker is that the screen then goes **solid black**. MDEC is decoding
-full-screen images roughly once a second at that point, but the display area holds a single
-colour, so the decoded backgrounds are not reaching the displayed region.
+The immediate blocker is that the composed frame comes out **black**. The room background is
+provably present in video memory at (320,256) as a 320x240 pre-rendered image, the display is
+at (0,0) or (0,240), and about 263 textured background tiles per frame are drawn into the
+framebuffer at the right screen positions and produce almost nothing. Textured rendering has
+never once been observed working in this port, so there is no baseline to compare against.
+The evidence, what has been ruled out, and the ranked candidates are below.
 
 One rendering defect is also identified and quantified: before the stage load, the title
 image was uploaded to VRAM **including its 20-byte TIM header**, displacing the picture
@@ -69,38 +72,105 @@ executed, and the two differ by a constant factor whenever the game uses `VSync(
 | crashed | false |
 | overlays loaded | 3 |
 | display | enabled, 320x240, NTSC |
-| non-black pixels | **0 / 76800** |
-| distinct colours | **1** |
+| non-black pixels | **578 / 76800 (0.8%)** |
+| distinct colours | 122 |
 
-So the guest is alive and working, and the screen is one flat colour.
+So the guest is alive and working, and the screen is essentially one flat colour with a
+small element on it.
 
-**The lead.** With `--log mdec` the runtime reports 42 decodes in 45 seconds, each of the form
+#### First, a correction about where the evidence comes from
+
+An earlier run of this investigation read VRAM out of `Gpu.Vram`, the software shadow, and
+reported a completely black display. That reading was **not trustworthy**.
+
+`GpuHleForward` routes rasterisation to the GL backend as soon as `GpuHle.Active` and the
+backend is ready. Once that is true the software shadow only ever receives CPU-to-VRAM
+uploads and VRAM-to-VRAM copies; anything the guest **drew** exists only on the GL side. So
+the shadow-based dump shows the uploaded textures with a permanently black framebuffer, which
+reads exactly like "the game renders nothing".
+
+`VramDump` now reads the GL backend when the HLE is active, handing the read to the GPU job
+queue that the presentation loop drains, with a bounded wait so a stopped presentation loop
+falls back to the shadow instead of hanging. **Every figure below is from the GL backend**,
+and the dump reports which source it used so a future reader can tell the two apart.
+
+#### What is actually in video memory
+
+Mapping non-black content across VRAM gives a clear split:
+
+| region | content |
+|---|---|
+| x 0-319, y 0-239 | black - this is the framebuffer |
+| x 0-319, y 240-479 | black - this is the other framebuffer |
+| x 320-639, y 0-255 | a uniform 192x256 block |
+| x 320-1023, y 256-511 | substantial content |
+
+Rendering VRAM `(320,256)` as 320x240 text produces a rich, high-frequency, unmistakably
+photographic image - a pre-rendered room background. So **the background is in video memory,
+at (320,256), as a texture.** It is not missing and it is not being decoded wrongly.
+
+#### The display never looks at it
+
+Sampling the display geometry over the whole run:
 
 ```
-[MDEC] decode depth=3 signed=False bit15=False inHW=11648 consumedHW=11648 mbs=300 wordsOut=38400 outTotal=38400
+display geometries seen : 0,0 256x240 (disabled) | 0,0 320x240 | 0,240 320x240
 ```
 
-`mbs=300` macroblocks is 300 x 256 = 76,800 pixels, exactly one 320x240 screen, and
-`wordsOut=38400` is those pixels as 32-bit words. So the game is decoding **full-screen
-images** at that point, which is what Resident Evil does for room backgrounds — the
-`ROOM*.BSS` files are MDEC-compressed pre-rendered backdrops.
+The display origin is **only ever X=0**. It is never pointed at X=320. So the background at
+(320,256) is a source texture that the game is expected to composite into a framebuffer at
+(0,0) or (0,240) by drawing.
 
-`Hardware/Mdec.cs` exposes only `ReadData`, `ReadStatus`, `OutEmpty`, `WriteControl` and
-`Write0`, and contains **no reference to VRAM or the GPU at all**. That is not necessarily
-wrong: the real machine has the CPU or DMA read decoded data out of the MDEC data register
-and write it to VRAM, so MDEC not touching VRAM is expected. What is not yet established is
-whether the decoded data comes back out correctly and whether the guest's transfer of it to
-VRAM lands in the displayed region. Decoding roughly once per second, repeatedly, rather than
-once per room, also hints at a retry loop rather than a slow decode.
+#### The composition produces nothing
 
-Next steps for this lead:
+Counting primitives through `RenderPrimEvent` separates the two screens sharply:
 
-1. Check the MDEC output read path: `Mdec.ReadData`, `OutEmpty`, and DMA channels 0 and 1.
-   Confirm the words coming back are the decoded image and not zeros or stale data.
-2. Confirm the guest's transfer of that data lands at the display origin. `VramDump` already
-   writes `vram.rgb555.bin`, so this is a byte comparison, not guesswork.
-3. Sample the display area over time rather than only at the end, to see whether the screen
-   ever changes and whether it changes before or after the stall in decoding.
+| | title screen | after stage1 |
+|---|---|---|
+| primitives | 193 | 494,028 - 581,553 |
+| of which textured | **0** | 493,172 - 580,697 (99.9%) |
+| vertices inside a framebuffer | 0 | 315,384 - 360,967 |
+| in-framebuffer bounds | - | x 0..304, y 0..479 |
+| vertices outside VRAM entirely | 0 | 131,217 |
+| degenerate (all 3 vertices equal) | 0 | 20,890 |
+| distinct CLUTs | 1 | 11 |
+
+The in-framebuffer bounds of `x 0..304` are the giveaway: 304 + 16 = 320, so these are
+**16x16 background tiles** covering the screen. About 263 of them per frame, which is what a
+320x240 tiled background costs.
+
+So the game is drawing textured background tiles at the correct screen positions, in large
+numbers, and the result is 0.8% non-black.
+
+**The single most useful fact here is the `0 textured` in the title column.** The port has
+never once been observed rendering a textured polygon: on the title screen the background was
+the uploaded image being displayed directly, which needs no rasteriser. Textured rendering is
+first exercised at the stage load, and it does not work, so there is no working baseline to
+compare against.
+
+#### Ruled out
+
+- **Texture page not tracked.** `GpuHleForward` derives the page from `_texPageX`/`_texPageY`
+  and `GpuRaster` sets them from the texpage word, so the page is tracked and forwarded.
+  `RenderPrimEvent.TexPage` being hardcoded to 0 in `GpuRaster.cs:118` is just an unpopulated
+  event field, not evidence about sampling.
+- **Wrong VRAM read path.** Corrected above; the dump is now GL-authoritative.
+
+#### Candidates for the next session
+
+1. **Draw-area clipping in the HLE path.** The drawing areas seen are `0..319 x 0..239` and
+   `0..319 x 240..479`, which match the framebuffers, so a clip test that is inverted or
+   one-sided would discard every tile while leaving the framebuffer cleared.
+2. **Texture and CLUT resolution at sample time.** The background is at texpage X = 5, which
+   is unusual - most games keep textures in the low pages, so a bug that only shows up for a
+   high page number would not have been caught by other games using this runtime.
+3. **Draw offset.** `Gpu.DrawOffsetX/Y` applied twice, or not at all, would put output outside
+   the framebuffer without changing the primitive count.
+
+A cheap decisive experiment for whichever is tried first: `RenderPrimEvent.Skip` is honoured
+by `GpuRaster` before the vertices are consumed, so a listener can suppress primitives
+selectively and confirm which ones should have produced pixels. Combined with the GL VRAM
+read now in place, that gives a yes/no answer per hypothesis without guessing.
 
 ---
 
@@ -314,11 +384,13 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Why the screen is black after the stage load.** This is the blocker. The lead and the
-   three concrete checks are in the section above; start with the MDEC output read path.
-2. **Reach STAGE1 with a *correct* frame.** Getting there took scripted input, so the
-   milestone is one `--input` argument away from being reproducible; turning that into a
-   short, named script in the docs would make every later regression check trivial.
+1. **Get one textured polygon to render.** This is the blocker and everything else waits on it.
+   The candidates and a cheap decisive experiment are at the end of the section above. The
+   title screen is a useful control: it needs no rasteriser at all, so a regression there is
+   immediately visible.
+2. **Turn reaching STAGE1 into a one-line regression check.** It currently needs a hand-written
+   `--input` script; naming a standard script for it would make every later phase cheap to
+   re-verify.
 3. Settle the owner of the 10-pixel displacement. Narrowed as far as static reading can take
    it; see the section above for where to look.
 4. Audio. Nothing has been proven to play at all.
