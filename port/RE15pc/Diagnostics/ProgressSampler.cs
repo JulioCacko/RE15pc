@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using RecompOne.Runtime;
+using RecompOne.Runtime.Assets.Textures;
 using RecompOne.Runtime.Memory;
 
 namespace RE15pc.Diagnostics;
@@ -67,6 +68,20 @@ public sealed class ProgressSampler : IDisposable
     /// <summary>Backend VRAM reads need the GL thread, so they are taken far less often.</summary>
     private const int BackendEvery = 8;
 
+    /// <summary>
+    /// Whether the GPU is marking writes into each framebuffer region, and whether that region is
+    /// being touched at all.
+    ///
+    /// <c>VramTracker</c> is public and <c>GlCore</c> calls <c>MarkGpuWrite</c> both when it writes a
+    /// render target back into VRAM and when it draws without one. That makes it an observable proxy
+    /// for the private <c>Classify</c>: if textured draws are being classified into a target that is
+    /// never composited, nothing marks this region dirty after the screen clear. If instead the
+    /// region is marked dirty continuously, the draws are landing there and producing black, which
+    /// is a completely different defect.
+    /// </summary>
+    private readonly Dictionary<int, (int Ticks, int GpuDirtyTicks, long LastGeneration, int GenerationChanges)>
+        _fbWrites = [];
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -104,6 +119,7 @@ public sealed class ProgressSampler : IDisposable
                 }
 
             SampleVram();
+            SampleFramebufferWrites();
         }
         catch
         {
@@ -154,6 +170,35 @@ public sealed class ProgressSampler : IDisposable
             if (sameAsLast && backendLit < 0) return;
 
             _vramTimeline.Add((_clock.Elapsed.TotalSeconds, dx, dy, shadowLit, backendLit));
+        }
+    }
+
+    /// <summary>
+    /// Samples whether each framebuffer region is being written by the GPU, and whether it is being
+    /// touched at all. Taken for both buffers regardless of which one is displayed, because the game
+    /// alternates and a measurement that follows the display would confound the two.
+    /// </summary>
+    private void SampleFramebufferWrites()
+    {
+        foreach (var top in new[] { 0, 240 })
+        {
+            var dirty = VramTracker.IsGpuDirty(0, top, 320, 240);
+            var generation = (long)VramTracker.Generation(0, top, 320, 240);
+
+            lock (_gate)
+            {
+                if (!_fbWrites.TryGetValue(top, out var s)) s = (0, 0, generation, 0);
+
+                s.Ticks++;
+                if (dirty) s.GpuDirtyTicks++;
+                if (s.LastGeneration != generation)
+                {
+                    s.GenerationChanges++;
+                    s.LastGeneration = generation;
+                }
+
+                _fbWrites[top] = s;
+            }
         }
     }
 
@@ -227,6 +272,13 @@ public sealed class ProgressSampler : IDisposable
             sb.AppendLine($"verdict                 : {(Stalled ? "STALLED - guest stopped writing memory" : "PROGRESSING")}");
             sb.AppendLine($"display geometries seen : {(_displayGeometries.Count == 0 ? "(none sampled)" : string.Join(" | ", _displayGeometries.OrderBy(d => d)))}");
             sb.AppendLine($"draw offsets seen       : {(_drawOffsets.Count == 0 ? "(none sampled)" : string.Join(" | ", _drawOffsets.OrderBy(d => d)))}");
+
+            foreach (var top in _fbWrites.Keys.OrderBy(k => k))
+            {
+                var s = _fbWrites[top];
+                sb.AppendLine($"framebuffer (0,{top,-3}) writes   : gpu-dirty on {s.GpuDirtyTicks}/{s.Ticks} samples, " +
+                              $"generation changed {s.GenerationChanges} times");
+            }
 
             if (_vramTimeline.Count > 0)
             {
