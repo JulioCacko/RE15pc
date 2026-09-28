@@ -378,34 +378,58 @@ y 0..1263`, so some extend past the VRAM edge entirely.
 **The mask bits are not involved.** Every one of the 856 is `-/-`, neither setting nor checking the
 mask, and no textured primitive is ever drawn under CheckMask. That explanation is out.
 
-#### Which flat primitives are responsible
+#### No sub-class reproduces the fix
 
-A discriminating run settles it, and it is not the blend mode that was the leading suspect:
+The blend-mode reasoning above predicted that the 224 blend-mode-0 flat primitives were the
+culprits. Two further runs test that directly, and **both refute it**:
 
 | suppressed | primitives skipped | display region |
 |---|---|---|
-| **subtract** (blend mode 2) | 2,352 | **0 / 76800 (0.0%)** |
+| **flat + blend 0** | 226 | **0 / 76800 (0.0%)** |
+| **blend 0** (any class) | 248,433 | **0 / 76800 (0.0%)** |
+| subtract (blend 2) | 2,352 | 0 / 76800 (0.0%) |
 | **flat** | 856 | **67,603 / 76800 (88.0%)** |
 
-Suppressing every blend-mode-2 primitive, which includes the 108 in-frame flat ones and 632 of the
-856 flat ones, does **not** fix the frame. Suppressing the flat primitives does. So the culprit is
-among the flat primitives that are *not* blend mode 2 - the **224 with blend mode 0** - and those
-include screen-covering quads.
+The counts are exhaustive, not overlapping guesses: the blend-mode histogram over all 856 flat
+primitives is `0:224, 2:632`, which sums to the whole set. So every flat primitive is either blend 0
+or blend 2, suppressing either half leaves the frame black, and only suppressing **all** of them
+fixes it.
 
-The shape of the defect is therefore: **screen-covering flat quads using the average blend**,
-drawn over a correctly rendered scene. Blend mode 0 is a 50/50 average with the destination, so a
-black quad of that kind darkens what is under it; drawn opaque, or with the average applied against
-the wrong destination, it erases it instead. Since the background is re-uploaded each frame the
-darkening should not accumulate, which is consistent with the screen being uniformly black rather
-than progressively darker.
+**That rules out the story this section previously told.** The defect is not "a particular flat
+primitive paints the screen black", because removing either sub-class does not reproduce the fix.
+Only the whole class does. Whatever is wrong requires the set to be present, or it is not about
+those primitives' own drawing at all.
+
+#### What that leaves
+
+The remaining candidate is a **state interaction**, and the suppression mechanism itself is the
+clue. `GpuRaster` handles `RenderPrimEvent.Skip` by returning *before* anything else:
+
+```csharp
+Event.Dispatch(e);
+if (e.Skip) return;                     // GpuRaster.cs:121
+for (var i = 0; i < n; i++) { v[i].X = e.X[i]; v[i].Y = e.Y[i]; }
+...
+HleTri(v[0], v[1], v[2], ...);          // never reached when skipped
+```
+
+so a skipped primitive never calls `SetDrawEnv(CurEnv())` and never reaches `DrawTri`. If the draw
+environment or some other backend state that a flat primitive establishes persists into the textured
+draws that follow, then removing all flat primitives changes the state the textured ones run under -
+which is exactly the kind of thing that produces a fix no sub-class can reproduce.
+
+Note also that `HleFill` does **not** call `SetDrawEnv`, unlike `HleTri`, `HleRect` and `HleLine`.
+`GlCore.SetDrawEnv` merely assigns `_env`, and `Classify()` caches its result keyed on the clip
+rectangle in that environment. Anything that leaves `_env` stale, or that changes the clip, changes
+which render target the next draw is classified into.
 
 #### Next probe
 
-Add a `blend0` suppression mode alongside `subtract` and confirm it is those 224 primitives. If it
-is, the question becomes whether the average blend is applied at all in the HLE path and what
-destination it is blended against - the same destination-read machinery that blend mode 2 uses via
-`BeginDestRead`, which is already known to be delicate. `GlCore.cs:884-905` is where the
-semi-transparent path lives.
+Establish what state a flat primitive leaves behind that a textured one depends on. The two
+concrete things to check are whether `SetDrawEnv` is called for every path that draws, and whether
+`GlCore.Classify()` returns a different render target once flat primitives stop being drawn -
+`Classify` caching on `_env.ClipX0..ClipY1` makes a stale environment a plausible mechanism for
+"the textured draws land in a target that is never composited".
 
 ---
 
