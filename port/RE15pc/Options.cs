@@ -129,9 +129,9 @@ public sealed class Options
                 case "--skip-draws":
                     if (++i >= args.Length) { error = "--skip-draws needs a mode: all, textured or flat"; options = new Options(); return false; }
                     skipDraws = args[i].ToLowerInvariant();
-                    if (skipDraws is not ("all" or "textured" or "flat"))
+                    if (skipDraws is not ("all" or "textured" or "flat" or "subtract"))
                     {
-                        error = $"--skip-draws expects all, textured or flat; got '{args[i]}'";
+                        error = $"--skip-draws expects all, textured, flat or subtract; got '{args[i]}'";
                         options = new Options();
                         return false;
                     }

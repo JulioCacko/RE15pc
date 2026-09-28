@@ -88,13 +88,31 @@ public static class GpuActivity
     private static readonly Dictionary<int, long> DrawTops = [];
 
     /// <summary>
-    /// Bounds and semi-transparency of the flat (untextured) primitives, and the same for the
-    /// textured ones. The two classes have opposite effects on the frame, so describing them
-    /// separately is what says which is which.
+    /// Blend mode and mask state seen when flat (untextured) primitives are drawn.
+    ///
+    /// Blend mode is keyed 0 = average, 1 = add, 2 = subtract, 3 = add/4. The mask key packs bit 0
+    /// as SetMask and bit 1 as CheckMask: on the PlayStation a primitive drawn with SetMask writes
+    /// bit 15 into every pixel it touches, and one drawn with CheckMask skips any pixel where that
+    /// bit is already set, so state leaking out of a small darkening overlay could stop everything
+    /// drawn afterwards from landing - which would explain an effect far larger than the overlay's
+    /// own coverage. Both are read from the GPU status in the primitive handler, which runs
+    /// immediately before the draw and so sees the state that draw will use.
+    ///
+    /// Measured: every in-framebuffer flat primitive uses blend mode 2 and none of them sets or
+    /// checks the mask, and no textured primitive is drawn under CheckMask. The mask explanation is
+    /// therefore out, which leaves the subtract blend path as the suspect.
     /// </summary>
-    private static long _flatCount, _flatSemi;
+    private static readonly Dictionary<int, long> _flatBlend = [];
+
+    private static readonly Dictionary<int, long> _flatMask = [];
+
+    /// <summary>All flat primitives, in-framebuffer or not, and how many cover most of a frame.</summary>
+    private static long _flatAll, _flatAllSemi, _flatScreenSized;
     private static int _flatMinX = int.MaxValue, _flatMaxX = int.MinValue;
     private static int _flatMinY = int.MaxValue, _flatMaxY = int.MinValue;
+
+    /// <summary>Textured primitives drawn while CheckMask was set - i.e. while they could be skipped.</summary>
+    private static long _texUnderCheckMask;
 
     /// <summary>
     /// Texture page and CLUT combinations used by textured primitives that land in a framebuffer,
@@ -143,11 +161,21 @@ public static class GpuActivity
 
     private static void OnPrimitive(RenderPrimEvent e)
     {
+        // Blend mode comes from the GPU status, read here because the handler runs immediately
+        // before the draw and so sees the state the draw will use.
+        var state = RecompOne.Runtime.Runtime.Gpu?.ReadStat() ?? 0u;
+        var blendMode = (int)((state >> 5) & 3);
+
         var skip = SuppressMode switch
         {
             "all" => true,
             "textured" => e.Textured,
             "flat" => !e.Textured,
+            // Skips every primitive using the subtract blend, textured or not. This separates
+            // "flat primitives are the problem" from "the subtract path is the problem", which
+            // matter very differently: all of the in-framebuffer flat primitives happen to use
+            // subtract, so the two explanations are otherwise indistinguishable.
+            "subtract" => blendMode == 2,
             _ => false
         };
 
@@ -158,6 +186,42 @@ public static class GpuActivity
         }
 
         Interlocked.Increment(ref _prims);
+
+        // Flat primitives are characterised for ALL of them, before the in-framebuffer test. That
+        // test requires every vertex to be within 0..319 x 0..479, so a primitive that covers the
+        // screen fails it by exactly one pixel - and such a primitive is the prime suspect, which
+        // makes the in-framebuffer subset the wrong place to look.
+        if (!e.Textured)
+        {
+            Interlocked.Increment(ref _flatAll);
+            if (e.SemiTransparent) Interlocked.Increment(ref _flatAllSemi);
+
+            _flatBlend[blendMode] = _flatBlend.TryGetValue(blendMode, out var bc) ? bc + 1 : 1;
+
+            var maskKey = ((state & (1u << 11)) != 0 ? 1 : 0) | ((state & (1u << 12)) != 0 ? 2 : 0);
+            _flatMask[maskKey] = _flatMask.TryGetValue(maskKey, out var mc) ? mc + 1 : 1;
+
+            var fminX = int.MaxValue; var fmaxX = int.MinValue;
+            var fminY = int.MaxValue; var fmaxY = int.MinValue;
+
+            for (var i = 0; i < 4; i++)
+            {
+                if (e.X[i] < fminX) fminX = e.X[i];
+                if (e.X[i] > fmaxX) fmaxX = e.X[i];
+                if (e.Y[i] < fminY) fminY = e.Y[i];
+                if (e.Y[i] > fmaxY) fmaxY = e.Y[i];
+            }
+
+            if (fmaxX - fminX >= 300 && fmaxY - fminY >= 200) Interlocked.Increment(ref _flatScreenSized);
+
+            lock (Gate)
+            {
+                if (fminX < _flatMinX) _flatMinX = fminX;
+                if (fmaxX > _flatMaxX) _flatMaxX = fmaxX;
+                if (fminY < _flatMinY) _flatMinY = fminY;
+                if (fmaxY > _flatMaxY) _flatMaxY = fmaxY;
+            }
+        }
         if (e.Textured) Interlocked.Increment(ref _textured);
         if (e.SemiTransparent) Interlocked.Increment(ref _semiTransparent);
         if (e.Skip) Interlocked.Increment(ref _skipped);
@@ -224,19 +288,13 @@ public static class GpuActivity
 
                     if (TexturedPages.Count < 64 || TexturedPages.ContainsKey(key))
                         TexturedPages[key] = TexturedPages.TryGetValue(key, out var c) ? c + 1 : 1;
+
+                    if ((stat & (1u << 12)) != 0) Interlocked.Increment(ref _texUnderCheckMask);
                 }
                 else if (!e.Textured)
                 {
-                    _flatCount++;
-                    if (e.SemiTransparent) _flatSemi++;
-
-                    for (var i = 0; i < 3; i++)
-                    {
-                        if (e.X[i] < _flatMinX) _flatMinX = e.X[i];
-                        if (e.X[i] > _flatMaxX) _flatMaxX = e.X[i];
-                        if (e.Y[i] < _flatMinY) _flatMinY = e.Y[i];
-                        if (e.Y[i] > _flatMaxY) _flatMaxY = e.Y[i];
-                    }
+                    // Deliberately empty: flat primitives are characterised above, for all of them
+                    // rather than only the in-framebuffer ones.
                 }
             }
 
@@ -302,9 +360,18 @@ public static class GpuActivity
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
         sb.AppendLine($"  cluts seen              : {Cluts.Count}");
-        sb.AppendLine($"  flat primitives         : {_flatCount} ({_flatSemi} semi-transparent), " +
-                      $"bounds x {(_flatCount > 0 ? _flatMinX : 0)}..{(_flatCount > 0 ? _flatMaxX : 0)}, " +
-                      $"y {(_flatCount > 0 ? _flatMinY : 0)}..{(_flatCount > 0 ? _flatMaxY : 0)}");
+        sb.AppendLine($"  flat primitives (all)   : {_flatAll} ({_flatAllSemi} semi-transparent, {_flatScreenSized} spanning >= 300x200), " +
+                      $"bounds x {(_flatAll > 0 ? _flatMinX : 0)}..{(_flatAll > 0 ? _flatMaxX : 0)}, " +
+                      $"y {(_flatAll > 0 ? _flatMinY : 0)}..{(_flatAll > 0 ? _flatMaxY : 0)}");
+        sb.AppendLine($"  flat blend modes        : {( _flatBlend.Count == 0 ? "(none)" : string.Join(", ", _flatBlend.OrderBy(k => k.Key).Select(k => $"{k.Key}:{k.Value}")))}" +
+                      "   (0=avg 1=add 2=sub 3=add/4)");
+        var maskDesc = _flatMask.Count == 0
+            ? "(none)"
+            : string.Join(", ", _flatMask.OrderBy(k => k.Key).Select(k =>
+                ((k.Key & 1) != 0 ? "set" : "-") + "/" + ((k.Key & 2) != 0 ? "check" : "-") + ":" + k.Value));
+
+        sb.AppendLine($"  flat mask state         : {maskDesc}");
+        sb.AppendLine($"  textured under CheckMask: {Interlocked.Read(ref _texUnderCheckMask)}");
 
         // The decisive question: for the texture pages these primitives actually use, does the VRAM
         // region that page resolves to contain any image, or is it empty? An empty source explains
