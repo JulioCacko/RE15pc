@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..b59d720 100644
+index bc045ae..5ff757b 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,364 @@ public static class GpuGlAccess
+@@ -17,6 +17,395 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -194,8 +194,16 @@ index bc045ae..b59d720 100644
 +    private static readonly object FlushGate = new();
 +    private static readonly Dictionary<string, long> _flushBands = [];
 +
++    private static readonly Dictionary<int, (long Draws, long Verts)> _flushByTarget = [];
++
 +    public static void NoteFlush(int targetVramY, float minY, float maxY, int count)
 +    {
++        lock (FlushGate)
++        {
++            _flushByTarget.TryGetValue(targetVramY, out var s);
++            _flushByTarget[targetVramY] = (s.Draws + 1, s.Verts + count);
++        }
++
 +        string band;
 +        if (maxY < targetVramY || minY >= targetVramY + 240) band = "OUTSIDE the target";
 +        else if (minY >= targetVramY && maxY < targetVramY + 240) band = "inside";
@@ -205,7 +213,30 @@ index bc045ae..b59d720 100644
 +
 +        lock (FlushGate)
 +        {
-+            _flushBands[key] = _flushBands.TryGetValue(key, out var c) ? c + 1 : 1;
++            if (_flushBands.Count < 24)
++                _flushBands[key] = _flushBands.TryGetValue(key, out var c) ? c + 1 : 1;
++        }
++    }
++
++    /// <summary>
++    /// Draws and vertices per render target, which says whether every buffer receives the room.
++    /// </summary>
++    /// <remarks>
++    /// The end-of-frame flush writes back every target still dirty, and a target is dirty only if
++    /// something drew into it - so a dirty target that comes out black was drawn into and produced
++    /// black. Whether the room's several hundred draws per frame reach one buffer or both is the
++    /// question that decides what the second buffer is being drawn with.
++    /// </remarks>
++    public static string DescribeFlushesByTarget()
++    {
++        lock (FlushGate)
++        {
++            if (_flushByTarget.Count == 0) return "  draws per target        : none recorded";
++
++            var rows = _flushByTarget.OrderBy(k => k.Key).Select(k =>
++                $"target y={k.Key,-4} {k.Value.Draws,5} flush(es) carrying {k.Value.Verts,9} vertices");
++
++            return "  draws per target        : " + string.Join(Environment.NewLine + "                            ", rows);
 +        }
 +    }
 +

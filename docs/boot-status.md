@@ -1282,13 +1282,45 @@ one buffer; the other buffer receives drawing that produces black; and they swap
 buffer is the black one about half the time - which is why an end-of-run sample of the display shows a
 black frame, and why the frames that would show the room are not the ones being measured.
 
+#### Corrected: the alternation is across frames, not across buffers
+
+The previous revision read 46% black in each buffer as one buffer being drawn with the room and the other
+with black, alternating. Counting the draws that reach each buffer refutes that:
+
+```
+DEFAULT        target y=0     840 flush(es) carrying 343,197 vertices
+               target y=240   837 flush(es) carrying 343,929 vertices
+               target y=-1      6 flush(es) carrying      36 vertices
+
+--skip-draws flat
+               target y=0     644 flush(es) carrying 342,321 vertices
+               target y=240   656 flush(es) carrying 347,187 vertices
+```
+
+**Both buffers receive the same drawing, within 0.2% of each other**, so the room's draws are not going to
+one buffer preferentially. `target y=-1` is the path where no target was classified and the draw went
+into full VRAM, and it carries 36 vertices in the whole run.
+
+Since each buffer is black in 46% of its *own* frame-end flushes, and both receive the same draws, the
+46% cannot be a split between buffers. It is a split between **frames**: in about 46% of frames both
+buffers come out black despite having been drawn into, and in the remaining 54% both hold the room. The
+working configuration has no black frames at all.
+
+So the defect is a **frame-level** alternation. The same draws reach the same targets every frame, and
+roughly every other frame the result is black - which is the strongest form of the question, because
+nothing about the draws differs between a good frame and a bad one.
+
 #### Next probe
 
-Find what draws black into the second buffer. It is drawing, not an upload - the target is dirty - and
-it happens once per frame per buffer in the failing configuration only. The per-frame black 320x240
-`LoadImage` is the obvious candidate, but an upload reaches a target through `SyncRtsFromVram`, which
-does not mark it dirty; something has to be drawing. Counting the draws that target each buffer
-separately, and their colours, is the direct way to see it.
+Compare a black frame against a good one at the level of the recorded operations. The frame graph is
+replayed in order, so the candidate is an ordering difference: a `WriteVram` - the per-frame black
+640x480 clear the guest performs through `LoadImage` - landing after a frame's draws instead of before
+them would composite black over a drawn frame, and would do it intermittently if the clear for the next
+frame is recorded into the current frame's graph.
+
+Logging, per frame, the operation indices of the last draw and the last `WriteVram` in the replayed
+graph would settle it directly: if a frame's last `WriteVram` follows its last draw, that frame
+composites black.
 
 
 #### Where thirty rounds of measurement leave this

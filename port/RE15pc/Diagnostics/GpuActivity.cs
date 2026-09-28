@@ -519,6 +519,7 @@ public static class GpuActivity
                       $"written back to VRAM {Interlocked.Read(ref GpuGlAccess.WritebackCalls)}x");
         sb.AppendLine(GpuGlAccess.DescribeVertices());
         sb.AppendLine(GpuGlAccess.DescribeFlushes());
+        sb.AppendLine(GpuGlAccess.DescribeFlushesByTarget());
         sb.AppendLine(GpuGlAccess.DescribeDrawEnvs());
         sb.AppendLine(GpuGlAccess.DescribeWritebacks());
         sb.AppendLine(GpuGlAccess.DescribeWritebacksByOrigin());
