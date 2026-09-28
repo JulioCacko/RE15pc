@@ -2001,3 +2001,24 @@ That is the kind of thing worth writing down when it is found rather than after 
 #### Next probe
 
 Establish whether the batch-size effect survives without the confound. A flush that does not write anything back - flushing the batch only, without the VRAM consequences - would change the grouping while leaving the guest's view of VRAM untouched. If the frame still renders at a small batch size, the grouping alone is the cause; if it does not, then the earlier result was about VRAM timing and the search reopens along the line the writeback findings pointed at.
+
+
+#### The batch-size effect survives the confound it was suspected of
+
+The previous round found that forcing a small batch size changes the vertex stream as well as the grouping - 113937 vertices submitted against 592470 - and that Flush sits upstream of writebacks, which change VRAM, which the guest reads. So the batch-size effect needed testing with that path removed. The feedback writeback is the one the extra flushes would trigger most, so it was suppressed on its own:
+
+```nflush=off  skipFbWb=off      350 ( 0.5%)    6 colours   writebacks 516
+flush=3    skipFbWb=off    34913 (45.5%)  996 colours   writebacks 277
+flush=3    skipFbWb=on     34915 (45.5%)  989 colours   writebacks 266
+flush=off  skipFbWb=on       334 ( 0.4%)    4 colours   writebacks 516
+```
+
+**The effect survives intact.** Small batches render at 45.5% whether or not the feedback writeback happens, so that path is not what drives it. The grouping is genuinely implicated.
+
+Two things about the numbers are worth keeping. The writeback count *falls* with small batches - 277 against 516 - which is the opposite of what was expected: more flushes were supposed to mean more writebacks, and they mean fewer. And the vertex totals still differ fivefold, so the experiment is still not clean; what has been shown is that one specific suspected mechanism is not responsible, not that no confound remains.
+
+So the position is: large batches produce a frame that renders nothing, *more* writebacks, and *more* submitted vertices, while small batches produce a frame that renders, fewer writebacks and fewer vertices. Three differences that move together, and the batching is upstream of all of them.
+
+#### Next probe
+
+Follow the vertex-count difference, since it is the one that should not exist. The number of vertices a run submits is a property of the guest's commands, and the guest's commands should not depend on how the host groups them. Instrumenting what the guest does differently - which overlay paths it takes, how many DrawTri calls reach the HLE per frame, and how many primitives are dropped by the spanX > 1023 || spanY > 511 guard in HleTri - would show whether the guest is genuinely submitting more geometry or whether the extra vertices are host-side duplication.

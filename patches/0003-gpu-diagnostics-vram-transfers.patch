@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..a7853d8 100644
+index bc045ae..b7ba3ce 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,808 @@ public static class GpuGlAccess
+@@ -17,6 +17,821 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -767,6 +767,19 @@ index bc045ae..a7853d8 100644
 +        int.TryParse(Environment.GetEnvironmentVariable("RE15PC_FLUSH_EVERY"), out var v) && v > 0 ? v : 0;
 +
 +    /// <summary>Diagnostic only: draw each batch as one call per triangle. Set by RE15PC_SPLIT_DRAW.</summary>
++    /// <summary>
++    /// Diagnostic only: leave the texture-feedback writeback out. Set by RE15PC_SKIP_FEEDBACK_WB.
++    /// </summary>
++    /// <remarks>
++    /// Forcing a small batch size multiplies the calls to Begin, and Begin calls CheckTextureFeedback,
++    /// which flushes a dirty target and writes it back. Writeback changes VRAM, and the guest reads
++    /// VRAM, so the diagnostic can change the game's behaviour - which is exactly what the fivefold
++    /// difference in submitted vertices shows it doing. Dropping this one writeback while keeping every
++    /// other removes that path without removing the writebacks the display depends on.
++    /// </remarks>
++    public static bool SkipFeedbackWriteback { get; } =
++        Environment.GetEnvironmentVariable("RE15PC_SKIP_FEEDBACK_WB") == "1";
++
 +    public static bool SplitDraw { get; } =
 +        Environment.GetEnvironmentVariable("RE15PC_SPLIT_DRAW") == "1";
 +
