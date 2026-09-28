@@ -2407,3 +2407,19 @@ rich (start+move)  1770               13    6805 ( 8,9%)  515 colours
 So the guest is not merely running: it is waiting for input, responding to it, and changing what it draws as a result. The distinction between the three rows is the game advancing under control, which is the closest thing to playability this document can currently show.
 
 It is still not a playthrough. Thirteen state changes is progress through a sequence, not a room walked; the input that produces it was found by sweeping buttons rather than by playing, and nothing here shows the game reaching a state where a player would be in control of a character.
+
+#### A negative result: no direction-sensitive state was found
+
+The strongest test available for "is a character controllable" is whether holding a direction changes what is drawn, and it does not:
+
+```
+variant                    frames   buffer-changes   generation-changed(0,0)   display
+no direction                 1368                6                     87   584 (0,8%) 122 col
+direction 350-600            1350                6                     86   661 (0,9%) 120 col
+```
+
+The frame counts differ by 1.3 percent, so the comparison is fair - the lesson from an earlier round is being applied rather than restated. Eighty-seven framebuffer generations against eighty-six: holding directions across the room phase changes nothing measurable.
+
+**This is recorded because it is evidence for the gate rather than against the port.** Phase 6 says a controllable player is not demonstrated, and this is the measurement behind that sentence. Two explanations remain and this test does not separate them: the input never reaches a state where a character is under player control, or the input reaches one and the button sequence used here is not the one that moves it. What it does show is that simply holding a direction through the room does not move anything, so the earlier claim of interactivity - thirteen state changes with rich input against two without - is about advancing through a sequence rather than about control.
+
+The honest summary of the six rounds left is that the remaining gap is play, not execution, and that closing it needs either a controller sequence found by someone playing the game or a different approach to discovering what the guest is polling. Neither fits in the time left, and neither is served by another instrument.
