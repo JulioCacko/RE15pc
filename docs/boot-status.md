@@ -1140,26 +1140,47 @@ Since `quant5(c8) == 0` implies `(t8 * vColor) >> 7 < 8`, a zero result needs ei
 texel or a very dark modulation. Forcing neutral modulation changed nothing, which was verified
 without disturbing the texpage, so the modulation is not it - which leaves the **sampled texel**.
 
-#### Next probe
+#### Retracted: the target read duplicates the backend read
 
-Read the bytes actually at the page base the shader samples, which is not the same question as where
-the runtime says a page resolves to. That was checked earlier and resolved to non-black VRAM, using
-`TextureTile.Describe` - the runtime's own model of the addressing:
+Six identical runs were compared to check whether the black frame is deterministic or a race. It is
+deterministic - the figures vary by 0.3% and only with the frame count - but the table exposes a worse
+problem with the measurement itself:
 
-```glsl
-pageBase  = ivec2((inTexpage & 0xf) * 64, ((inTexpage >> 4) & 1) * 256);
-clutBase  = ivec2((inClut & 0x3f) * 16, (inClut >> 6) & 0x1ff);
+```
+run  target(0,0)  1,228,800 px   backend(0,0)  76,800 px   as percentages
+1      193,574                    12,104                    15.8%  /  15.8%
+4      194,068                    12,091                    15.8%  /  15.7%
+earlier 9,299                       581                     0.76%  /  0.76%
+flat 1,081,681                    67,558                    88.0%  /  88.0%
 ```
 
-Both decode correctly on inspection, which is exactly why this needs measuring rather than reading. The
-earlier check validated a *model* of the addressing; a model can be right while the bytes at the address
-are not, and the distinction between those two is the same distinction that has caught this document
-out three times now.
+**The target's non-black count is always the backend's, as a percentage of each one's area** - across
+runs and across configurations. That is not a coincidence: `SyncRtsFromVram` copies VRAM into any
+intersecting target after every upload and every VRAM copy, so the target is kept in step with VRAM and
+a sample of it reports VRAM's contents.
 
-The measurement is cheap and does not need the shader: for a sample of textured primitives that land in
-a framebuffer, resolve `pageBase` from the texpage the vertex carries, read VRAM there in the backend
-store, and report whether that region holds anything. If it does, the sample is not the problem and the
-remaining place is the shader's arithmetic on it; if it does not, the addressing is what to chase.
+So the render-target read does not measure what was drawn. It measures the same quantity as the backend
+read, twice, and **the "breakthrough" two rounds ago compared those two readings with each other and
+treated their agreement as evidence** when their agreement is exactly what the sync guarantees.
+
+The conclusion that survives is the weaker one: the failing configuration's target holds 0.76% at one
+point in the frame cycle and 15.8% at another, so the figures are also sensitive to *when* in the
+per-frame clear-and-upload cycle the sample lands. That is the same timing sensitivity that has caught
+this document out before.
+
+This is the fifth premise here to be withdrawn, and the second in two rounds.
+
+#### Next probe
+
+Measure drawn content where it is unambiguous: **at `Writeback`**, the moment a target is composited
+into VRAM. Whatever a target holds at that instant has been drawn into it, because the sync that
+otherwise makes the two agree has already happened and any subsequent drawing has not been overwritten
+yet. Counting the target's non-black pixels inside `Writeback` therefore answers the question the
+target read was meant to answer, and cannot silently be measuring VRAM instead.
+
+`Writeback` is already instrumented from the patch set, so this is a small addition: read the target's
+own pixels at that point, or - cheaper and sufficient - count what the blit is about to copy by reading
+the bytes the target holds, and compare that against what VRAM held before the blit.
 
 
 #### Where thirty rounds of measurement leave this
