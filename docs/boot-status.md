@@ -299,50 +299,77 @@ settles at ~580 pixels, which is the small text element, and the shadow at zero.
 background never arrives after the transition, and a single dump taken at the end shows only
 that final state - which is why it read as a uniformly black screen for so long.
 
-#### The likely mechanism
+#### Two mechanisms ruled out by reading the code
 
-Reading `GlCore`'s render-target handling gives a mechanism that matches the timeline exactly.
+Both candidates from the previous round are disproven, which is worth recording so they are not
+retried.
 
-Targets exist because a framebuffer region is drawn into an FBO and then composited back:
+**Ordering within a frame is correct.** `InterpBackend.Replay` walks the recorded operations by
+index and dispatches them in that order:
 
-- `SyncRtFromVram(rt, ...)` blits **from** `_vram` **into** the render target - this is what seeds a
-  target with existing VRAM contents.
-- `Writeback(rt)` blits **from** the target **into** `_vram`, and it does so for the **entire
-  target rectangle**, not just the region that was drawn:
-  ```csharp
-  _gl.BlitFramebuffer(rt.Margin * s, 0, (rt.Margin + rt.W) * s, rt.H * s,      // whole source
-      rt.X * s, rt.Y * s, (rt.X + rt.W) * s, (rt.Y + rt.H) * s,                // whole dest
-      ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-  ```
-- `WritebackDirtyIntersecting` flushes any target marked dirty that intersects the region.
-- `SyncRtsFromVram` is called from `WriteVram` and `CopyVram` - so a target is re-seeded from VRAM
-  **when an upload or a VRAM copy reaches `GlCore`**.
+```csharp
+for (var i = 0; i < ops.Length; i++)
+{
+    var slot = slots[i];
+    switch (ops[i]) { case GraphOp.DrawEnv: ... case GraphOp.WriteVram: ... }
+}
+```
 
-Put those together with the deferral and the hazard is an ordering one. `InterpBackend` records
-both the uploads (`WriteVram`, `CopyVram`) and the drawing (`DrawTri`) into the same frame graph
-and applies them later in `Replay`. A target is only seeded once the upload has actually reached
-`GlCore`. If a **dirty target is flushed before the upload covering it has been replayed**, the
-flush writes the whole surface back - and that surface holds what was drawn over a region that
-was never seeded, i.e. mostly nothing. Uploaded VRAM contents are overwritten with emptiness.
+and `Settle()` replays `_current` before a read, so an upload recorded earlier in the frame is
+applied before anything that could observe it. The hazard of a flush racing a pending upload was
+imagined, not real.
 
-That is precisely the observed signature: the backend loses two thirds of its display content
-(31906 to 13203) while the shadow, which receives uploads directly and is never written back
-from a target, is unchanged at 31801.
+**Render targets are seeded, not created empty.** `GetOrCreateRt` ends with
 
-It also explains why disabling the HLE sidesteps everything: with `_hleLoadActive` false the
-uploads are never deferred, so they reach the shadow immediately and no target flush can precede
-them.
+```csharp
+fresh.Create(_gl);
+_rts[slot] = fresh;
+SyncRtFromVram(fresh, fbX, fbY, fbW, fbH);     // GlCore.cs:304
+```
 
-#### Next probes
+so a newly created target is filled from `_vram` before it is drawn into, and a reused one is
+re-seeded by `SyncRtsFromVram` whenever an upload or VRAM copy arrives. A flush therefore writes
+back upload-plus-drawing, not an empty surface.
 
-1. **Verify the ordering.** Confirm that `InterpBackend.Replay` visits the recorded operations in
-   order and that `Settle()` is invoked before any draw or flush that could precede a pending
-   `WriteVram`/`CopyVram`. If a flush can be issued between a recorded upload and its replay, that
-   is the defect, and the fix is to seed the target from the pending graph rather than from
-   `_vram`.
-2. **`GlCore.Flush`** - what it flushes and in what order relative to `Writeback`.
-3. **PGXP grouping.** `InterpBackend.Group`/`Mix` key off `HleVertex.Transform` and accumulate
-   texture-coordinate ranges and page masks per group. Worth a run with PGXP off.
+#### The timeline, corrected
+
+Sampling the display region is only meaningful if the display origin is known, because this game
+double-buffers by moving it. The origin is now recorded per reading, and the correction matters:
+
+```
+    3,0s  origin    0,0     shadow  31801
+    3,5s  origin    0,240   shadow  31801      <- identical at BOTH origins
+    4,0s  origin    0,0     shadow  31801   backend  31906
+    4,5s  origin    0,240   shadow  31801
+   ...
+   29,0s  origin    0,240   shadow      0
+   31,5s  origin    0,0     shadow      0      <- identical at BOTH origins
+```
+
+The counts are the same at both origins, so the game keeps both buffers in step and the earlier
+timeline was not confounded by the flip. The collapse to zero is genuine in both buffers, and so
+is the 31801/31906 agreement at 4 s. Comparing counts *across* rows is still invalid - the jump
+from 31801 to 61135 was the region changing - which is why the origin is now printed alongside.
+
+#### Where the two symptoms now stand
+
+The two stores have separate problems and they were being conflated.
+
+**The shadow is emptied in mode A by a readback.** `StoreImageHalfword` writes the shadow
+unconditionally, so an upload always lands there. In mode A the shadow ends at zero anyway. The
+only thing that writes backend contents into the shadow is `HleReadback`
+(`GpuHleForward.cs:115-120`), which is called from `BeginImageRead` under `if (HleOn)`. So the
+guest performs a VRAM-to-CPU readback of the framebuffer, and in mode A that readback returns the
+backend's near-empty framebuffer and writes emptiness into the shadow. With the HLE off the
+readback is skipped entirely, which is exactly why mode B's shadow keeps its contents and shows
+90.4% non-black.
+
+**The backend framebuffer never receives the post-transition content.** At 4 s the backend holds
+31906 non-black pixels - the title image - so uploads do reach it and `Replay` does run. After
+the stage transition it settles at ~585 pixels, which is the small text element and nothing else.
+So the question is now specific: what does the game do to fill the framebuffer after the
+transition, and why does that particular operation not arrive, when the upload that filled it on
+the title screen did.
 
 ---
 

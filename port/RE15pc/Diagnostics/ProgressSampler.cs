@@ -55,8 +55,13 @@ public sealed class ProgressSampler : IDisposable
     /// frame: a shadow that fills and is then overwritten by a backend readback, versus one that
     /// is never filled at all. Sampling only at the end cannot tell them apart, and both look
     /// identical in a single dump.
+    ///
+    /// The display origin is recorded with each reading, because this game double-buffers by
+    /// moving it. Both stores are read at the same origin within a tick, so a disagreement
+    /// between them in one row is real evidence, but comparing counts ACROSS rows is not: a jump
+    /// from 31801 to 61135 is the region changing, not content appearing.
     /// </summary>
-    private readonly List<(double Seconds, int ShadowLit, int BackendLit)> _vramTimeline = [];
+    private readonly List<(double Seconds, int OriginX, int OriginY, int ShadowLit, int BackendLit)> _vramTimeline = [];
     private int _ticks;
 
     /// <summary>Backend VRAM reads need the GL thread, so they are taken far less often.</summary>
@@ -140,14 +145,15 @@ public sealed class ProgressSampler : IDisposable
         {
             // Collapse runs of identical readings; a static screen otherwise produces a
             // timeline of thousands of rows and no information.
-            var last = _vramTimeline.Count > 0 ? _vramTimeline[^1] : default;
             var sameAsLast = _vramTimeline.Count > 0
-                             && last.ShadowLit == shadowLit
-                             && (backendLit < 0 || last.BackendLit == backendLit);
+                             && _vramTimeline[^1].OriginX == dx
+                             && _vramTimeline[^1].OriginY == dy
+                             && _vramTimeline[^1].ShadowLit == shadowLit
+                             && (backendLit < 0 || _vramTimeline[^1].BackendLit == backendLit);
 
             if (sameAsLast && backendLit < 0) return;
 
-            _vramTimeline.Add((_clock.Elapsed.TotalSeconds, shadowLit, backendLit));
+            _vramTimeline.Add((_clock.Elapsed.TotalSeconds, dx, dy, shadowLit, backendLit));
         }
     }
 
@@ -236,8 +242,8 @@ public sealed class ProgressSampler : IDisposable
                 {
                     if (_vramTimeline.Count > 14 && i == 7) sb.AppendLine("    ...");
 
-                    var (sec, shadowLit, backendLit) = shown[i];
-                    sb.AppendLine($"    {sec,6:0.0}s  shadow {shadowLit,6}" +
+                    var (sec, ox, oy, shadowLit, backendLit) = shown[i];
+                    sb.AppendLine($"    {sec,6:0.0}s  origin {ox,4},{oy,-4}  shadow {shadowLit,6}" +
                                   (backendLit < 0 ? "   backend      -" : $"   backend {backendLit,6}"));
                 }
             }
