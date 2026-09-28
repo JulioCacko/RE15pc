@@ -522,6 +522,9 @@ public static class GpuActivity
         sb.AppendLine(GpuGlAccess.DescribeDrawEnvs());
         sb.AppendLine(GpuGlAccess.DescribeWritebacks());
         sb.AppendLine(GpuGlAccess.DescribeWritebacksByOrigin());
+        sb.AppendLine($"  settle on readback      : {Interlocked.Read(ref GpuGlAccess.SettleCalls)} call(s), " +
+                      $"{Interlocked.Read(ref GpuGlAccess.SettleEmpty)} found the graph EMPTY, " +
+                      $"{Interlocked.Read(ref GpuGlAccess.SettleReplayed)} replayed");
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
