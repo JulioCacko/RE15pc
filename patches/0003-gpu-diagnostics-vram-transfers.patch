@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..f29d9da 100644
+index bc045ae..e30b57c 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,491 @@ public static class GpuGlAccess
+@@ -17,6 +17,625 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -489,6 +489,140 @@ index bc045ae..f29d9da 100644
 +        return $"  blit target -> vram     : {_wbPairs} pair(s); mean target {_wbTargetLit / _wbPairs} of {320 * 32}, " +
 +               $"mean vram {_wbVramLit / _wbPairs} of {320 * 32}; " +
 +               $"{_blitLostContent} where the target had content and VRAM came out empty";
++    }
++
++    /// <summary>
++    /// Reads a strip of a target and returns its non-black count, without recording anything.
++    /// </summary>
++    public static int ReadTargetStrip(uint fbo, int texW, int texH)
++    {
++        const int stripW = 320;
++        const int stripH = 32;
++
++        if (Gl is null || fbo == 0 || texW < stripW || texH < stripH) return -1;
++
++        var length = stripW * stripH * 4;
++        if (_writebackStrip.Length < length) _writebackStrip = new byte[length];
++
++        try
++        {
++            var gl = Gl;
++            gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, fbo);
++            gl.PixelStore(PixelStoreParameter.PackAlignment, 1);
++
++            // Three strips rather than one. A single strip in the middle of the target is a poor proxy
++            // for "the batch produced something": a batch that covers only part of the surface, or
++            // covers it with the middle rows empty, would read as empty while having drawn. Three
++            // widely separated rows make that far less likely, and the maximum is taken.
++            var lit = 0;
++            var best = 0;
++            for (var band = 0; band < 3; band++)
++            {
++                var y = band * (texH - stripH) / 2;
++                gl.ReadPixels(0, y, stripW, stripH, PixelFormat.Rgba,
++                    PixelType.UnsignedByte, _writebackStrip.AsSpan(0, length));
++
++                lit = 0;
++                for (var i = 0; i + 3 < length; i += 4)
++                    if (_writebackStrip[i] != 0 || _writebackStrip[i + 1] != 0 || _writebackStrip[i + 2] != 0) lit++;
++
++                if (lit > best) best = lit;
++            }
++
++            gl.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
++            return best;
++        }
++        catch
++        {
++            return -1;
++        }
++    }
++
++    /// <summary>
++    /// Diagnostics only: the state a batch was drawn under, against what that batch produced.
++    /// </summary>
++    /// <remarks>
++    /// Every input to the draw is now known to be identical between a frame that renders and one that
++    /// comes out black: vertices and positions, clip, classification, operation order, vertex counts,
++    /// sampled texture area, and the blit. The one thing never measured is the state GlCore applies
++    /// when it flushes, because a batch is drawn under the state of its last Begin rather than under
++    /// per-triangle state - and 285000 triangles flow through that.
++    ///
++    /// Reading the target immediately after DrawArrays couples the two directly: the state a batch ran
++    /// under, and whether the target held anything once it had run.
++    /// </remarks>
++    private static readonly object BatchGate = new();
++    private static readonly Dictionary<string, (long Batches, long Verts, long EmptyAfter, long Best)> _batches = [];
++
++    private static readonly ushort[] _texStrip = new ushort[320 * 32];
++    private static long _texEmptyWhenTargetEmpty, _texPresentWhenTargetEmpty, _texPresentWhenDrawn, _texEmptyWhenDrawn;
++
++    /// <summary>
++    /// Reads a strip of the texture area, for sampling at the moment of a draw rather than on a timer.
++    /// </summary>
++    /// <remarks>
++    /// Identical batch state, identical vertex counts and identical textures still leave the target
++    /// empty in half the frames in one configuration and never in the other - so the difference has to
++    /// be in something measured at a different instant. The texture area's end state is identical in
++    /// both, but that says nothing about what it holds when a given draw runs.
++    /// </remarks>
++    public static int ReadTextureStrip(IGlVram vram, int x, int y, int w, int h)
++    {
++        const int stripW = 320;
++        const int stripH = 32;
++
++        if (w < stripW || h < stripH) return -1;
++
++        try
++        {
++            vram.ReadRect(x, y, stripW, stripH, _texStrip.AsSpan(0, stripW * stripH));
++        }
++        catch
++        {
++            return -1;
++        }
++
++        var lit = 0;
++        for (var i = 0; i < stripW * stripH; i++)
++        {
++            var px = _texStrip[i];
++            if (px != 0 && px != 0x8000) lit++;
++        }
++
++        return lit;
++    }
++
++    public static void NoteBatchState(string state, int verts, int litAfter, int texLit)
++    {
++        if (litAfter < 0) return;
++
++        lock (BatchGate)
++        {
++            _batches.TryGetValue(state, out var s);
++            _batches[state] = (s.Batches + 1, s.Verts + verts,
++                s.EmptyAfter + (litAfter == 0 ? 1 : 0), Math.Max(s.Best, litAfter));
++
++            if (litAfter == 0) { if (texLit == 0) _texEmptyWhenTargetEmpty++; else _texPresentWhenTargetEmpty++; }
++            else { if (texLit == 0) _texEmptyWhenDrawn++; else _texPresentWhenDrawn++; }
++        }
++    }
++
++    public static string DescribeBatchStates()
++    {
++        lock (BatchGate)
++        {
++            if (_batches.Count == 0) return "  batch state             : nothing recorded";
++
++            var rows = _batches.OrderByDescending(k => k.Value.Verts).Take(6).Select(k =>
++                $"{k.Key,-42} {k.Value.Batches,5} batch(es) {k.Value.Verts,9} verts, " +
++                $"empty after {k.Value.EmptyAfter,5}, best {k.Value.Best,5}");
++
++            return "  batch state             : " + string.Join(Environment.NewLine + "                            ", rows)
++                   + Environment.NewLine
++                   + $"  texture at draw time    : target empty with texture empty {_texEmptyWhenTargetEmpty}, " +
++                     $"texture present {_texPresentWhenTargetEmpty}; target drawn with texture empty {_texEmptyWhenDrawn}, " +
++                     $"texture present {_texPresentWhenDrawn}";
++        }
 +    }
 +
      public static void Bind()

@@ -1793,3 +1793,59 @@ Capture `GlCore`'s batch state at each flush - `_kTarget`, `_kTransparent`, `_kB
 the draw has now been shown identical between the two, so if any of these differs, that is the answer.
 If none differs, then the shader produces different results from identical inputs, which is itself
 informative and points at the program rather than at the data.
+
+#### The batch state is identical too, and the defect is now stated exactly
+
+Reading the target immediately after `DrawArrays` couples the state a batch ran under with what that
+batch produced. The room's opaque batches - about 730 vertices each, one per frame per buffer - come out
+as follows:
+
+```
+DEFAULT     target=(0,240) 320x240 wide1x=320 margin=0 y=240 transparent=0 blend=0 ... thread=2
+            474 batch(es), 345,393 verts, empty after 241, best 10240
+            target=(0,0)   320x240 wide1x=320 margin=0 y=0   transparent=0 blend=0 ... thread=2
+            467 batch(es), 340,575 verts, empty after 237, best 10240
+
+--skip-draws flat
+            target=(0,240) ... 430 batch(es), 344,601 verts, empty after 0, best 10240
+            target=(0,0)   ... 429 batch(es), 342,477 verts, empty after 0, best 10240
+```
+
+The state tuples are **identical** between the two configurations. So are the target's geometry
+(`320x240`, `wide1x=320`, `margin=0`), the thread the batch runs on (one thread, id 2 throughout), the
+vertex counts, the vertex positions, and - sampled at the moment of each draw rather than on a timer -
+the presence of the texture area the shader reads:
+
+```
+target empty  with texture present 725   texture empty  72
+target drawn  with texture present 728   texture empty 166
+```
+
+So the texture is present in nine cases out of ten in which the target nevertheless comes out empty.
+
+**With every input that can be observed from outside the GL call shown identical, the room's batch
+leaves the target completely empty in 51% of flushes in one configuration and 0% in the other.** Three
+strips at widely separated rows were read rather than one, to rule out the metric being an artefact of
+sampling a single band, and the result was unchanged; when a batch does work the strip is completely
+full, `10240` of `10240`.
+
+That is the defect, stated as precisely as measurement allows: **not a wrong value anywhere, but an
+identical draw that produces pixels half the time.** Which is the signature of a race, or of state the
+driver holds that the code does not model.
+
+#### Next probe
+
+Two things remain, and neither is reachable by reading VRAM or the runtime's own fields.
+
+**The driver's state at the moment of the draw** - which program is bound, whether the vertex attribute
+bindings still point at the buffer the vertices were uploaded to, and whether the uniforms actually
+landed. A batch drawn with stale attribute bindings produces nothing while every value the runtime
+believes it set is correct, which is exactly what has been measured. Querying the program, the vertex
+array object and the attribute pointers through `GL.GetInteger` alongside the existing sample is the
+direct way to see it.
+
+**Whether the batch is genuinely the same batch.** The vertices are counted, not compared: two batches
+of 730 vertices drawn at different times could differ in content while matching in count and in the
+bounding range that has been checked. Hashing the vertex data at flush and grouping by hash, against
+whether the target came out empty, would separate "same input, different result" from "different input,
+same apparent shape".
