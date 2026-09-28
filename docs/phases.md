@@ -5,10 +5,12 @@ not "done" because the work feels finished; it is done when the gate below it ho
 
 Legend: **DONE** · **PARTIAL** · **ACTIVE** · **TODO**
 
-Current position: **Phase 4, partially met; Phase 5 done.** The port boots, runs real game code
-and reaches STAGE1; the blocker is that the composed frame comes out black, localised to the
-HLE path that fills the framebuffer after the stage transition. See `docs/boot-status.md` for
-the evidence.
+Current position: **Phase 4, partially met; Phase 5 done.** The port boots, runs real game code,
+reaches STAGE1, dispatches all seven overlays and produces audio output. The blocker is that the
+composed frame comes out black: the room's drawn output never reaches video memory, while the same
+draws render correctly at 88% non-black when flat drawing is suppressed. Everything between a guest
+GP0 command and the framebuffer has been measured and cleared, and the mechanisms proposed and
+withdrawn along the way are listed in `docs/boot-status.md`.
 
 ---
 
@@ -80,10 +82,17 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
       stage1 664, stage2 520, stage3 626, stage4 492, stage5 628, stage6 43, title 38.
 - [x] `TITLEJ.TIM` proven resident at the display origin at a **100.00% word-exact** match, and
       the title screen is a picture rather than noise: 41.4% non-black, 1123 distinct colours.
-- [ ] **The composed frame is black after the stage transition.** The blocker. The backend holds
-      31906 non-black pixels at 4 s and about 585 after the transition, so the pipeline works and
-      then stops; localised to whatever fills the framebuffer after the stage load not reaching
-      the backend, while the same operation does reach the software store.
+- [ ] **The composed frame is black.** The blocker. Stated as precisely as measurement allows: the
+      room's drawn output never reaches video memory. Uploads do reach it - the title screen, an
+      uploaded image, peaks at 31,906 non-black pixels - but over 300 textured draws per frame into
+      a framebuffer produce nothing. Draws are classified into render targets, the targets are
+      flushed more often than they are re-seeded, the vertex batch flushes correctly on target
+      change, the blend chain and modulation are correct, and OpenGL reports one error in the whole
+      run in both the failing and the working configuration. The same draws render at 88% non-black
+      with `--skip-draws flat`, which is an instrument and not a workaround.
+      An earlier revision localised this to the software store, on the reasoning that the same
+      operation reached it; that reasoning is void, because the software store receives only CPU
+      writes and never sees drawn output at all.
 - [ ] Title image is displaced 10 pixels horizontally, because the 20-byte TIM header is uploaded
       along with the pixels. Root cause not yet attributed.
 - [ ] Animation not yet observed across frames, only individual frames compared.
@@ -93,9 +102,11 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
       *during* the run, while voices carried volume, peaks at 8619 of 32767. So the SPU generates
       sound rather than silence.
       The earlier "SILENT" verdict came from mixing a single block at the very end of the run, which
-      can only report whether something happened to be playing at that instant. That is the second
-      time in this project that a measurement was right about *what* it sampled and wrong about
-      *when* - the same mistake produced the "one-off erasure" reading of the framebuffer wipe.
+      can only report whether something happened to be playing at that instant, and the acceptance
+      check itself repeated the mistake until it was changed to take its verdict from the during-run
+      mix. That is the third time in this project that a measurement was right about *what* it
+      sampled and wrong about *when* - the same mistake produced the "one-off erasure" reading of the
+      framebuffer wipe, and then the audio verdict, and then the audio check that reported it.
 - [ ] Continuous music is not established. SPU output is intermittent and peaked at about a quarter
       of full scale, which is consistent with sound effects rather than a music track, and CD audio
       is idle throughout (`cdAudio=False`, XA `playing=False`, `buffered=0`). Whether the disc's XA
