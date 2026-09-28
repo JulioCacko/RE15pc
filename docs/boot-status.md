@@ -1849,3 +1849,24 @@ of 730 vertices drawn at different times could differ in content while matching 
 bounding range that has been checked. Hashing the vertex data at flush and grouping by hash, against
 whether the target came out empty, would separate "same input, different result" from "different input,
 same apparent shape".
+
+#### The vertex contents differ, and the claim that they did not was never measured
+
+Four rounds of reasoning rested on the statement that a batch which renders and a batch which comes out black have identical vertices. That statement came from comparing vertex counts and bounding ranges. Hashing the vertex bytes at flush and grouping the hashes by outcome shows it was wrong to rely on:
+
+```n                                   large batches   distinct contents   set fingerprint
+DEFAULT                                521              226            56FB547EE7ADD21E
+--skip-draws flat                      530              228            0B141253FBDDEAA1
+```
+
+**The two configurations do not see the same vertex data at all.** Different fingerprints and different counts mean the batches reaching the driver are grouped differently depending on whether flat primitives are drawn, which is a stronger and more useful statement than anything the count-based comparison could support.
+
+Within a configuration the grouping is stable: **no content appeared in both states** - 0 of 227 - so each batch's outcome is deterministic, which agrees with the determinism established earlier by repeating runs. In the failing configuration 172 contents render, 55 never do, and 3 of those are legitimately off-screen. The 55 carry 429 to 1617 vertices each, against roughly 730 for a frame's room, so they are not simply the room's batch.
+
+Three things follow, and one hypothesis died on the way. It is not misclassification into the wrong buffer: of the 52 failing contents whose vertices intersect a framebuffer band, **0** lie in the band of the *other* buffer, so they are not being clipped away wholesale by a target that does not match them.
+
+**A caveat on that last measurement, stated before it misleads anyone.** The band test compares a content's *range* against the target's band, not the distribution of its vertices within that range. A batch spanning y 0..1263 registers as intersecting the band while most of its geometry may be far outside it. So   mismatches shows the ranges are compatible, not that the vertices are inside - the same weakness that made a count and a range a poor substitute for contents in the first place.
+
+#### Next probe
+
+Characterise the 55 failing contents by something other than their range: the fraction of their vertices that actually fall inside the target's band, the texpage and clut they carry, and their per-primitive spans. A batch that is mostly outside its target with a few degenerate triangles inside would render nothing while looking perfectly reasonable in every aggregate measured so far.

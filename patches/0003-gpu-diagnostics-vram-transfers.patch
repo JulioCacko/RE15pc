@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..e30b57c 100644
+index bc045ae..56a7839 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,625 @@ public static class GpuGlAccess
+@@ -17,6 +17,713 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -622,6 +622,94 @@ index bc045ae..e30b57c 100644
 +                   + $"  texture at draw time    : target empty with texture empty {_texEmptyWhenTargetEmpty}, " +
 +                     $"texture present {_texPresentWhenTargetEmpty}; target drawn with texture empty {_texEmptyWhenDrawn}, " +
 +                     $"texture present {_texPresentWhenDrawn}";
++        }
++    }
++
++    /// <summary>
++    /// Diagnostics only: whether the same vertex data ever produces both outcomes.
++    /// </summary>
++    /// <remarks>
++    /// The claim that a batch which renders and a batch which comes out black are "the same" has rested
++    /// on counts and bounding ranges - the vertex count per batch, and the y range of the vertices. Both
++    /// of those can match while the contents differ, so the claim was never actually measured. Hashing
++    /// the vertex bytes at flush and grouping the hashes by outcome separates the two possibilities:
++    /// a hash seen in both states means identical input producing different results, and hashes that
++    /// partition cleanly mean the inputs genuinely differ and the fault is further back.
++    /// </remarks>
++    private static readonly object HashGate = new();
++    private static readonly Dictionary<ulong, (long Empty, long Drawn, int Verts, float MinY, float MaxY, int TargetY)> _vertexHashes = [];
++    private static long _hashConsidered;
++
++    public static void NoteVertexHash(ulong hash, int count, bool empty, float minY, float maxY, int targetY)
++    {
++        if (count < 64) return;
++
++        lock (HashGate)
++        {
++            _hashConsidered++;
++            _vertexHashes.TryGetValue(hash, out var s);
++            _vertexHashes[hash] = empty
++                ? (s.Empty + 1, s.Drawn, count, minY, maxY, targetY)
++                : (s.Empty, s.Drawn + 1, count, minY, maxY, targetY);
++        }
++    }
++
++    public static string DescribeVertexHashes()
++    {
++        lock (HashGate)
++        {
++            if (_vertexHashes.Count == 0) return "  vertex content hash     : nothing sampled";
++
++            var both = _vertexHashes.Count(k => k.Value.Empty > 0 && k.Value.Drawn > 0);
++            var onlyEmpty = _vertexHashes.Count(k => k.Value.Empty > 0 && k.Value.Drawn == 0);
++            var onlyDrawn = _vertexHashes.Count(k => k.Value.Empty == 0 && k.Value.Drawn > 0);
++
++            // A fingerprint of the whole set of contents, so two runs - or two configurations - can be
++            // compared on whether they saw the same vertex data at all. Both configurations reported 226
++            // distinct contents, which is only meaningful if they are the same 226.
++            var fingerprint = _vertexHashes.Keys.OrderBy(h => h).Aggregate(1469598103934665603UL,
++                (acc, h) => { acc ^= h; acc *= 1099511628211UL; return acc; });
++
++            var failing = _vertexHashes.Where(k => k.Value.Empty > 0 && k.Value.Drawn == 0)
++                .Select(k => k.Value).ToList();
++
++            // The bands a batch could legitimately draw into are the two framebuffers, y 0..240 and
++            // y 240..480. A batch whose vertices lie entirely outside both is clipped away by the
++            // scissor and produces nothing - correctly. If every never-rendering content is of that
++            // kind, then "the target was empty after the batch" was measuring correct behaviour rather
++            // than a defect, and the headline reading built on it has to be withdrawn.
++            static bool IntersectsFramebuffer((long Empty, long Drawn, int Verts, float MinY, float MaxY, int TargetY) s)
++                => s.MaxY >= 0 && s.MinY < 480;
++
++            // A batch is drawn into one target, and vertices outside that target's band are clipped away
++            // by the scissor. If a never-rendering batch's vertices lie in the OTHER buffer's band, then
++            // the batch was classified into the wrong target and clipped away wholesale - which is the
++            // one mechanism that makes real geometry, inside the framebuffer, render nothing.
++            static bool MatchesItsTarget((long Empty, long Drawn, int Verts, float MinY, float MaxY, int TargetY) s)
++                => s.MaxY >= s.TargetY && s.MinY < s.TargetY + 240;
++
++            var offScreen = failing.Count(s => !IntersectsFramebuffer(s));
++            var onScreen = failing.Count(IntersectsFramebuffer);
++            var wrongBand = failing.Count(s => IntersectsFramebuffer(s) && !MatchesItsTarget(s));
++            var targetsSeen = string.Join("/", failing.Select(s => s.TargetY).Distinct().OrderBy(v => v));
++
++            var failingShape = failing.Count == 0
++                ? "none"
++                : $"{failing.Count} content(s), verts {failing.Min(x => x.Verts)}..{failing.Max(x => x.Verts)}, " +
++                  $"y {failing.Min(x => x.MinY):0}..{failing.Max(x => x.MaxY):0}; " +
++                  $"{offScreen} lie wholly outside both framebuffer bands (legitimately nothing), {onScreen} intersect one, " +
++                  $"of which {wrongBand} lie in the band of the OTHER buffer and are clipped away" +
++                  $" (targets seen: {targetsSeen})";
++
++            var verdict = both > 0
++                ? "identical input produced BOTH outcomes"
++                : "inputs partition cleanly - the batches differ";
++
++            return $"  vertex content hash     : {_hashConsidered} large batch(es), {_vertexHashes.Count} distinct, " +
++                   $"set fingerprint {fingerprint:X16}" + Environment.NewLine +
++                   $"                            {both} seen in both states, {onlyEmpty} only empty, " +
++                   $"{onlyDrawn} only drawn -> {verdict}" + Environment.NewLine +
++                   $"                            the ones that never render: {failingShape}";
 +        }
 +    }
 +
