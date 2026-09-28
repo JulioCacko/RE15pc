@@ -352,37 +352,60 @@ suppressed the uploaded background alone accounts for 79.6%, textured tiles add 
 
 That is a strong result to have arrived at sideways: `--skip-draws flat` renders the game.
 
-#### What the flat primitives are, and what they are not
+#### What the flat primitives are
 
 ```
-flat primitives : 108 (108 semi-transparent), bounds x 0..160, y 40..351
+flat primitives (all)   : 856 (632 semi-transparent, 360 spanning >= 300x200), bounds x 0..1023, y 0..1263
+flat blend modes        : 0:224, 2:632   (0=avg 1=add 2=sub 3=add/4)
+flat mask state         : -/-:856
+textured under CheckMask: 0
 ```
 
-Two things follow, and the second is the interesting one.
+Measured across all of them, not only the ones inside the framebuffer, because that subset was
+actively misleading: 108 of the 856 are in-frame, and the test for it requires every vertex to be
+inside `0..319 x 0..479`, so a primitive that covers the screen fails it by exactly one pixel. The
+in-frame subset is the wrong place to look, and looking there first cost a round.
 
-**They are not a screen-covering quad.** Only 108 of them have all three tracked vertices inside a
-framebuffer, with bounds `x 0..160, y 40..351` - a partial region, not the full frame. A simple
-"a black quad is drawn over the scene" explanation does not fit.
+Three useful facts follow.
 
-**Every one of them is semi-transparent.** That is the clue. Suppressing 856 of 285,661 primitives
-- three tenths of a percent - takes the frame from 0% to 88%, so their effect is far out of
-proportion to their coverage. An effect that large from that few primitives is a **state** effect,
-not a geometric one.
+**There are 360 screen-covering flat primitives.** Three hundred of them spanning at least
+300x200, over roughly 780 frames, is around one every other frame. Bounds reach `x 0..1023,
+y 0..1263`, so some extend past the VRAM edge entirely.
 
-The leading explanation is therefore the one the semi-transparency points at: these are
-semi-transparent black quads, most plausibly a fade, and if the HLE path draws them **opaque**
-because the per-primitive blend mode is not what the primitive expects, a handful of them black
-out the frame completely - which is exactly the disproportion observed. On hardware a
-semi-transparent black quad dims what is under it; drawn opaque it erases it.
+**They use two blend modes, not one.** 632 are semi-transparent with blend mode 2 (subtract) and
+224 use blend mode 0 (average, 50/50 with the destination).
+
+**The mask bits are not involved.** Every one of the 856 is `-/-`, neither setting nor checking the
+mask, and no textured primitive is ever drawn under CheckMask. That explanation is out.
+
+#### Which flat primitives are responsible
+
+A discriminating run settles it, and it is not the blend mode that was the leading suspect:
+
+| suppressed | primitives skipped | display region |
+|---|---|---|
+| **subtract** (blend mode 2) | 2,352 | **0 / 76800 (0.0%)** |
+| **flat** | 856 | **67,603 / 76800 (88.0%)** |
+
+Suppressing every blend-mode-2 primitive, which includes the 108 in-frame flat ones and 632 of the
+856 flat ones, does **not** fix the frame. Suppressing the flat primitives does. So the culprit is
+among the flat primitives that are *not* blend mode 2 - the **224 with blend mode 0** - and those
+include screen-covering quads.
+
+The shape of the defect is therefore: **screen-covering flat quads using the average blend**,
+drawn over a correctly rendered scene. Blend mode 0 is a 50/50 average with the destination, so a
+black quad of that kind darkens what is under it; drawn opaque, or with the average applied against
+the wrong destination, it erases it instead. Since the background is re-uploaded each frame the
+darkening should not accumulate, which is consistent with the screen being uniformly black rather
+than progressively darker.
 
 #### Next probe
 
-Establish the colour and blend state of those 108 semi-transparent flat primitives, and whether the
-blend mode reaches the backend for them. `RenderPrimEvent` carries `SemiTransparent` but no colour
-and no blend mode, so this needs either `Gpu.ReadStat()` bits 5-6 read from the handler - the same
-trick that recovered the texture page - or the draw environment they set. If they are black and
-drawn opaque, that is the defect, and it is the same class of defect as `HleDrawEnv` missing a
-field: state the backend needs that has nowhere to travel.
+Add a `blend0` suppression mode alongside `subtract` and confirm it is those 224 primitives. If it
+is, the question becomes whether the average blend is applied at all in the HLE path and what
+destination it is blended against - the same destination-read machinery that blend mode 2 uses via
+`BeginDestRead`, which is already known to be delicate. `GlCore.cs:884-905` is where the
+semi-transparent path lives.
 
 ---
 
