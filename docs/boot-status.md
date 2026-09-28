@@ -2248,3 +2248,23 @@ bytes 0xA0..0xBF: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ...
 Two things are worth recording alongside it. The default script never reaches this - it takes sustained input over more frames to arrive at frame 704 - so **the failure is a consequence of the game progressing further, not of anything unusual about the input used**. And the report line reading `unmapped calls: 0` while the crash names an unmapped call is a real inconsistency in the reporting: the counter and the exception disagree, and the counter should not be trusted as evidence that no unmapped call occurred.
 
 **This is the concrete blocker on playability.** The guest boots, renders the title at 41.4 percent and the room at 79.6 percent, responds to input, and progresses; at frame 704 it calls into empty memory and stops. Everything before that point works, and nothing after it has been reached.
+
+#### Tolerant mode shows the call is genuinely needed, not a strict-mode artifact
+
+Strict mode turned the call into a crash, so the obvious question was whether strict mode was the blocker. It is not:
+
+```
+[RE5pc] tolerant mode: unmapped calls will be logged, not thrown
+[Dispatcher] skipped an unmapped call to 0x800100AC
+[Runtime] runtime has crashed: System.InvalidOperationException: unmapped address: 0x00800000
+verdict                 : FAIL
+last change at          : 22.5s
+```
+
+**Skipping the call does not let the game continue - it defers the failure by one step.** With the call suppressed, the guest immediately uses `0x00800000` as an address and stops there. That is what a caller does when a callee it expected to run never did: the value the function was supposed to establish, or return, is missing, and the next use of it is garbage.
+
+So there is a real gap at frame 704, and it is not about strictness. The guest expects something to be at `0x800100AC` and nothing is; suppressing the call simply moves the failure to wherever that result is first consumed.
+
+**The honest position on the objective.** The port boots the guest, renders the title at 41.4 percent word-exact against the disc's artwork, renders rooms at 79.6 percent in both buffers, dispatches all seven overlays, produces audio, responds to input, and progresses to frame 704. What it cannot do is get past frame 704, and the reason is a specific, reproducible emulation gap at a named address. Everything after that point on the disc has not been reached, let alone played.
+
+Fourteen rounds remain. The next step is to identify the caller: instrumenting the dispatcher to record the calling site when an unmapped call occurs would name the function that expects something at `0x800100AC`, and the argument it passed, which is the shortest path to knowing what the guest believes is there.
