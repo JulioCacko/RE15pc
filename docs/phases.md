@@ -5,12 +5,25 @@ not "done" because the work feels finished; it is done when the gate below it ho
 
 Legend: **DONE** · **PARTIAL** · **ACTIVE** · **TODO**
 
-Current position: **Phase 4, partially met; Phase 5 done.** The port boots, runs real game code,
-reaches STAGE1, dispatches all seven overlays and produces audio output. The blocker is that the
-composed frame comes out black: the room's drawn output never reaches video memory, while the same
-draws render correctly at 88% non-black when flat drawing is suppressed. Everything between a guest
-GP0 command and the framebuffer has been measured and cleared, and the mechanisms proposed and
-withdrawn along the way are listed in `docs/boot-status.md`.
+Current position: **Phases 0-3 and 5 done; Phases 4 and 6 partial; 7 and 8 not started.** The
+port boots, runs real game code at 30 fps with **zero unmapped calls over 5414 guest frames**,
+reaches STAGE1, dispatches all seven overlays and produces audio output. **The title renders at a
+100.00% word-exact match and a room renders at 79.6% of the framebuffer in both buffers.**
+
+**The remaining gap is play, not execution.** The game executes this build's opening sequence
+correctly - title, a full room, a transition, and a slowly revealing state - and directions change
+nothing at any point in it: 87 framebuffer generations with directions held against 86 without,
+frame counts within 1.3%. So no room has been walked, no item taken, no door opened and no save made.
+Two routes to close it are named in the README.
+
+Two blockers stood in the way and both are now resolved or corrected. The composed frame was
+**never** black - the room renders and the game fades itself out over it with flat subtract
+rectangles, so `--skip-draws flat` removes the fade rather than repairing anything. And the guest
+used to stop at frame 704 with an unmapped call, because an indexed dispatch table's entries had
+been merged into their neighbouring functions; 33 computed-jump targets added to the main function
+map take the same input to 5414 frames clean.
+
+The mechanisms proposed and withdrawn along the way are listed in `docs/boot-status.md`.
 
 ---
 

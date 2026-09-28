@@ -30,13 +30,24 @@ overlay loads. There are **zero unmapped calls**.
 - Title screen: `TITLEJ.TIM` resident at the display origin at a **100.00% word-exact** match.
 - Guest progress: 30 fps, 2840 IRQs in 20 seconds, progressing rather than wedging.
 
-**The blocker: the composed frame is black.** Every component between a guest GP0 command and the
-framebuffer has been measured and cleared - geometry, texture addressing, sampled data in both
-stores, the blend chain and its factors, the modulation colour, the drawing offset, the draw order
-against the per-frame clear, the landing of draws in the framebuffer, the render target lifecycle,
-the interpolation recorder, vertex batching, and OpenGL's own error state. The room's drawn output
-never reaches video memory, while the same draws render correctly at **88% non-black** when flat
-drawing is suppressed with `--skip-draws flat`, which is an instrument and not a workaround.
+**The blocker is resolved, and the earlier reading of it was wrong.** This section previously
+described the composed frame as black and the room's drawn output as never reaching video memory.
+Neither was true. The room renders at **79.6% of the framebuffer, in both buffers**, and the game
+then fades itself out by drawing flat **subtract** rectangles over that correctly rendered image -
+which is what a fade to black is. `--skip-draws flat` removes those rectangles, so every conclusion
+drawn from it compared a faded frame against an unfaded one rather than a broken frame against a
+working one.
+
+**The blocker that was real is also resolved.** The guest used to stop at frame 704 with an unmapped
+call at `0x800100AC`: an indexed dispatch table whose entries the function detector had merged into
+their neighbouring functions, so the guest jumping into the middle of `func_8001003C` found nothing
+to dispatch to. **33 computed-jump targets** were added to `port/config/funcmaps/main.json` -
+deliberate curation of a generated file, since `--autoconfigure` would discard it - and the same
+sustained input now runs **5414 guest frames with zero unmapped calls**.
+
+**What remains is play.** The game executes the opening sequence correctly and directions change
+nothing in it: 87 framebuffer generations with directions held against 86 without, frame counts
+within 1.3%. No room has been walked, no item taken, no door opened, no save made.
 
 **Mechanisms proposed here and withdrawn after measurement.** Each of these is written up below
 with the evidence that killed it, and none should be re-tried without new data:
