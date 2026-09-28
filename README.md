@@ -78,7 +78,8 @@ relevant gate. Emulator setup is not required.
 
 Synthetic dispatch success, nonzero audio, pixel counts, and a clean smoke run
 do not establish playability. Movement, collision and one intentional exit are verified in the first-room
-gate. Full-room/scenario coverage, remaining interactions and combat, inventory,
+gate. Inventory open/close is verified, while item-panel rendering remains under investigation.
+Full-room/scenario coverage, remaining interactions and combat, inventory operations,
 save/load, full native-input certification and the stability gate remain open.
 GitHub Actions is currently blocked from starting by account billing/spending
 limits; local passes do not establish a remote check pass.
@@ -96,3 +97,6 @@ as patches against the pinned upstream, never edits to generated game code.
 This unofficial preservation project is not affiliated with Capcom.
 Resident Evil and Biohazard are Capcom trademarks. No Capcom game code, art,
 audio, disc image, or Sony BIOS is redistributed. See [NOTICE](NOTICE).
+
+Current structural and UI evidence: [model inventory](docs/model-inventory.md)
+and [inventory status](docs/inventory-status.md).

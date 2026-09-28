@@ -96,3 +96,12 @@ the native process.
 The focused suite now passes 159 checks. Both runtime patches and curated
 function maps reproduce the generated code deterministically. Raw game-derived
 artifacts remain local and ignored.
+
+## Model structure and inventory UI
+
+The model index now structurally accounts for 102 blocks across all 54 EMS,
+PLD and PLW files; see [model-inventory.md](model-inventory.md). This is not
+an animation or playability pass.
+
+Inventory open/close is verified separately. Item-panel navigation exposes
+an unresolved rendering issue; see [inventory-status.md](inventory-status.md).

@@ -1,0 +1,1967 @@
+{
+  "schemaVersion": 1,
+  "discSha256": "B5C26B6A5EC21FC93B16F904642DAACD527207A7460FFB8349077AA6426BC30D",
+  "scope": "Relative section directories and sector-aligned model blocks only. Semantic identities, animations, rendering and gameplay remain unverified.",
+  "files": [
+    {
+      "path": "PSX/EMD/CDEMD0.EMS",
+      "size": 4048896,
+      "structurallyAccounted": true,
+      "stopOffset": 4048896,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 214496,
+          "directoryOffset": 214460,
+          "sectionOffsets": [
+            8,
+            12,
+            1688,
+            15784,
+            22376,
+            99664,
+            101368,
+            129776,
+            147868
+          ]
+        },
+        {
+          "index": 1,
+          "offset": 215040,
+          "length": 214272,
+          "directoryOffset": 214236,
+          "sectionOffsets": [
+            8,
+            12,
+            1592,
+            15688,
+            22280,
+            99568,
+            101272,
+            129680,
+            147644
+          ]
+        },
+        {
+          "index": 2,
+          "offset": 430080,
+          "length": 215392,
+          "directoryOffset": 215356,
+          "sectionOffsets": [
+            8,
+            12,
+            1752,
+            16808,
+            23400,
+            100688,
+            102392,
+            130800,
+            148764
+          ]
+        },
+        {
+          "index": 3,
+          "offset": 647168,
+          "length": 225864,
+          "directoryOffset": 225828,
+          "sectionOffsets": [
+            8,
+            12,
+            1396,
+            15092,
+            21504,
+            104712,
+            106504,
+            137712,
+            159236
+          ]
+        },
+        {
+          "index": 4,
+          "offset": 874496,
+          "length": 213584,
+          "directoryOffset": 213548,
+          "sectionOffsets": [
+            8,
+            12,
+            1544,
+            15240,
+            21832,
+            99120,
+            100824,
+            129232,
+            146956
+          ]
+        },
+        {
+          "index": 5,
+          "offset": 1089536,
+          "length": 214464,
+          "directoryOffset": 214428,
+          "sectionOffsets": [
+            8,
+            12,
+            1560,
+            15816,
+            22408,
+            99696,
+            101400,
+            129808,
+            147836
+          ]
+        },
+        {
+          "index": 6,
+          "offset": 1304576,
+          "length": 77504,
+          "directoryOffset": 77468,
+          "sectionOffsets": [
+            8,
+            12,
+            644,
+            4152,
+            4156,
+            4160,
+            4164,
+            4168,
+            10876
+          ]
+        },
+        {
+          "index": 7,
+          "offset": 1382400,
+          "length": 176056,
+          "directoryOffset": 176020,
+          "sectionOffsets": [
+            8,
+            12,
+            3272,
+            59048,
+            59052,
+            59056,
+            59988,
+            77520,
+            109428
+          ]
+        },
+        {
+          "index": 8,
+          "offset": 1558528,
+          "length": 69944,
+          "directoryOffset": 69908,
+          "sectionOffsets": [
+            8,
+            12,
+            1460,
+            18892,
+            18896,
+            18900,
+            19196,
+            24808,
+            36596
+          ]
+        },
+        {
+          "index": 9,
+          "offset": 1630208,
+          "length": 34876,
+          "directoryOffset": 34840,
+          "sectionOffsets": [
+            8,
+            12,
+            388,
+            1388,
+            1392,
+            1396,
+            1400,
+            1404,
+            1528
+          ]
+        },
+        {
+          "index": 10,
+          "offset": 1667072,
+          "length": 128160,
+          "directoryOffset": 128124,
+          "sectionOffsets": [
+            8,
+            12,
+            2264,
+            32236,
+            32240,
+            32244,
+            32332,
+            33944,
+            61532
+          ]
+        },
+        {
+          "index": 11,
+          "offset": 1796096,
+          "length": 33580,
+          "directoryOffset": 33544,
+          "sectionOffsets": [
+            8,
+            12,
+            32,
+            92,
+            96,
+            100,
+            104,
+            108,
+            232
+          ]
+        },
+        {
+          "index": 12,
+          "offset": 1830912,
+          "length": 207824,
+          "directoryOffset": 207788,
+          "sectionOffsets": [
+            8,
+            12,
+            5240,
+            95016,
+            95020,
+            95024,
+            95648,
+            106936,
+            141196
+          ]
+        },
+        {
+          "index": 13,
+          "offset": 2039808,
+          "length": 222424,
+          "directoryOffset": 222388,
+          "sectionOffsets": [
+            8,
+            12,
+            5764,
+            108980,
+            108984,
+            108988,
+            109728,
+            124136,
+            155796
+          ]
+        },
+        {
+          "index": 14,
+          "offset": 2263040,
+          "length": 262768,
+          "directoryOffset": 262732,
+          "sectionOffsets": [
+            8,
+            12,
+            4480,
+            131760,
+            131764,
+            131768,
+            133224,
+            161232,
+            196140
+          ]
+        },
+        {
+          "index": 15,
+          "offset": 2527232,
+          "length": 59288,
+          "directoryOffset": 59252,
+          "sectionOffsets": [
+            8,
+            12,
+            260,
+            4232,
+            4236,
+            4240,
+            4244,
+            4248,
+            25940
+          ]
+        },
+        {
+          "index": 16,
+          "offset": 2586624,
+          "length": 226404,
+          "directoryOffset": 226368,
+          "sectionOffsets": [
+            8,
+            4724,
+            10244,
+            87036,
+            87040,
+            87044,
+            87444,
+            95132,
+            126496
+          ]
+        },
+        {
+          "index": 17,
+          "offset": 2813952,
+          "length": 128600,
+          "directoryOffset": 128564,
+          "sectionOffsets": [
+            8,
+            3164,
+            3968,
+            14232,
+            14236,
+            14240,
+            14244,
+            14248,
+            28692
+          ]
+        },
+        {
+          "index": 18,
+          "offset": 2942976,
+          "length": 171640,
+          "directoryOffset": 171604,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31576,
+            43424,
+            43428,
+            43432,
+            71732
+          ]
+        },
+        {
+          "index": 19,
+          "offset": 3115008,
+          "length": 135068,
+          "directoryOffset": 135032,
+          "sectionOffsets": [
+            8,
+            12,
+            1544,
+            30360,
+            31292,
+            42740,
+            42744,
+            42748,
+            68440
+          ]
+        },
+        {
+          "index": 20,
+          "offset": 3250176,
+          "length": 171640,
+          "directoryOffset": 171604,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31576,
+            43424,
+            43428,
+            43432,
+            71732
+          ]
+        },
+        {
+          "index": 21,
+          "offset": 3422208,
+          "length": 171640,
+          "directoryOffset": 171604,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31576,
+            43424,
+            43428,
+            43432,
+            71732
+          ]
+        },
+        {
+          "index": 22,
+          "offset": 3594240,
+          "length": 140660,
+          "directoryOffset": 140624,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31852,
+            48900,
+            48904,
+            48908,
+            74032
+          ]
+        },
+        {
+          "index": 23,
+          "offset": 3735552,
+          "length": 139264,
+          "directoryOffset": 139228,
+          "sectionOffsets": [
+            8,
+            12,
+            1652,
+            32548,
+            33360,
+            43376,
+            43380,
+            43384,
+            72636
+          ]
+        },
+        {
+          "index": 24,
+          "offset": 3874816,
+          "length": 172444,
+          "directoryOffset": 172408,
+          "sectionOffsets": [
+            8,
+            12,
+            1544,
+            30360,
+            31292,
+            42740,
+            42744,
+            42748,
+            72536
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/EMD/CDEMD1.EMS",
+      "size": 4055040,
+      "structurallyAccounted": true,
+      "stopOffset": 4055040,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 214816,
+          "directoryOffset": 214780,
+          "sectionOffsets": [
+            8,
+            12,
+            1688,
+            15784,
+            22380,
+            98636,
+            100488,
+            130096,
+            148188
+          ]
+        },
+        {
+          "index": 1,
+          "offset": 215040,
+          "length": 214592,
+          "directoryOffset": 214556,
+          "sectionOffsets": [
+            8,
+            12,
+            1592,
+            15688,
+            22284,
+            98540,
+            100392,
+            130000,
+            147964
+          ]
+        },
+        {
+          "index": 2,
+          "offset": 430080,
+          "length": 215712,
+          "directoryOffset": 215676,
+          "sectionOffsets": [
+            8,
+            12,
+            1752,
+            16808,
+            23404,
+            99660,
+            101512,
+            131120,
+            149084
+          ]
+        },
+        {
+          "index": 3,
+          "offset": 647168,
+          "length": 227196,
+          "directoryOffset": 227160,
+          "sectionOffsets": [
+            8,
+            12,
+            1396,
+            15092,
+            21656,
+            103112,
+            105036,
+            139044,
+            160568
+          ]
+        },
+        {
+          "index": 4,
+          "offset": 874496,
+          "length": 213904,
+          "directoryOffset": 213868,
+          "sectionOffsets": [
+            8,
+            12,
+            1544,
+            15240,
+            21836,
+            98092,
+            99944,
+            129552,
+            147276
+          ]
+        },
+        {
+          "index": 5,
+          "offset": 1089536,
+          "length": 214784,
+          "directoryOffset": 214748,
+          "sectionOffsets": [
+            8,
+            12,
+            1560,
+            15816,
+            22412,
+            98668,
+            100520,
+            130128,
+            148156
+          ]
+        },
+        {
+          "index": 6,
+          "offset": 1304576,
+          "length": 77504,
+          "directoryOffset": 77468,
+          "sectionOffsets": [
+            8,
+            12,
+            644,
+            4152,
+            4156,
+            4160,
+            4164,
+            4168,
+            10876
+          ]
+        },
+        {
+          "index": 7,
+          "offset": 1382400,
+          "length": 176056,
+          "directoryOffset": 176020,
+          "sectionOffsets": [
+            8,
+            12,
+            3272,
+            59048,
+            59052,
+            59056,
+            59988,
+            77520,
+            109428
+          ]
+        },
+        {
+          "index": 8,
+          "offset": 1558528,
+          "length": 70364,
+          "directoryOffset": 70328,
+          "sectionOffsets": [
+            8,
+            12,
+            1460,
+            18892,
+            18896,
+            18900,
+            19216,
+            25228,
+            37016
+          ]
+        },
+        {
+          "index": 9,
+          "offset": 1630208,
+          "length": 34876,
+          "directoryOffset": 34840,
+          "sectionOffsets": [
+            8,
+            12,
+            388,
+            1388,
+            1392,
+            1396,
+            1400,
+            1404,
+            1528
+          ]
+        },
+        {
+          "index": 10,
+          "offset": 1667072,
+          "length": 128160,
+          "directoryOffset": 128124,
+          "sectionOffsets": [
+            8,
+            12,
+            2264,
+            32236,
+            32240,
+            32244,
+            32332,
+            33944,
+            61532
+          ]
+        },
+        {
+          "index": 11,
+          "offset": 1796096,
+          "length": 33580,
+          "directoryOffset": 33544,
+          "sectionOffsets": [
+            8,
+            12,
+            32,
+            92,
+            96,
+            100,
+            104,
+            108,
+            232
+          ]
+        },
+        {
+          "index": 12,
+          "offset": 1830912,
+          "length": 207236,
+          "directoryOffset": 207200,
+          "sectionOffsets": [
+            8,
+            12,
+            5240,
+            95016,
+            95020,
+            95024,
+            95620,
+            106348,
+            140608
+          ]
+        },
+        {
+          "index": 13,
+          "offset": 2039808,
+          "length": 221828,
+          "directoryOffset": 221792,
+          "sectionOffsets": [
+            8,
+            12,
+            5764,
+            108980,
+            108984,
+            108988,
+            109692,
+            123540,
+            155200
+          ]
+        },
+        {
+          "index": 14,
+          "offset": 2263040,
+          "length": 268324,
+          "directoryOffset": 268288,
+          "sectionOffsets": [
+            8,
+            12,
+            4480,
+            131760,
+            131764,
+            131768,
+            133500,
+            166788,
+            201696
+          ]
+        },
+        {
+          "index": 15,
+          "offset": 2533376,
+          "length": 59288,
+          "directoryOffset": 59252,
+          "sectionOffsets": [
+            8,
+            12,
+            260,
+            4232,
+            4236,
+            4240,
+            4244,
+            4248,
+            25940
+          ]
+        },
+        {
+          "index": 16,
+          "offset": 2592768,
+          "length": 226404,
+          "directoryOffset": 226368,
+          "sectionOffsets": [
+            8,
+            4724,
+            10244,
+            87036,
+            87040,
+            87044,
+            87444,
+            95132,
+            126496
+          ]
+        },
+        {
+          "index": 17,
+          "offset": 2820096,
+          "length": 128600,
+          "directoryOffset": 128564,
+          "sectionOffsets": [
+            8,
+            3164,
+            3968,
+            14232,
+            14236,
+            14240,
+            14244,
+            14248,
+            28692
+          ]
+        },
+        {
+          "index": 18,
+          "offset": 2949120,
+          "length": 171640,
+          "directoryOffset": 171604,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31576,
+            43424,
+            43428,
+            43432,
+            71732
+          ]
+        },
+        {
+          "index": 19,
+          "offset": 3121152,
+          "length": 135068,
+          "directoryOffset": 135032,
+          "sectionOffsets": [
+            8,
+            12,
+            1544,
+            30360,
+            31292,
+            42740,
+            42744,
+            42748,
+            68440
+          ]
+        },
+        {
+          "index": 20,
+          "offset": 3256320,
+          "length": 171640,
+          "directoryOffset": 171604,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31576,
+            43424,
+            43428,
+            43432,
+            71732
+          ]
+        },
+        {
+          "index": 21,
+          "offset": 3428352,
+          "length": 171640,
+          "directoryOffset": 171604,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31576,
+            43424,
+            43428,
+            43432,
+            71732
+          ]
+        },
+        {
+          "index": 22,
+          "offset": 3600384,
+          "length": 140660,
+          "directoryOffset": 140624,
+          "sectionOffsets": [
+            8,
+            12,
+            1568,
+            30864,
+            31852,
+            48900,
+            48904,
+            48908,
+            74032
+          ]
+        },
+        {
+          "index": 23,
+          "offset": 3741696,
+          "length": 139264,
+          "directoryOffset": 139228,
+          "sectionOffsets": [
+            8,
+            12,
+            1652,
+            32548,
+            33360,
+            43376,
+            43380,
+            43384,
+            72636
+          ]
+        },
+        {
+          "index": 24,
+          "offset": 3880960,
+          "length": 172444,
+          "directoryOffset": 172408,
+          "sectionOffsets": [
+            8,
+            12,
+            1544,
+            30360,
+            31292,
+            42740,
+            42744,
+            42748,
+            72536
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00.PLD",
+      "size": 188940,
+      "structurallyAccounted": true,
+      "stopOffset": 188940,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 188940,
+          "directoryOffset": 188924,
+          "sectionOffsets": [
+            8,
+            3160,
+            60136,
+            89052
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W00.PLW",
+      "size": 20256,
+      "structurallyAccounted": true,
+      "stopOffset": 20256,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 20256,
+          "directoryOffset": 20240,
+          "sectionOffsets": [
+            8,
+            876,
+            15444,
+            17904
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W01.PLW",
+      "size": 22960,
+      "structurallyAccounted": true,
+      "stopOffset": 22960,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22960,
+          "directoryOffset": 22944,
+          "sectionOffsets": [
+            8,
+            1124,
+            18892,
+            20608
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W02.PLW",
+      "size": 21768,
+      "structurallyAccounted": true,
+      "stopOffset": 21768,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 21768,
+          "directoryOffset": 21752,
+          "sectionOffsets": [
+            8,
+            948,
+            16956,
+            19416
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W03.PLW",
+      "size": 22856,
+      "structurallyAccounted": true,
+      "stopOffset": 22856,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22856,
+          "directoryOffset": 22840,
+          "sectionOffsets": [
+            8,
+            996,
+            18044,
+            20504
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W04.PLW",
+      "size": 22776,
+      "structurallyAccounted": true,
+      "stopOffset": 22776,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22776,
+          "directoryOffset": 22760,
+          "sectionOffsets": [
+            8,
+            996,
+            17964,
+            20424
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W05.PLW",
+      "size": 24368,
+      "structurallyAccounted": true,
+      "stopOffset": 24368,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 24368,
+          "directoryOffset": 24352,
+          "sectionOffsets": [
+            8,
+            1068,
+            19556,
+            22016
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W06.PLW",
+      "size": 21768,
+      "structurallyAccounted": true,
+      "stopOffset": 21768,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 21768,
+          "directoryOffset": 21752,
+          "sectionOffsets": [
+            8,
+            948,
+            16956,
+            19416
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W07.PLW",
+      "size": 26888,
+      "structurallyAccounted": true,
+      "stopOffset": 26888,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 26888,
+          "directoryOffset": 26872,
+          "sectionOffsets": [
+            8,
+            1188,
+            22076,
+            24536
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W08.PLW",
+      "size": 29572,
+      "structurallyAccounted": true,
+      "stopOffset": 29572,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 29572,
+          "directoryOffset": 29556,
+          "sectionOffsets": [
+            8,
+            1312,
+            24760,
+            27220
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W09.PLW",
+      "size": 26792,
+      "structurallyAccounted": true,
+      "stopOffset": 26792,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 26792,
+          "directoryOffset": 26776,
+          "sectionOffsets": [
+            8,
+            1260,
+            21828,
+            24440
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W0A.PLW",
+      "size": 26792,
+      "structurallyAccounted": true,
+      "stopOffset": 26792,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 26792,
+          "directoryOffset": 26776,
+          "sectionOffsets": [
+            8,
+            1260,
+            21828,
+            24440
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W0B.PLW",
+      "size": 26792,
+      "structurallyAccounted": true,
+      "stopOffset": 26792,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 26792,
+          "directoryOffset": 26776,
+          "sectionOffsets": [
+            8,
+            1260,
+            21828,
+            24440
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W0C.PLW",
+      "size": 23104,
+      "structurallyAccounted": true,
+      "stopOffset": 23104,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23104,
+          "directoryOffset": 23088,
+          "sectionOffsets": [
+            8,
+            1028,
+            18796,
+            20752
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W0D.PLW",
+      "size": 25612,
+      "structurallyAccounted": true,
+      "stopOffset": 25612,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 25612,
+          "directoryOffset": 25596,
+          "sectionOffsets": [
+            8,
+            1136,
+            20984,
+            23260
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W0E.PLW",
+      "size": 22776,
+      "structurallyAccounted": true,
+      "stopOffset": 22776,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22776,
+          "directoryOffset": 22760,
+          "sectionOffsets": [
+            8,
+            996,
+            17964,
+            20424
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W0F.PLW",
+      "size": 24940,
+      "structurallyAccounted": true,
+      "stopOffset": 24940,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 24940,
+          "directoryOffset": 24924,
+          "sectionOffsets": [
+            8,
+            1120,
+            20648,
+            22588
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W10.PLW",
+      "size": 23636,
+      "structurallyAccounted": true,
+      "stopOffset": 23636,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23636,
+          "directoryOffset": 23620,
+          "sectionOffsets": [
+            8,
+            1040,
+            18888,
+            21284
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W11.PLW",
+      "size": 23636,
+      "structurallyAccounted": true,
+      "stopOffset": 23636,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23636,
+          "directoryOffset": 23620,
+          "sectionOffsets": [
+            8,
+            1040,
+            18888,
+            21284
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W12.PLW",
+      "size": 24940,
+      "structurallyAccounted": true,
+      "stopOffset": 24940,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 24940,
+          "directoryOffset": 24924,
+          "sectionOffsets": [
+            8,
+            1120,
+            20648,
+            22588
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W13.PLW",
+      "size": 23544,
+      "structurallyAccounted": true,
+      "stopOffset": 23544,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23544,
+          "directoryOffset": 23528,
+          "sectionOffsets": [
+            8,
+            1028,
+            18796,
+            21192
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL00W14.PLW",
+      "size": 23636,
+      "structurallyAccounted": true,
+      "stopOffset": 23636,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23636,
+          "directoryOffset": 23620,
+          "sectionOffsets": [
+            8,
+            1040,
+            18888,
+            21284
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL01.PLD",
+      "size": 174140,
+      "structurallyAccounted": true,
+      "stopOffset": 174140,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 174140,
+          "directoryOffset": 174124,
+          "sectionOffsets": [
+            8,
+            2336,
+            43392,
+            74252
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL02.PLD",
+      "size": 175028,
+      "structurallyAccounted": true,
+      "stopOffset": 175028,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 175028,
+          "directoryOffset": 175012,
+          "sectionOffsets": [
+            8,
+            2336,
+            43392,
+            75140
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04.PLD",
+      "size": 189888,
+      "structurallyAccounted": true,
+      "stopOffset": 189888,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 189888,
+          "directoryOffset": 189872,
+          "sectionOffsets": [
+            8,
+            3156,
+            59572,
+            90000
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W00.PLW",
+      "size": 18468,
+      "structurallyAccounted": true,
+      "stopOffset": 18468,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 18468,
+          "directoryOffset": 18452,
+          "sectionOffsets": [
+            8,
+            1088,
+            13656,
+            16116
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W01.PLW",
+      "size": 22756,
+      "structurallyAccounted": true,
+      "stopOffset": 22756,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22756,
+          "directoryOffset": 22740,
+          "sectionOffsets": [
+            8,
+            1344,
+            18712,
+            20404
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W02.PLW",
+      "size": 19980,
+      "structurallyAccounted": true,
+      "stopOffset": 19980,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 19980,
+          "directoryOffset": 19964,
+          "sectionOffsets": [
+            8,
+            1160,
+            15168,
+            17628
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W03.PLW",
+      "size": 23912,
+      "structurallyAccounted": true,
+      "stopOffset": 23912,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23912,
+          "directoryOffset": 23896,
+          "sectionOffsets": [
+            8,
+            1332,
+            18860,
+            21560
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W04.PLW",
+      "size": 22676,
+      "structurallyAccounted": true,
+      "stopOffset": 22676,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22676,
+          "directoryOffset": 22660,
+          "sectionOffsets": [
+            8,
+            1216,
+            17864,
+            20324
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W05.PLW",
+      "size": 21768,
+      "structurallyAccounted": true,
+      "stopOffset": 21768,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 21768,
+          "directoryOffset": 21752,
+          "sectionOffsets": [
+            8,
+            948,
+            16956,
+            19416
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W06.PLW",
+      "size": 22852,
+      "structurallyAccounted": true,
+      "stopOffset": 22852,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22852,
+          "directoryOffset": 22836,
+          "sectionOffsets": [
+            8,
+            1152,
+            18040,
+            20500
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W07.PLW",
+      "size": 26708,
+      "structurallyAccounted": true,
+      "stopOffset": 26708,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 26708,
+          "directoryOffset": 26692,
+          "sectionOffsets": [
+            8,
+            1408,
+            21896,
+            24356
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W08.PLW",
+      "size": 29392,
+      "structurallyAccounted": true,
+      "stopOffset": 29392,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 29392,
+          "directoryOffset": 29376,
+          "sectionOffsets": [
+            8,
+            1532,
+            24580,
+            27040
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W09.PLW",
+      "size": 23636,
+      "structurallyAccounted": true,
+      "stopOffset": 23636,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23636,
+          "directoryOffset": 23620,
+          "sectionOffsets": [
+            8,
+            1040,
+            18888,
+            21284
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W0A.PLW",
+      "size": 21768,
+      "structurallyAccounted": true,
+      "stopOffset": 21768,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 21768,
+          "directoryOffset": 21752,
+          "sectionOffsets": [
+            8,
+            948,
+            16956,
+            19416
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W0B.PLW",
+      "size": 20256,
+      "structurallyAccounted": true,
+      "stopOffset": 20256,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 20256,
+          "directoryOffset": 20240,
+          "sectionOffsets": [
+            8,
+            876,
+            15444,
+            17904
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W0C.PLW",
+      "size": 22884,
+      "structurallyAccounted": true,
+      "stopOffset": 22884,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22884,
+          "directoryOffset": 22868,
+          "sectionOffsets": [
+            8,
+            1248,
+            18616,
+            20532
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W0D.PLW",
+      "size": 25432,
+      "structurallyAccounted": true,
+      "stopOffset": 25432,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 25432,
+          "directoryOffset": 25416,
+          "sectionOffsets": [
+            8,
+            1356,
+            20804,
+            23080
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W0E.PLW",
+      "size": 21768,
+      "structurallyAccounted": true,
+      "stopOffset": 21768,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 21768,
+          "directoryOffset": 21752,
+          "sectionOffsets": [
+            8,
+            948,
+            16956,
+            19416
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W0F.PLW",
+      "size": 22776,
+      "structurallyAccounted": true,
+      "stopOffset": 22776,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 22776,
+          "directoryOffset": 22760,
+          "sectionOffsets": [
+            8,
+            996,
+            17964,
+            20424
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W10.PLW",
+      "size": 24940,
+      "structurallyAccounted": true,
+      "stopOffset": 24940,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 24940,
+          "directoryOffset": 24924,
+          "sectionOffsets": [
+            8,
+            1120,
+            20648,
+            22588
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W11.PLW",
+      "size": 23636,
+      "structurallyAccounted": true,
+      "stopOffset": 23636,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23636,
+          "directoryOffset": 23620,
+          "sectionOffsets": [
+            8,
+            1040,
+            18888,
+            21284
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W12.PLW",
+      "size": 20256,
+      "structurallyAccounted": true,
+      "stopOffset": 20256,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 20256,
+          "directoryOffset": 20240,
+          "sectionOffsets": [
+            8,
+            876,
+            15444,
+            17904
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W13.PLW",
+      "size": 23332,
+      "structurallyAccounted": true,
+      "stopOffset": 23332,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 23332,
+          "directoryOffset": 23316,
+          "sectionOffsets": [
+            8,
+            1248,
+            18616,
+            20980
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL04W14.PLW",
+      "size": 20256,
+      "structurallyAccounted": true,
+      "stopOffset": 20256,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 20256,
+          "directoryOffset": 20240,
+          "sectionOffsets": [
+            8,
+            876,
+            15444,
+            17904
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL05.PLD",
+      "size": 174136,
+      "structurallyAccounted": true,
+      "stopOffset": 174136,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 174136,
+          "directoryOffset": 174120,
+          "sectionOffsets": [
+            8,
+            2332,
+            42828,
+            74248
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL06.PLD",
+      "size": 174552,
+      "structurallyAccounted": true,
+      "stopOffset": 174552,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 174552,
+          "directoryOffset": 174536,
+          "sectionOffsets": [
+            8,
+            2332,
+            42828,
+            74664
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL0D.PLD",
+      "size": 159912,
+      "structurallyAccounted": true,
+      "stopOffset": 159912,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 159912,
+          "directoryOffset": 159896,
+          "sectionOffsets": [
+            8,
+            1468,
+            31724,
+            60024
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL0E.PLD",
+      "size": 123456,
+      "structurallyAccounted": true,
+      "stopOffset": 123456,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 123456,
+          "directoryOffset": 123440,
+          "sectionOffsets": [
+            8,
+            1468,
+            31724,
+            56848
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL0F.PLD",
+      "size": 128404,
+      "structurallyAccounted": true,
+      "stopOffset": 128404,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 128404,
+          "directoryOffset": 128388,
+          "sectionOffsets": [
+            8,
+            1648,
+            32544,
+            61796
+          ]
+        }
+      ]
+    },
+    {
+      "path": "PSX/PLD/PL0FW00.PLW",
+      "size": 15648,
+      "structurallyAccounted": true,
+      "stopOffset": 15648,
+      "issue": "",
+      "blocks": [
+        {
+          "index": 0,
+          "offset": 0,
+          "length": 15648,
+          "directoryOffset": 15632,
+          "sectionOffsets": [
+            8,
+            820,
+            10836,
+            13296
+          ]
+        }
+      ]
+    }
+  ]
+}

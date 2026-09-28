@@ -64,3 +64,9 @@ computed-copy destinations. `tools/Test-ElzaEntry.ps1` passes, and Leon’s full
 first-room gate still passes. BIOS guest-thread exceptions now fail and stop
 the run instead of allowing the surviving VSync thread to produce a false pass.
 See [content-coverage.md](content-coverage.md) for commands, evidence and limits.
+
+Model structure now accounts for 102 blocks in all 54 EMS/PLD/PLW files, with
+semantic and animation coverage still open. Inventory open/close passes a
+state-preservation gate; item-panel navigation has an unresolved rendering
+issue. See [model-inventory.md](model-inventory.md) and
+[inventory-status.md](inventory-status.md).

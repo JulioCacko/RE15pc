@@ -90,6 +90,13 @@ public static class Program
                         weapon = memory.ReadU8(0x800ACA5D),
                         health = memory.ReadU16(0x800ACAEE) },
                     camera = memory.ReadU16(0x800B0FE4),
+                    inventory = new { open = (memory.ReadU32(0x800ACA3C) & 0x40) != 0,
+                        panel = memory.ReadU8(0x800B25BC), selection = memory.ReadU8(0x800B25C8),
+                        state = memory.ReadU32(0x800B25C0),
+                        slots = Enumerable.Range(0, 10).Select(i => new {
+                            id = memory.ReadU8(0x800B10ACu + (uint)i * 4),
+                            quantity = memory.ReadU8(0x800B10ADu + (uint)i * 4)
+                        }).ToArray() },
                     roomIndex = memory.ReadU8(0x800B0FE2),
                     rdt = $"0x{memory.ReadU32(0x800AC778):X8}" });
             if (frame == options.Frames) Runtime.RequestStop();

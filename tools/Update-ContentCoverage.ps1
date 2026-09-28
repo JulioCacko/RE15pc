@@ -81,9 +81,10 @@ $Result = [ordered]@{
         'original-limit'='Requires original-code/data evidence, not an unexplained port failure.'
     }
     openScopes=@('Conditional branches and path combinations are not covered by function-entry hits.',
-        'Packed models, animations, items, samples, sequences, background images and script branches still need member-level enumeration.',
+        'Model block boundaries are indexed, but semantic identities and animation, item, sample, sequence, background and script-branch coverage remain open.',
         'Reads do not establish decoding, presentation, interaction or playability.',
         'Runs with different config hashes remain separate evidence; do not merge them into a release verdict.')
+    modelInventory='docs/model-inventory.json'
     functionMaps=@($MapCounts); runs=@($Runs.Values | Sort-Object path); files=@($Files)
 }
 $Result | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath $Ledger
