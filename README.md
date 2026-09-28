@@ -5,25 +5,37 @@ abandoned Resident Evil 2 build commonly known as *Resident Evil 1.5* — produc
 by statically recompiling the original PlayStation executable rather than
 emulating it.
 
-> **Status: it boots, runs and dispatches, but does not yet draw the game.**
+> **Status: it boots, runs, draws and dispatches. The disc has not been played through.**
 >
-> Working: the disc is identified and validated; the recompiled executable runs real
-> game code at 30 fps with zero unmapped calls; scripted controller input drives it
-> through the title and character select into **STAGE1**; **all seven overlays
-> dispatch correctly**; the **audio path is measured to produce output**; and the
-> title screen's image is proven resident in video memory at a **100.00% word-exact**
-> match.
+> Working, each with the measurement behind it: the disc is identified and validated by
+> hash and layout; the recompiled executable runs real game code at 30 fps with **zero
+> unmapped calls over 5414 guest frames**; scripted controller input drives it through
+> the title and character select into **STAGE1** and changes its progress; **all seven
+> overlays dispatch correctly** (8 of 8, none failed); the **audio path** carries all 24
+> voices with volume on 2898 of 4268 frames; the title screen's image is proven resident
+> in video memory at a **100.00% word-exact** match against the disc's own artwork; and a
+> room is drawn at **79.6% of the framebuffer**, in both buffers, with the game
+> transitioning between states afterwards.
 >
-> Blocked: the composed frame comes out black. Every component between a guest GP0
-> command and the framebuffer has been measured and cleared - geometry, texture
-> addressing, sampled data, the blend chain, the modulation colour, the drawing
-> offset, draw order, the render target lifecycle and the interpolation recorder -
-> and the room's drawn output still never reaches video memory. The room renders
-> correctly at 88% non-black with `--skip-draws flat`, which is a diagnostic and not
-> a workaround.
+> **Fixed in this session:** the guest used to stop at frame 704 with an unmapped call.
+> The cause was a control-flow gap, not rendering - an indexed dispatch table whose
+> entries the function detector had merged into their neighbouring functions, because a
+> detector keyed on function boundaries has no reason to split a block the guest only
+> ever enters in the middle. 33 computed-jump targets were added to the generated
+> function map (`port/config/funcmaps/main.json`), which is deliberate curation of a
+> generated file: `--autoconfigure` would discard it and reintroduce the blocker.
+>
+> **Not done: playability.** Nothing on the disc has been played through - no room
+> walked, no item taken, no door opened, no save made. What is demonstrated is that the
+> guest executes correctly and reaches states, which is a different claim.
+>
+> One correction worth carrying forward, because an earlier revision of this file relied
+> on it: `--skip-draws flat` is **not** a diagnostic of a rendering fault. The game fades
+> itself out using flat subtract rectangles drawn over a correctly rendered image, and
+> skipping that category removes the fade rather than repairing anything.
 >
 > See [docs/phases.md](docs/phases.md) for the phase gates and
-> [docs/boot-status.md](docs/boot-status.md) for the evidence, including the
+> [docs/boot-status.md](docs/boot-status.md) for the evidence, including the twenty-odd
 > mechanisms that were proposed and then withdrawn after measurement.
 
 ---
@@ -123,9 +135,16 @@ pwsh -File tools/Test-RecompileDeterminism.ps1
 # (prints 8 of 8, 0 failed; writes out/diagnostics/overlay-dispatch.txt)
 dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-overlays
 
-# the SPU produces sound: mixes a block while voices carry volume and peaks near 26%
+# the SPU produces sound: all 24 voices carry volume and a block is mixed with
+# signal in it. The peak amplitude varies by run and by input - measured between
+# roughly 8600 and 17000 of 32767 - so read the figure, not a fixed number.
 # (writes out/diagnostics/audio.txt)
 dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-audio
+
+# the guest runs real game code without stopping: drives it hard with sustained
+# input and fails on any unmapped call. This is the check that caught the
+# computed-jump gap, which the default short run never reached.
+dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 90 --input "90:start,600:up"
 
 # the disc is the one this port expects, checked by hash and by file layout
 pwsh -File tools/New-DiscManifest.ps1 -Check
