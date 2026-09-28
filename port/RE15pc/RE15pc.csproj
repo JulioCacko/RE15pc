@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    RE15pc — host application for the recompiled Biohazard 2 (Nov 6, 1996)
+    prototype.
+
+    The game code itself is not in this directory. RecompOne's recompiler emits
+    plain C# into <repo root>/generated, and that tree is compiled in here via
+    the glob below. generated/ is never hand-edited and is not committed.
+
+    RecompOne is likewise not vendored: bootstrap.ps1 clones it at a pinned
+    commit, which is why the ProjectReference reaches into ..\..\RecompOne.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>RE15pc</AssemblyName>
+    <RootNamespace>RE15pc</RootNamespace>
+
+    <!--
+      Culture must stay invariant-sensitive: RecompOne formats diagnostics with
+      culture-aware numeric formats, and a comma decimal separator makes them
+      harder to compare against the project's own documentation.
+    -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!--
+      The generated tree is enormous (about 98 MB of C# across 5150 functions
+      with address and disassembly comments enabled). Suppress the warnings it
+      would otherwise emit in volume; it is machine output and not reviewable.
+
+      CS0162 matters most here: recompiled MIPS routinely emits unreachable
+      instructions after a branch terminator, and main.cs alone produces over
+      7000 of them. Suppressing it is what keeps a real warning visible.
+    -->
+    <NoWarn>$(NoWarn);CS0162;CS0168;CS0219;CS0414;CS0649;CS8321;CS8981</NoWarn>
+
+    <!-- Deterministic builds so a rebuild does not churn for no reason. -->
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\RecompOne\RecompOne.Runtime\RecompOne.Runtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\generated\**\*.cs" />
+  </ItemGroup>
+
+</Project>
