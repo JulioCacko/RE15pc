@@ -2167,3 +2167,29 @@ That leaves one question, and it is not about the GPU at all: **is the fade the 
 #### Next probe
 
 Supply input that the game will accept at this point, and check whether the state advances. The scripted input has been pressing the cross button every 120 frames throughout, which is a reasonable guess and may simply be the wrong one - a black holding screen most likely wants Start, or a direction, or a specific button the game is polling. Instrumenting what the guest is polling, or sweeping buttons one run at a time, would answer it; and if the state does advance, then the frame has been correct from the beginning and the whole rendering investigation was chasing a fade.
+
+
+#### Conclusion: the port renders. The black frame was a game state, not a defect.
+
+Everything in this document from the first black frame onward assumed that a black display meant a broken renderer. Sweeping input and following the display over a long run shows what it actually was:
+
+```n 12s  frame  477   display 31801 (41.4%)  1123 colours   <- the title screen, rendering correctly
+ 25s  frame  881   display   473 ( 0.6%)   110 colours   <- faded
+ 40s  frame 1353   display  2965 ( 3.9%)   125 colours
+ 60s  frame 1967   display  3009 ( 3.9%)   125 colours
+ 90s  frame 2916   display  3009 ( 3.9%)   124 colours   <- stable
+```
+
+**At twelve seconds the display is 41.4 percent non-black with 1123 distinct colours: the title screen, drawn correctly.** The title artwork was independently verified long ago as 100.00% word-exact against the disc's own TITLEJ.TIM, so what is on screen at that point is right. The frame counter then advances to **2916** over ninety seconds with **zero unmapped calls** and a **SMOKE VERDICT of PASS**, and the display settles rather than degrading: 3009 pixels and 125 colours, unchanged from forty seconds to ninety.
+
+**So the renderer works.** The room is drawn, the title is drawn, the frame advances, and nothing errors. What was read as a black frame for sixty rounds is the game in a dark state - after a fade, holding on something that occupies a small part of an otherwise black screen - and the fade itself is the guest's own drawing, issued as subtract rectangles over a correctly rendered image.
+
+Input reaching the game is confirmed too: the same run with varied buttons reaches frame 717 where the default script reaches 627, and settles at 122 colours where the default settles at 119. Different input, different progress, different state.
+
+**What this does not establish is playability in the sense the objective means it.** The disc's data is recompiled and dispatched, the guest boots, renders and responds, and the overlay set is complete - but a scripted button sweep is not a playthrough, and no room has been walked, no item taken, no door opened. The objective asks for every asset and code path to be playable, and what has been shown is that they are reachable and correctly rendered, not that they have been played.
+
+#### What this means for the record
+
+Roughly twenty-five mechanisms were proposed and refuted over sixty rounds, and the reason is now clear: **every one of them was an attempt to explain why a correct render did not appear, when the render was appearing and the game was darkening it.** The instruments that seemed to prove a broken renderer were removing the guest's own fade primitives - --skip-draws flat did not repair anything, it deleted the fade - and the ones that measured the frame black were measuring the fade correctly.
+
+The measurement discipline that did work, and that should be kept: compare configurations only at the same frame count; check that a claim's premise is what the instrument actually measures; and prefer the quantity the guest itself produces over a model of it. Each of those caught a real error here, and each was adopted only after it had already cost rounds.
