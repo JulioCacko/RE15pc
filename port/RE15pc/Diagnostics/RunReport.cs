@@ -157,6 +157,13 @@ public static class RunReport
         var overlay = SliceRam(mem, OverlayBase, OverlayWindow);
         File.WriteAllBytes(Path.Combine(outDir, "ram-overlay-80100000.bin"), overlay);
 
+        // The whole of guest RAM as well. The overlay window answers questions about
+        // overlay loading; this answers questions about anything the game copied into
+        // memory, such as a file read from the disc. It is only 2 MB, and being able to
+        // search it for a known byte signature is what makes it worth writing.
+        var fullRam = mem.Ram.ToArray();
+        File.WriteAllBytes(Path.Combine(outDir, "ram-full.bin"), fullRam);
+
         var hex = Convert.ToHexString(SHA256.HashData(overlay));
 
         var sb = new StringBuilder();
@@ -183,6 +190,7 @@ public static class RunReport
         sb.AppendLine($"RAM 0x{OverlayBase:X8}..0x{OverlayBase + OverlayWindow:X8}");
         sb.AppendLine($"  sha256 (RAM now)        : {hex}");
         sb.AppendLine($"  dumped to               : ram-overlay-80100000.bin");
+        sb.AppendLine($"  full guest RAM          : ram-full.bin ({fullRam.Length} bytes)");
         sb.AppendLine();
         sb.AppendLine("  first 32 bytes of the overlay window:");
         sb.AppendLine("    " + HexLine(overlay, 32));
