@@ -1951,3 +1951,29 @@ Two things are ruled out on inspection rather than by measurement. The vertex bu
 #### Next probe
 
 Why the third triangle in a batch produces nothing. The three candidates, in the order worth testing: the depth state, since every vertex is written with z = 0 and a depth test left enabled would reject all but the first triangle of a batch - the numbers do not fit that cleanly, because two triangles per batch renders as fully as one, but it is cheap to rule out. The varying declarations, since pageBase, clutBase, 	exMode, Dither and RepClut are lat and take their value from the provoking vertex, so a per-triangle value that is only correct for the first triangle would show exactly this. And the vertex upload, since BufferSubData is given _count vertices from _verts and a short or misplaced upload would leave the later triangles reading another batch's data.
+
+
+#### The draw call is not at fault: the batch data is
+
+Three candidates were tested and two died immediately. The driver's state at every flush is clean and constant, so the depth, cull, scissor, logic-op and program hypotheses are all refuted at once:
+
+```ngl[depth=0 cull=0 blend=0 scissor=0 logic=0 prog=3 vao=1 depthfunc=513]
+```
+
+Blend follows transparency correctly within that. And because a batch of one triangle renders correctly, everything per-triangle must be sound as well - the attribute layout, the lat varyings and their provoking vertex, and the shader itself.
+
+That leaves what differs between triangles inside one batch. Drawing the same uploaded data three vertices at a time settles which side of the driver the fault is on:
+
+```nflushEvery=off  splitDraw=off     350 ( 0.5%)    6 colours
+flushEvery=off  splitDraw=on      350 ( 0.5%)    6 colours    <- identical
+flushEvery=9    splitDraw=on     7375 ( 9.6%)  429 colours    <- matches 9 without splitting, 8.8%
+flushEvery=48   splitDraw=on      334 ( 0.4%)    4 colours    <- matches 48 without splitting
+```
+
+**Splitting the draw changes nothing at all.** The batch-size effect is exactly the same whether the batch is issued as one large DrawArrays or as one call per triangle. So the large draw is not the problem: **the data a large batch reads is already wrong before the driver sees it.** The fault is between GlCore.V appending a vertex and the batch reaching the driver, and it is not the drawing.
+
+This is a narrower statement than the previous round's, and it eliminates the whole shader and driver half of the search: no attribute pointer, no stride, no provoking vertex, no uniform, no GL state, and no draw call can be responsible for output that is wrong only beyond the first couple of triangles of a batch.
+
+#### Next probe
+
+Compare what is in _verts for a batch against what the batch is supposed to contain. The batch that fails has between nine and a few thousand vertices, of which only the first few produce anything, so the question is what those later entries actually hold - stale vertices from an earlier batch, the right vertices at the wrong index, or correct data that BufferSubData never uploads. Reading back the vertex buffer with GetBufferSubData after the upload and comparing it against _verts would answer that in one measurement, and would also show whether the upload is short - which is the one remaining explanation that fits a fault beginning at the third triangle rather than the first.

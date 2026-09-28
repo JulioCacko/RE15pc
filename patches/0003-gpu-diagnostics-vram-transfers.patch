@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..b93f5c5 100644
+index bc045ae..167c3b9 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,766 @@ public static class GpuGlAccess
+@@ -17,6 +17,770 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -765,6 +765,10 @@ index bc045ae..b93f5c5 100644
 +    /// </remarks>
 +    public static int ForceFlushEvery { get; } =
 +        int.TryParse(Environment.GetEnvironmentVariable("RE15PC_FLUSH_EVERY"), out var v) && v > 0 ? v : 0;
++
++    /// <summary>Diagnostic only: draw each batch as one call per triangle. Set by RE15PC_SPLIT_DRAW.</summary>
++    public static bool SplitDraw { get; } =
++        Environment.GetEnvironmentVariable("RE15PC_SPLIT_DRAW") == "1";
 +
      public static void Bind()
      {

@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..4de8baf 100644
+index 45a0f96..3ccc3df 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -116,7 +116,37 @@ index 45a0f96..4de8baf 100644
          ResolveReplacement(f,
              (int)Math.Min(a.U, Math.Min(b.U, c.U)), (int)Math.Min(a.V, Math.Min(b.V, c.V)),
              (int)Math.Max(a.U, Math.Max(b.U, c.U)), (int)Math.Max(a.V, Math.Max(b.V, c.V)));
-@@ -752,6 +775,10 @@ public sealed class GlCore : IGpuBackend
+@@ -730,6 +753,29 @@ public sealed class GlCore : IGpuBackend
+         return _images.Count - 1;
+     }
+ 
++    /// <summary>
++    /// Issues the batched draw, either as one call or as one call per triangle.
++    /// </summary>
++    /// <remarks>
++    /// Diagnostic only, enabled by RE15PC_SPLIT_DRAW. Single-triangle batches render correctly and
++    /// larger ones progressively less, and since the per-triangle machinery must therefore be sound,
++    /// the defect is either in what a large draw reads or in the large draw itself. Drawing the same
++    /// uploaded data three vertices at a time separates those two: if the frame appears, the data is
++    /// intact and the single large draw is at fault; if it does not, the data beyond the first triangle
++    /// is wrong before the driver ever sees it.
++    /// </remarks>
++    private void DrawBatch()
++    {
++        if (!GpuGlAccess.SplitDraw)
++        {
++            _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)_count);
++            return;
++        }
++
++        for (var i = 0; i + 2 < _count; i += 3)
++            _gl.DrawArrays(PrimitiveType.Triangles, i, 3);
++    }
++
+     public void Flush()
+     {
+         if (_count == 0) return;
+@@ -752,6 +798,10 @@ public sealed class GlCore : IGpuBackend
          var destH = rt == null ? GlVram.Height : rt.TexH;
  
          GpuGlAccess.Gl = _gl;
@@ -127,7 +157,7 @@ index 45a0f96..4de8baf 100644
          GpuGlAccess.TargetFbo = rt == null ? _vram.Fbo : rt.Fbo;
          GpuGlAccess.TargetWidth = destW;
          GpuGlAccess.TargetHeight = destH;
-@@ -871,6 +898,24 @@ public sealed class GlCore : IGpuBackend
+@@ -871,15 +921,33 @@ public sealed class GlCore : IGpuBackend
          _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
          _gl.BufferSubData<GlVertex>(BufferTargetARB.ArrayBuffer, 0, _verts.AsSpan(0, _count));
  
@@ -152,7 +182,42 @@ index 45a0f96..4de8baf 100644
          if (_legacy)
          {
              _gl.Disable(EnableCap.Blend);
-@@ -914,6 +959,68 @@ public sealed class GlCore : IGpuBackend
+-            _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)_count);
++            DrawBatch();
+         }
+         else if (!_kTransparent)
+         {
+             _gl.Disable(EnableCap.Blend);
+-            _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)_count);
++            DrawBatch();
+         }
+         else
+         {
+@@ -890,7 +958,7 @@ public sealed class GlCore : IGpuBackend
+             {
+                 _gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
+                 SetBlend(0f, 1f);
+-                _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)_count);
++                DrawBatch();
+ 
+                 if (needDest)
+                 {
+@@ -901,19 +969,89 @@ public sealed class GlCore : IGpuBackend
+                 _gl.BlendEquationSeparate(BlendEquationModeEXT.FuncReverseSubtract, BlendEquationModeEXT.FuncAdd);
+                 SetBlend(1f, 1f);
+                 _gl.Uniform4(_uBlendOpaque, 0f, 0f, 0f, 1f);
+-                _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)_count);
++                DrawBatch();
+             }
+             else
+             {
+                 _gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
+                 SetBlend(_kBlend switch { 0 => 0.5f, 3 => 0.25f, _ => 1f }, _kBlend == 0 ? 0.5f : 1f);
+-                _gl.DrawArrays(PrimitiveType.Triangles, 0, (uint)_count);
++                DrawBatch();
+             }
+         }
+ 
          _gl.Disable(EnableCap.ScissorTest);
          if (rt != null)
          {
@@ -160,7 +225,15 @@ index 45a0f96..4de8baf 100644
 +                var state = $"target=({rt?.X ?? -1},{rt?.Y ?? -1}) {rt?.W ?? 0}x{rt?.H ?? 0} wide1x={rt?.Wide1x ?? 0} " +
 +                            $"margin={rt?.Margin ?? -1} y={(rt?.Y ?? -1),-4} transparent={(_kTransparent ? 1 : 0)} blend={_kBlend} " +
 +                            $"image={_kImage} setMask={_kSetMask} checkMask={_kCheckMask} " +
-+                            $"thread={Environment.CurrentManagedThreadId}";
++                            $"thread={Environment.CurrentManagedThreadId} " +
++                            $"gl[depth={(_gl.IsEnabled(EnableCap.DepthTest) ? 1 : 0)}" +
++                            $" cull={(_gl.IsEnabled(EnableCap.CullFace) ? 1 : 0)}" +
++                            $" blend={(_gl.IsEnabled(EnableCap.Blend) ? 1 : 0)}" +
++                            $" scissor={(_gl.IsEnabled(EnableCap.ScissorTest) ? 1 : 0)}" +
++                            $" logic={(_gl.IsEnabled(EnableCap.ColorLogicOp) ? 1 : 0)}" +
++                            $" prog={_gl.GetInteger(GetPName.CurrentProgram)}" +
++                            $" vao={_gl.GetInteger(GetPName.VertexArrayBinding)}" +
++                            $" depthfunc={_gl.GetInteger(GetPName.DepthFunc)}]";
 +                var litAfter = GpuGlAccess.ReadTargetStrip(rt.Fbo, rt.TexW, rt.TexH);
 +                var texLit = GpuGlAccess.ReadTextureStrip(_vram, 384, 0, 320, 32);
 +                GpuGlAccess.NoteBatchState(state, _count, litAfter, texLit);
@@ -221,7 +294,7 @@ index 45a0f96..4de8baf 100644
              rt.Dirty = true;
              rt.LastDrawFrame = _frame;
          }
-@@ -990,7 +1097,7 @@ public sealed class GlCore : IGpuBackend
+@@ -990,7 +1128,7 @@ public sealed class GlCore : IGpuBackend
          for (var i = 0; i < _rts.Length; i++)
          {
              if (_rts[i] is not { } rt) continue;
