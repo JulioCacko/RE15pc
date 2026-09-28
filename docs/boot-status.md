@@ -331,45 +331,49 @@ so a newly created target is filled from `_vram` before it is drawn into, and a 
 re-seeded by `SyncRtsFromVram` whenever an upload or VRAM copy arrives. A flush therefore writes
 back upload-plus-drawing, not an empty surface.
 
-#### The timeline, corrected
+#### The culprit: textured drawing
 
-Sampling the display region is only meaningful if the display origin is known, because this game
-double-buffers by moving it. The origin is now recorded per reading, and the correction matters:
+Suppressing classes of primitive through `RenderPrimEvent.Skip`, which `GpuRaster` honours
+before consuming the vertices, splits the problem cleanly:
 
-```
-    3,0s  origin    0,0     shadow  31801
-    3,5s  origin    0,240   shadow  31801      <- identical at BOTH origins
-    4,0s  origin    0,0     shadow  31801   backend  31906
-    4,5s  origin    0,240   shadow  31801
-   ...
-   29,0s  origin    0,240   shadow      0
-   31,5s  origin    0,0     shadow      0      <- identical at BOTH origins
-```
+| suppressed | shadow store | backend store | primitives skipped |
+|---|---|---|---|
+| **textured** | **0 / 76800 (0.0%)** | **0 / 76800 (0.0%)** | 284,803 |
+| **flat** | 67,603 / 76800 (88.0%) | 67,560 / 76800 (88.0%) | 856 |
+| all | 61,135 / 76800 (79.6%) | 61,135 / 76800 (79.6%) | 285,659 |
 
-The counts are the same at both origins, so the game keeps both buffers in step and the earlier
-timeline was not confounded by the flip. The collapse to zero is genuine in both buffers, and so
-is the 31801/31906 agreement at 4 s. Comparing counts *across* rows is still invalid - the jump
-from 31801 to 61135 was the region changing - which is why the origin is now printed alongside.
+Three conclusions, and they are strong ones.
 
-#### Where the two symptoms now stand
+**The upload, VRAM-copy and fill paths are correct under the HLE.** With every draw suppressed
+the two stores agree *exactly* - 61135 against 61135, and 1182 colours - and the frame is a
+coherent room. So CD loads, MDEC decoding, CPU-to-VRAM uploads, VRAM copies and fills all work.
 
-The two stores have separate problems and they were being conflated.
+**Textured primitives are what destroys the frame.** Suppress them and everything goes black,
+including content that was correct a moment earlier. They cover the screen - about 263 of them
+per frame at 16x16 - so a textured draw producing black produces a black screen.
 
-**The shadow is emptied in mode A by a readback.** `StoreImageHalfword` writes the shadow
-unconditionally, so an upload always lands there. In mode A the shadow ends at zero anyway. The
-only thing that writes backend contents into the shadow is `HleReadback`
-(`GpuHleForward.cs:115-120`), which is called from `BeginImageRead` under `if (HleOn)`. So the
-guest performs a VRAM-to-CPU readback of the framebuffer, and in mode A that readback returns the
-backend's near-empty framebuffer and writes emptiness into the shadow. With the HLE off the
-readback is skipped entirely, which is exactly why mode B's shadow keeps its contents and shows
-90.4% non-black.
+**Flat primitives are legitimate.** Suppressing them leaves the frame *better* (88.0% versus
+79.6%), which means they add content rather than remove it. A fade or clear quad would have
+shown the opposite.
 
-**The backend framebuffer never receives the post-transition content.** At 4 s the backend holds
-31906 non-black pixels - the title image - so uploads do reach it and `Replay` does run. After
-the stage transition it settles at ~585 pixels, which is the small text element and nothing else.
-So the question is now specific: what does the game do to fill the framebuffer after the
-transition, and why does that particular operation not arrive, when the upload that filled it on
-the title screen did.
+So the remaining defect is one thing: **a textured primitive renders black.** Geometry is proven
+correct, the texture data is proven present in both stores, and the draw reaches the backend. What
+is left is the sampling - which texture page and CLUT the rasteriser resolves for those tiles.
+
+The texture page is the leading suspect. The room background sits at VRAM x = 320, which is page
+X = 5. Most games keep textures in the low pages, so a page-resolution defect would not have been
+exercised by other games, and sampling page X = 0 - the region this game's framebuffer occupies -
+would return black on exactly these tiles. Worth noting for whoever picks this up:
+`RenderPrimEvent.TexPage` is hardcoded to 0 in `GpuRaster.cs:118`, so that field cannot be used to
+observe it; the value has to come from `Gpu.CurTPage()` on the runtime side or from the shader.
+
+#### Next probe
+
+Confirm the texture page and CLUT the rasteriser resolves for a background tile against where the
+data actually lives. `GpuActivity` already reports the distinct CLUTs seen (11). If the resolved
+page is 0 while the data is at page 5, that is the defect, and it is a small one to fix - either
+the texpage is not reaching the backend, or the shader decodes it differently from
+`Gpu.CurTPage()`.
 
 ---
 
