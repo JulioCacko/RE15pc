@@ -94,6 +94,20 @@ public static class FrameSampler
 
     private static readonly short[] MixBlock = new short[256 * 2];
 
+    /// <summary>
+    /// The peak amplitude mixed during the run, which is the meaningful measure of whether the SPU
+    /// produces sound.
+    /// </summary>
+    /// <remarks>
+    /// An end-of-run mix can only report whether something happened to be playing at that instant, and
+    /// for this game it is silent - which once produced a "silent audio" verdict that was wrong. The
+    /// acceptance test reports this value rather than its own end-of-run sample, so that the check
+    /// supports the claim instead of contradicting it.
+    /// </remarks>
+    public static int PeakMixedDuringRun => _peakMixed;
+
+    public static int BlocksMixedDuringRun => _blocksMixed;
+
     private static readonly object Gate = new();
 
     public static void Attach()

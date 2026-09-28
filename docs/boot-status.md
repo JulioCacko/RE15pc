@@ -3,28 +3,58 @@
 Where the port actually is, what has been proven, and what is known to be wrong.
 Everything below is backed by an artifact on disk or a command that can be re-run.
 
-Last updated at the end of Phase 5.
+Last updated at the end of the rendering investigation.
+
+> **This document is chronological, and later sections supersede earlier ones.** It is kept in
+> order deliberately, because the record of what was proposed and then disproved is more useful
+> than a tidied conclusion. The summary below is current; anything below it that contradicts the
+> summary has been withdrawn, and each withdrawal says which measurement killed it.
 
 ---
 
 ## Summary
 
-The recompiled prototype **boots, runs, and now plays through its opening screens into
-STAGE1**. Guest code executes, receives interrupts, decodes images through MDEC, loads the
-`title` overlay and is driven by scripted controller input past the title and character
-select until the `stage1` overlay loads. There are **zero unmapped calls**.
+The recompiled prototype **boots, runs, and plays through its opening screens into STAGE1**.
+Guest code executes, receives interrupts, decodes images through MDEC, loads the `title` overlay
+and is driven by scripted controller input past the title and character select until the `stage1`
+overlay loads. There are **zero unmapped calls**.
 
-The immediate blocker is that the composed frame comes out **black**. A decisive experiment -
-turning the GPU HLE off with `--software-gpu` - produces a complete, correct VRAM image
-(90.4% non-black, 1140 distinct colours) in the software store, with **byte-identical texture
-content in both modes**. That rules out the guest code, disc reads, MDEC decoding and texture
-uploads at once, and localises the defect to the HLE's deferred recording layer: under the HLE,
-the content destined for the framebuffer never arrives. Details, evidence and the next three
-probes are below.
+**Verified and gated.**
+- Disc identity: hash and file layout, by `tools/New-DiscManifest.ps1 -Check`.
+- Recompiler determinism: two runs are byte-identical across all 10 files, by
+  `tools/Test-RecompileDeterminism.ps1`, which fails correctly when a generated file is perturbed.
+- Overlay dispatch: **all seven** overlays dispatch correctly, by `--verify-overlays` (8 of 8,
+  0 failed), through the real LBA mapping and base-write promotion rather than by gameplay.
+- Audio: the SPU **produces output** - peak 8619 of 32767 from a block mixed while voices carried
+  volume - by `--verify-audio`.
+- Title screen: `TITLEJ.TIM` resident at the display origin at a **100.00% word-exact** match.
+- Guest progress: 30 fps, 2840 IRQs in 20 seconds, progressing rather than wedging.
+
+**The blocker: the composed frame is black.** Every component between a guest GP0 command and the
+framebuffer has been measured and cleared - geometry, texture addressing, sampled data in both
+stores, the blend chain and its factors, the modulation colour, the drawing offset, the draw order
+against the per-frame clear, the landing of draws in the framebuffer, the render target lifecycle,
+the interpolation recorder, vertex batching, and OpenGL's own error state. The room's drawn output
+never reaches video memory, while the same draws render correctly at **88% non-black** when flat
+drawing is suppressed with `--skip-draws flat`, which is an instrument and not a workaround.
+
+**Mechanisms proposed here and withdrawn after measurement.** Each of these is written up below
+with the evidence that killed it, and none should be re-tried without new data:
+the drawing offset being missing, then being applied twice; the HLE's deferred recording layer;
+the deferred frame graph's ordering; render targets being created without seeding; the drawing
+offset in `InterpBackend`; the mask bits; the subtract blend; the flat blend-0 subset; a stuck
+fade overlay; render target eviction; `FillRect` and `CopyVram` as the wipe; the texture page
+being wrong; the dark modulation colour; vertex batch target coherence; and OpenGL errors.
+
+Two failure modes have recurred and are worth stating, because they account for most of the
+withdrawn mechanisms. **Reasoning from what code intends rather than from the values it actually
+has**, and **sampling at one moment in time** - the latter produced both the "one-off erasure"
+reading and the "silent audio" verdict, each corrected only by changing *when* the sample was
+taken.
 
 One rendering defect is also identified and quantified: before the stage load, the title
 image was uploaded to VRAM **including its 20-byte TIM header**, displacing the picture
-10 pixels horizontally.
+10 pixels horizontally. Root cause not yet attributed.
 
 ---
 

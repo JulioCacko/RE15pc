@@ -91,17 +91,25 @@ public static class AudioVerification
 
         var rms = Math.Sqrt(sumSquares / block.Length);
 
-        sb.AppendLine($"  mixed block             : {frames} frames, peak={peak} of 32767, " +
+        sb.AppendLine($"  end-of-run mix          : {frames} frames, peak={peak} of 32767, " +
                       $"rms={rms:0.0}, non-zero samples={nonZero} of {block.Length}");
 
         sb.AppendLine($"  xa audio                : playing={XaAudio.Playing}" +
                       $"  buffered={XaAudio.BufferedSamples}  rate={XaAudio.SourceRate}");
 
-        var verdict = peak > 0 && nonZero > 0
-            ? "audible: the SPU produces samples"
-            : "SILENT: the SPU produced no samples in this block";
+        // The verdict is taken from the mix measured DURING the run, not from the block above. A
+        // single end-of-run block only says whether something happened to be playing at that instant,
+        // and for this game it usually is not - which once produced a "silent" verdict that was wrong.
+        var duringRun = FrameSampler.PeakMixedDuringRun;
 
-        sb.AppendLine($"  audio verdict           : {verdict}");
+        if (duringRun > 0)
+            sb.AppendLine($"  audio verdict           : AUDIBLE - peak {duringRun} of 32767, measured " +
+                          $"during the run across {FrameSampler.BlocksMixedDuringRun} block(s) mixed " +
+                          $"while voices carried volume");
+        else if (peak > 0 && nonZero > 0)
+            sb.AppendLine($"  audio verdict           : AUDIBLE at end of run (peak {peak})");
+        else
+            sb.AppendLine($"  audio verdict           : SILENT - no samples produced, at end of run or during it");
 
         return sb.ToString().TrimEnd();
     }
