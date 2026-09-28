@@ -2288,3 +2288,33 @@ Tolerant mode adds the last piece. It skips the call, sets `V0` to zero, and the
 Taken together: at frame 704 the guest calls a function pointer for the first time, the slot holds a stub address rather than a real function, and the caller consumes the result as an address. **That is an uninitialised function table, not a broken renderer and not a missing recompilation** - there is no code at `0x800100AC` on the disc to recompile, only zeros. Some earlier initialisation that should have registered a handler in that table either did not run or wrote somewhere else.
 
 **This is where the port stops, and it is the last thing established about it.** Everything before frame 704 works and is verified; nothing after it has been observed. Locating the initialisation that fills that table is the work that would unblock the rest of the disc, and the trail is the instrument for it.
+
+#### The blocker is a jump table into the middle of one function, and it corrects an earlier claim
+
+The pointer value `0x800100AC` occurs exactly once in the guest's RAM dump, and it is stored at guest `0x80010098`:
+
+```
+guest 0x80010098 = 0x800100AC      <- the address that was called
+guest 0x8001009C = 0x8001012C
+guest 0x800100A0 = 0x800101DC
+guest 0x800100A4 = 0x80010114
+guest 0x800100A8 = 0x800101C4
+guest 0x800100AC = 0x8D090008      <- MIPS, not a pointer
+```
+
+and the code at `0x80010078` computes `$t5 = $t4 + 0x80010098` - a base plus an index, which is an indexed table lookup. So this is not a function pointer table being called; it is a **jump table**, and the guest performs a computed jump through it.
+
+**That corrects something stated three rounds ago.** The claim was that `0x800100AC` lies inside the zeroed EXE header and is therefore an uninitialised pointer. The header is not what is in RAM at that address: a PS-X EXE's text loads at the load address, so `0x80010000` in RAM is the start of the text, and `0x800100AC` is real code. The earlier reading took the file offset of the header for the loaded image's contents, which was simply wrong.
+
+What the map says is the real finding:
+
+```
+0x80010000  size 60     -> 0x80010000..0x8001003C
+0x8001003C  size 628    -> 0x8001003C..0x800102B0
+```
+
+**All five table targets fall inside `func_8001003C`.** The detector treated that 628-byte block as a single function, and the game jumps into the middle of it. No entry exists for `0x800100AC`, so the dispatcher has nothing to dispatch to and reports an unmapped call. The port is not failing to emulate an instruction; **it is being asked to enter a function at an address that was never emitted.**
+
+**This is a concrete and testable fix path**: emit `0x800100AC`, `0x80010114`, `0x8001012C`, `0x800101C4` and `0x800101DC` as their own function entries in `port/config/funcmaps/main.json`, each bounded by the next address and the last by the end of the containing function, then recompile. If the dispatcher then resolves them, the guest continues past frame 704 and the rest of the disc becomes reachable.
+
+The reason this was never found by measurement is worth recording: every instrument built here looked at what the GPU was drawing, and this is a control-flow gap in the recompiled image. It only surfaced once the run was driven hard enough with input to reach frame 704, which the default script never did.
