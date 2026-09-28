@@ -1,4 +1,5 @@
 using RecompOne.Runtime.Events;
+using RecompOne.Runtime.Hle;
 
 namespace RE15pc.Diagnostics;
 
@@ -45,6 +46,26 @@ public static class GpuActivity
 
     private static int _onMinX = int.MaxValue, _onMaxX = int.MinValue;
     private static int _onMinY = int.MaxValue, _onMaxY = int.MinValue;
+
+    /// <summary>
+    /// Primitives whose vertices sit in the SECOND buffer's screen space (y 0..239) while the
+    /// drawing area / clip rectangle is the second buffer (y 240..479).
+    ///
+    /// This is the measurement that decides whether the drawing offset is being applied to the
+    /// vertices or only to the clip. On hardware a vertex at screen (0,0) with offset (0,240)
+    /// rasterises at VRAM (0,240), so screen-space vertices against a VRAM-space clip rectangle
+    /// means every primitive is clipped away.
+    /// </summary>
+    private static long _screenSpaceVsVramClip;
+
+    /// <summary>The same, but where the vertices are already in VRAM space.</summary>
+    private static long _vramSpaceVsVramClip;
+
+    /// <summary>Vertices in the first buffer's screen space (y 0..239) under any clip.</summary>
+    private static long _anyScreenSpace;
+
+    /// <summary>Draw-area top values seen, with counts.</summary>
+    private static readonly Dictionary<int, long> DrawTops = [];
 
     public static long Primitives => Interlocked.Read(ref _prims);
     public static long Textured => Interlocked.Read(ref _textured);
@@ -115,6 +136,22 @@ public static class GpuActivity
 
             if (e.X[0] == e.X[1] && e.X[1] == e.X[2] && e.Y[0] == e.Y[1] && e.Y[1] == e.Y[2])
                 _degenerate++;
+
+            // Vertex space versus clip space, which is the whole question.
+            var maxY = Math.Max(e.Y[0], Math.Max(e.Y[1], e.Y[2]));
+            var minY = Math.Min(e.Y[0], Math.Min(e.Y[1], e.Y[2]));
+            var allScreenY = maxY < 240;
+            var allVramY = minY >= 240;
+
+            if (allScreenY) _anyScreenSpace++;
+
+            var clipIsSecondBuffer = e.DrawTop >= 240;
+
+            if (clipIsSecondBuffer && allScreenY) _screenSpaceVsVramClip++;
+            else if (clipIsSecondBuffer && allVramY) _vramSpaceVsVramClip++;
+
+            if (!DrawTops.TryGetValue(e.DrawTop, out var n)) n = 0;
+            DrawTops[e.DrawTop] = n + 1;
         }
     }
 
@@ -145,6 +182,16 @@ public static class GpuActivity
                       (_onScreen > 0 ? $" (bounds x {_onMinX}..{_onMaxX}, y {_onMinY}..{_onMaxY})" : ""));
         sb.AppendLine($"  primitives off VRAM     : {_offVram}");
         sb.AppendLine($"  degenerate primitives   : {_degenerate}");
+        sb.AppendLine($"  vertices in screen space: {_anyScreenSpace} (max vertex y < 240)");
+        sb.AppendLine($"  SCREEN vs VRAM clip     : {_screenSpaceVsVramClip}   <- non-zero means the offset is not reaching the vertices");
+        sb.AppendLine($"  VRAM   vs VRAM clip     : {_vramSpaceVsVramClip}");
+        sb.AppendLine($"  draw-area tops (top:count): {string.Join(", ", DrawTops.OrderBy(k => k.Key).Select(k => $"{k.Key}:{k.Value}"))}");
+
+        // The HLE render-target path. A non-zero widescreen margin changes the render target's
+        // width and shifts vertices, which is a strong candidate for a blank frame.
+        sb.AppendLine($"  gpu hle                 : active={GpuHle.Active}, backend={GpuHle.Backend?.GetType().Name ?? "null"}");
+        sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
+                      $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
         sb.AppendLine($"  cluts seen              : {Cluts.Count}");
         return sb.ToString().TrimEnd();

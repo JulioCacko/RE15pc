@@ -14,12 +14,12 @@ STAGE1**. Guest code executes, receives interrupts, decodes images through MDEC,
 `title` overlay and is driven by scripted controller input past the title and character
 select until the `stage1` overlay loads. There are **zero unmapped calls**.
 
-The immediate blocker is identified at root cause: the composed frame comes out **black**
-because the HLE draw path cannot receive the PlayStation's drawing offset and therefore clips
-every primitive away. The room background is provably present in video memory at (320,256)
-as a 320x240 pre-rendered image, the display is at (0,0) or (0,240), and about 263 textured
-background tiles per frame are drawn into the framebuffer at the right screen positions and
-produce almost nothing. The mechanism, the evidence and the shape of the fix are below.
+The immediate blocker is that the composed frame comes out **black**. The room background is
+provably present in video memory at (320,256) as a 320x240 pre-rendered image, the display is
+at (0,0) or (0,240), and about 247k primitives per run are drawn into the displayed buffer at
+the right positions and produce almost nothing. Geometry has been eliminated as the cause; the
+fault is downstream of it, in the HLE render-target path. The evidence and the next three
+probes are below.
 
 One rendering defect is also identified and quantified: before the stage load, the title
 image was uploaded to VRAM **including its 20-byte TIM header**, displacing the picture
@@ -156,69 +156,103 @@ compare against.
   event field, not evidence about sampling.
 - **Wrong VRAM read path.** Corrected above; the dump is now GL-authoritative.
 
-#### Root cause
+#### Ruled out: the drawing offset (a retraction)
 
-**The HLE draw path cannot receive the PlayStation's drawing offset, so it clips every
-primitive away.**
+**A previous revision of this document claimed the drawing offset was the root cause. That
+claim was wrong and is retracted here, with the measurement that disproves it.**
 
-Sampling the draw offset across the run:
+The reasoning was that `HleDrawEnv` carries a clip rectangle but no draw offset, so a game
+double-buffering by moving the drawing area would have its vertices clipped away. The premise
+is true - `HleDrawEnv` really does have no offset field - but the conclusion does not follow,
+because **the offset is already applied before the HLE sees anything.**
 
-```
-draw offsets seen       : 0,0 | 0,240
-drawing area(s) seen    : 0..1023 x 0..1023 | 0..319 x 0..239 | 0..319 x 240..479
-```
-
-The game double-buffers by moving the drawing area, exactly as expected: one buffer is
-`(0,0)..(319,239)` with draw offset `(0,0)`, the other is `(0,240)..(319,479)` with draw
-offset `(0,240)`. On real hardware a vertex at screen `(0,0)` is rasterised at
-`vertex + drawOffset`, so with offset `(0,240)` it lands at VRAM `(0,240)` - inside the clip
-area.
-
-The HLE draw path forwards the clip rectangle but not the offset. `HleDrawEnv` is:
+`GpuRaster` adds it while decoding the primitive:
 
 ```csharp
-public struct HleDrawEnv
-{
-    public int ClipX0, ClipY0, ClipX1, ClipY1;
-    public int TwMaskX, TwMaskY, TwOffX, TwOffY;
-    public bool SetMask, CheckMask, Dither;
-}
+v[i].X = _drawOffsetX + CoordX(vw);      // GpuRaster.cs:53
+v[i].Y = _drawOffsetY + CoordY(vw);      // GpuRaster.cs:54
 ```
 
-There is no offset field, and neither `HleVertex` nor `HleRect` carries one either, so there
-is nowhere for `Gpu.DrawOffsetX`/`DrawOffsetY` to go. `GpuHleForward.CurEnv()` builds the
-draw environment from `_drawAreaLeft/Right/Top/Bottom` and the texture-window, mask and
-dither state - and stops there.
+and `GpuHleForward.HV()` then reads `v.Precise ? v.Px : v.X`, which is that already-offset
+value. So vertices arrive in **VRAM coordinates**, and `HleDrawEnv.ClipX0..ClipY1` is in VRAM
+coordinates too. The two spaces agree. `InterpBackend` applying the offset as well is
+consistent with this, not evidence against it: it re-applies the offset because the frame graph
+it replays holds pre-offset screen coordinates.
 
-The consequence is deterministic. For the second buffer the backend is handed
-`ClipY0 = 240, ClipY1 = 479` and vertices at screen y `0..239`. Every tile lies entirely
-outside the clip rectangle, so every tile is discarded and the framebuffer keeps whatever it
-was cleared to. **That is the black screen.**
+The measurement that settles it, added to `GpuActivity` for exactly this question:
 
-It also explains why the title screen worked: its background is an uploaded image being
-displayed directly, which needs no rasteriser at all. Textured rendering is first exercised
-at the stage load, and this defect is only reachable once a game uses a nonzero draw offset,
-which is why it had not been seen before.
+```
+vertices in screen space: 192689 (max vertex y < 240)
+SCREEN vs VRAM clip     : 0        <- would be non-zero if the offset were missing
+VRAM   vs VRAM clip     : 246028
+draw-area tops          : 0:247156, 240:247446
+```
 
-#### The fix, and why it is a patch
+`SCREEN vs VRAM clip` counts primitives whose vertices all sit in the second buffer's screen
+space (y 0..239) while the clip rectangle is the second buffer (y 240..479) - the exact
+signature the missing-offset theory predicts. It is **zero**. Instead 246,028 primitives have
+VRAM-space vertices under a VRAM-space clip, which is correct. And the draw-area tops split
+almost exactly 50/50, which is the double-buffer flip working as intended.
 
-The offset has to be forwarded and applied inside the backend, so this cannot be worked
-around from the host. That makes it the first genuine need for an entry in `patches/`,
-against the pinned upstream revision, exactly as `docs/compatibility.md` anticipated. Per the
-upstream README's stance on contributions, it stays a local patch rather than a pull request.
+So the geometry the rasteriser receives is internally consistent, and every primitive that
+should land in the displayed buffer is positioned to do so.
 
-The shape of the change:
+#### Where the fault must be
 
-1. Add `OffsetX`/`OffsetY` to `HleDrawEnv`.
-2. Populate them in `GpuHleForward.CurEnv()` from `_drawOffsetX`/`_drawOffsetY`.
-3. Apply them where each backend rasterises - the same place `ClipX0..ClipY1` is consumed -
-   so that a vertex at screen `(0,0)` lands at `offset + (0,0)` in VRAM space, matching the
-   clip rectangle's coordinate space.
+Geometry is eliminated, so the fault is **downstream of it**: in the HLE render-target path,
+between "a correctly positioned primitive arrives" and "pixels appear in VRAM".
 
-Verification is already in place, which is what makes this safe to attempt: run
-`--smoke 45 --input <script>`, and the framebuffer crop should stop being 0.8% non-black and
-start showing the room background that is provably sitting at VRAM `(320,256)`. The title
-screen is the control - it needs no rasteriser, so if it regresses the patch is wrong.
+**The backend is `InterpBackend`, not `GlCore`.** Reported directly:
+
+```
+gpu hle : active=True, backend=InterpBackend
+```
+
+`HleTri` calls `GpuHle.Backend.DrawTri`, so primitives go into the interpolation backend's
+frame graph, and `InterpBackend.Replay` renders them. `GlCore` is a different object - the one
+`HostWindow` uses for VRAM and presentation - which is why reading `GlCore` to reason about the
+draw path was misleading.
+
+**And `InterpBackend` applies the drawing offset a second time.** `InterpBackend.cs:66`:
+
+```csharp
+var offsetX = (float)(Runtime.Gpu?.DrawOffsetX ?? 0);
+```
+
+That is consistent with the frame graph holding pre-offset screen coordinates, which is what
+`InterpBackend`'s own replay needs. But the vertices it is handed have **already** had the
+offset added by `GpuRaster`, and the event coordinates confirm they are in VRAM space:
+`VRAM vs VRAM clip: 202407` counts primitives whose minimum vertex y is at least 240, which
+cannot happen for screen-space coordinates on a 320x240 display.
+
+So for the second buffer, with draw offset `(0,240)` and vertices already at y `240..479`, the
+offset is added again and the geometry is pushed to y `480..719`. VRAM is 512 rows tall, so
+that content either wraps or falls outside the visible region - and the displayed buffer stays
+black. This is the inverse of the earlier retracted claim: the offset is applied twice, not
+zero times.
+
+This does not yet explain why the *first* buffer (draw offset `0,0`, where a doubled zero
+changes nothing) is also nearly empty, so it is a strong candidate rather than a closed case.
+
+#### Eliminated
+
+- **Widescreen margin.** `WideAspect=0`, `SourceAspect=1.333`, `WideMargin(320)=0`, so the
+  render target is not being widened and vertices are not being shifted by a margin. The
+  `rt.Margin` term in `GlCore`'s clip translation is therefore zero here.
+
+#### Remaining probes
+
+1. **Test the double offset directly.** `GpuRaster` writes the offset into `Vert.X/Y` and then,
+   after dispatching `RenderPrimEvent`, overwrites them from the event:
+   `v[i].X = e.X[i]` (`GpuRaster.cs:124`). If those two disagree about which space they are in,
+   that assignment is where the confusion starts. Confirming which of `v.X` and `v.Px` the
+   backend actually receives, and whether `v.Precise` is set, would settle it in one run.
+2. **Instrument the frame graph.** Whether primitives reach `InterpBackend`'s graph and are
+   replayed is separable from whether `GlCore`'s render target receives them and flushes.
+3. **Force the software rasteriser.** `GpuHle.Active` is a settable static; with it false,
+   `GpuRaster`'s own path draws into the shadow and `VramDump` reads that. If the room appears
+   there, the fault is isolated to the HLE/GL path. The host must re-assert it, because the
+   window code sets `GpuHle.Active` from backend readiness.
 
 ---
 
@@ -432,8 +466,8 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Apply the draw-offset patch** described above, then confirm the framebuffer stops being
-   0.8% non-black. This is the blocker; everything else waits on it.
+1. **Work the three probes above**, cheapest first: check whether widescreen is on, instrument
+   `Classify()`, and force the software rasteriser to isolate the GL path. This is the blocker.
 2. **Turn reaching STAGE1 into a one-line regression check.** It currently needs a hand-written
    `--input` script; naming a standard script for it would make every later phase cheap to
    re-verify.
