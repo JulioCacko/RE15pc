@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..5df9d4d 100644
+index 45a0f96..b585b26 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -139,7 +139,7 @@ index 45a0f96..5df9d4d 100644
          if (_legacy)
          {
              _gl.Disable(EnableCap.Blend);
-@@ -914,6 +953,45 @@ public sealed class GlCore : IGpuBackend
+@@ -914,6 +953,68 @@ public sealed class GlCore : IGpuBackend
          _gl.Disable(EnableCap.ScissorTest);
          if (rt != null)
          {
@@ -178,14 +178,37 @@ index 45a0f96..5df9d4d 100644
 +                            if (vy >= bandTop && vy < bandTop + 240) inBand++;
 +                        }
 +
-+                    GpuGlAccess.NoteVertexHash(hash, _count, litAfter == 0, inBand, vyMin, vyMax, bandTop);
++                    // Degenerate primitives: three vertices that coincide or are collinear enclose no
++                    // area and rasterise nothing, while looking entirely unremarkable in every aggregate
++                    // measured so far - the count, the range and the in-band test all pass for them.
++                    var tris = _count / 3;
++                    var degenerate = 0;
++                    for (var ti = 0; ti + 2 < _count; ti += 3)
++                    {
++                        var area2 = (_verts[ti + 1].X - _verts[ti].X) * (_verts[ti + 2].Y - _verts[ti].Y)
++                                  - (_verts[ti + 1].Y - _verts[ti].Y) * (_verts[ti + 2].X - _verts[ti].X);
++                        if (MathF.Abs(area2) < 1f) degenerate++;
++                    }
++
++                    // Which texture pages a batch samples, as a 16-bit mask over the four-bit page X.
++                    // The failing and working groups are otherwise alike in every aggregate measured -
++                    // count, range, in-band share and degeneracy - so the sampled page is the next field
++                    // that could differ.
++                    var pageMask = 0;
++                    for (var pi = 0; pi < _count; pi++)
++                    {
++                        var tp = (int)_verts[pi].Texpage;
++                        pageMask |= 1 << (tp & 0xF);
++                    }
++
++                    GpuGlAccess.NoteVertexHash(hash, _count, litAfter == 0, inBand, vyMin, vyMax, bandTop, tris, degenerate, pageMask);
 +                }
 +            }
 +
              rt.Dirty = true;
              rt.LastDrawFrame = _frame;
          }
-@@ -990,7 +1068,7 @@ public sealed class GlCore : IGpuBackend
+@@ -990,7 +1091,7 @@ public sealed class GlCore : IGpuBackend
          for (var i = 0; i < _rts.Length; i++)
          {
              if (_rts[i] is not { } rt) continue;

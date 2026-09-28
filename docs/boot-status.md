@@ -1892,3 +1892,22 @@ That is worth stating plainly because it is the first thing in many rounds that 
 #### Next probe
 
 Count the non-degenerate triangles in each batch: three vertices that are distinct and enclose area, rather than three that coincide or are collinear. A batch of several hundred vertices whose primitives are all degenerate renders nothing while looking entirely reasonable in every aggregate measured so far - the vertex count is unremarkable, the bounding range is unremarkable, and the vertices are genuinely inside the target. Degenerate primitives were observed early in this investigation and never connected to anything.
+
+
+#### Refuted: degeneracy and texture pages, leaving colour, palette and coordinates
+
+The two properties most likely to distinguish the 54 never-rendering contents from the 172 that render were each measured and each came back the same in both groups.
+
+```ndegenerate triangles   never renders: 2989 of 23453 (12.7%), page X in {0,6,7,8}
+                       renders:      15547 of 138503 (11.2%), page X in {0,5,6,7,8,12}
+```
+
+**Degeneracy is a baseline property, not a discriminator**: 12.7% against 11.2%, close enough that it cannot account for 54 contents rendering nothing at all. Degenerate primitives were observed early in this investigation and this is where that observation finally leads - nowhere.
+
+**Texture pages do not partition the groups either.** The failing contents sample page X in {0,6,7,8} and the working ones {0,5,6,7,8,12}; the failing set is a subset of the working set rather than a distinct set, so no page is uniquely implicated.
+
+Something else came out of running these several times. The set fingerprint is not stable across runs - 56FB547EE7ADD21E, CBCC4C534E92AC13 and C81FCDD796EC786F were all observed, with the distinct-content count moving between 226 and 228. So the batching is not fully deterministic run to run even though the *outcome* is, which the earlier six-run comparison established. Two facts that sit oddly together, and worth recording as such rather than resolving by preference: the frames come out the same every time, and the batches that produce them are grouped slightly differently.
+
+#### Next probe
+
+Compare the per-vertex fields not yet examined between the two groups: the clut each batch carries, the vertex colours, and the U/V ranges. Those are the last fields in a GlVertex that have not been put side by side. Everything else - counts, ranges, in-band share, degeneracy, sampled pages - is now known to be alike in both groups, so either one of these three differs, or the difference is not in the vertex data at all and the partition is a consequence of something else entirely.
