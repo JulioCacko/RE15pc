@@ -2423,3 +2423,30 @@ The frame counts differ by 1.3 percent, so the comparison is fair - the lesson f
 **This is recorded because it is evidence for the gate rather than against the port.** Phase 6 says a controllable player is not demonstrated, and this is the measurement behind that sentence. Two explanations remain and this test does not separate them: the input never reaches a state where a character is under player control, or the input reaches one and the button sequence used here is not the one that moves it. What it does show is that simply holding a direction through the room does not move anything, so the earlier claim of interactivity - thirteen state changes with rich input against two without - is about advancing through a sequence rather than about control.
 
 The honest summary of the six rounds left is that the remaining gap is play, not execution, and that closing it needs either a controller sequence found by someone playing the game or a different approach to discovering what the guest is polling. Neither fits in the time left, and neither is served by another instrument.
+
+#### Final verification pass, and the audio check that reported silence
+
+Everything the README and the phase gates assert was re-run, after the computed-jump fix and the function-map curation:
+
+```
+determinism      PASS - all 10 file(s) byte-identical across two recompiles
+disc manifest    OK - 349 directory entries, sha256 matches
+patches          6, apply in order: True
+game data        tracked extensions are all text; Bio2Nov96.bin ignored at .gitignore:14
+overlays         8 of 8 (7 deferred until a write to base, 1 from the entry point, 0 failed)
+long run         0 unmapped calls, SMOKE VERDICT: PASS, strict mode
+audio            AUDIBLE - peak 15778 of 32767, 17 block(s) mixed while 24 of 24 voices carried volume
+```
+
+The determinism result matters more than it looks: it passes **after** thirty-three entries were added to a generated function map, so the curation is not a source of non-reproducibility.
+
+**One of those checks was wrong when it was first advertised, and the way it was wrong is worth recording.** Following the README exactly produced `audio verdict: SILENT` while the same file claimed the SPU produces sound. The check was right and the invocation was wrong: an undriven run leaves the game waiting on the title screen, where nothing is playing yet, so the check correctly reports that there are no samples. Driven with input, the identical check reports AUDIBLE.
+
+```
+undriven, 60s   voice volume peak 0,     non-zero on 0    of 1898 frames   SILENT
+driven,   60s   voice volume peak 8975,  non-zero on 852  of 1707 frames   AUDIBLE
+```
+
+The overlay check has the same shape but not the same trap - it works undriven, because overlays load by LBA from the guest's own CD calls rather than depending on the game reaching a state. **Which check needs input is a property of what is being verified**, and both are now recorded rather than assumed.
+
+That is the same class of error as `--skip-draws flat`: an instrument that was right about *what* it measured, misused as evidence about something else. It is the last of them found, and finding it required re-running what the documentation claimed instead of trusting that it had been checked when it was written.

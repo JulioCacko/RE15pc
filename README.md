@@ -168,6 +168,47 @@ class of primitive (`all`, `textured`, `flat`, plus colour and blend variants), 
 flat` renders the room at 88%, but it also removes the title and select screens'
 flat drawing, so it is an instrument and not something to play the game with.
 
+## What remains
+
+**One gap, and it is play rather than execution.** Nothing on the disc has been played
+through: no room walked, no item taken, no door opened, no save made. Everything below
+that line is measured and reproducible.
+
+**Proven, with the check that proves it:**
+
+| Claim | How it is checked |
+|---|---|
+| Recompiles deterministically | `tools/Test-RecompileDeterminism.ps1` - 10 files byte-identical |
+| Disc is the expected one | `tools/New-DiscManifest.ps1 -Check` - 349 entries, hash matches |
+| Boots and runs real game code | 5414 guest frames with **zero unmapped calls**, strict mode |
+| All seven overlays dispatch | `--verify-overlays` - 8 of 8, 0 failed |
+| Audio produces sound | `--verify-audio` **driven** - AUDIBLE, all 24 voices |
+| Title renders correctly | `100.00%` word-exact against the disc's own `TITLEJ.TIM` |
+| A room renders | 79.6% of the framebuffer, both buffers, frames 352 and 576 |
+| The game waits for and responds to input | no input holds the title; rich input makes 13 state changes |
+
+**Two ways to close the gap**, and they are the two halves of the same problem - the game
+is waiting for a button sequence that has not been found:
+
+1. **Play it.** The input that advances the game was found by sweeping buttons, not by
+   playing, and holding directions through the room changes nothing measurable (87
+   framebuffer generations against 86, frame counts within 1.3%). A controller sequence
+   from someone who knows this build would settle it immediately.
+2. **Ask the guest what it is polling.** `BiosB.PadRead` dispatches a `PadReadEvent` whose
+   `Buttons` field a listener can replace - that is how `ScriptedInput` works - so logging
+   the states the guest *receives* alongside the state changes it makes would show which
+   presses it acts on, without guessing.
+
+**Three instruments in this repository are easy to misuse**, and each cost real time here:
+
+- **`--skip-draws flat` is not a rendering diagnostic.** The game fades itself out with flat
+  subtract rectangles over a correctly rendered image; skipping that category removes the
+  fade rather than repairing anything.
+- **`--verify-audio` must be driven.** Undriven, the game waits on the title and the check
+  correctly reports SILENT, which is not the same as a silent audio path.
+- **Any run compared against another must be compared at the same frame count.** Input and
+  diagnostic switches change how fast the host runs, and therefore where the game is.
+
 ## Layout
 
 | Path | What it is |
