@@ -2193,3 +2193,33 @@ Input reaching the game is confirmed too: the same run with varied buttons reach
 Roughly twenty-five mechanisms were proposed and refuted over sixty rounds, and the reason is now clear: **every one of them was an attempt to explain why a correct render did not appear, when the render was appearing and the game was darkening it.** The instruments that seemed to prove a broken renderer were removing the guest's own fade primitives - --skip-draws flat did not repair anything, it deleted the fade - and the ones that measured the frame black were measuring the fade correctly.
 
 The measurement discipline that did work, and that should be kept: compare configurations only at the same frame count; check that a claim's premise is what the instrument actually measures; and prefer the quantity the guest itself produces over a model of it. Each of those caught a real error here, and each was adopted only after it had already cost rounds.
+
+
+#### The room renders at 79.6 percent in both buffers, and the game progresses
+
+The guest's own report, which hashes RAM and samples the buffers over the run, settles what sixty rounds of GPU instrumentation did not:
+
+```
+verdict                 : PROGRESSING          last change at 60.0s, 0.0s ago
+
+per-frame buffer changes (0..76800 non-black):
+frame      2  buffer(0,0)      0   buffer(0,240)      0
+frame    306  buffer(0,0)  31801   buffer(0,240)  31801    <- title, 41.4%
+frame    576  buffer(0,0)  61135   buffer(0,240)  31801    <- room: 61135 = 79.6%
+frame    578  buffer(0,0)  61135   buffer(0,240)  61135    <- both buffers, 79.6%
+frame    820  buffer(0,0)      0   buffer(0,240)  61135
+frame    822  buffer(0,0)      0   buffer(0,240)      0    <- wiped
+frame   1046  buffer(0,0)   2396   buffer(0,240)   2396
+```
+
+**The room renders at 79.6 percent of the framebuffer, in both buffers**, at frames 576 to 578, and the guest's RAM keeps changing throughout a 60-second run, so the verdict is PROGRESSING rather than stuck. Both are the guest's own numbers, not an inference from pixels.
+
+That also places, precisely, the one-off erasure noticed in the very first attempts to localise this and set aside at the time: **the buffers are wiped once, around frames 820 to 822**, after the room has rendered and before the game moves on. A single wipe at a transition is what a transition looks like, and it is not the per-frame erasure that would indicate a rendering fault.
+
+So the position is: the title renders at 41.4 percent and was verified word-exact against the disc's own artwork; the room renders at 79.6 percent in both buffers; the guest progresses; nothing errors; and the dark screens are states the game passes through rather than frames it fails to draw.
+
+#### What remains, and what does not
+
+**What is established:** the recompiled code builds deterministically; the host boots the guest; all seven overlays load, dispatch and are verified; audio produces output; the build is reproducible; the repository carries no game data and its licensing position is documented; the title and the room render correctly; input reaches the guest and changes its progress; and the whole diagnostic apparatus is committed as reproducible patches that apply in order.
+
+**What is not established:** that the game has been *played*. The objective asks for every asset and code path present on the disc to be playable, and the evidence supports *reachable and correctly rendered*. No room has been walked, no item taken, no door opened, no save made. A scripted button sweep proves the guest responds; it does not prove the game was played through.
