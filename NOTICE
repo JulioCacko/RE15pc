@@ -41,6 +41,16 @@ distributed. All four rules can be verified directly:
 
     git check-ignore -v Bio2Nov96.bin generated/ out/ RecompOne/
 
+One file describes the disc and is worth being precise about, because precision here
+is the point. `disc-manifest.json` records the image's size, SHA-256 and sector
+geometry; its ISO9660 directory listing - 349 paths, each with an LBA and a size; and
+the boot executable's location, entry point and load address. It records **no disc
+bytes**. `SYSTEM.CNF`, the only file whose literal contents it once carried, is now
+identified by size and hash instead, which loses nothing: the port does not read this
+manifest at all, it verifies the disc against its own expected hash. The manifest
+exists so a freshly generated one can be compared against the committed one, which is
+what `tools/New-DiscManifest.ps1 -Check` does.
+
 
 If you are a rights holder
 --------------------------

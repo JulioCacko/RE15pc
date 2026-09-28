@@ -23,7 +23,7 @@
     "systemCnf": {
       "lba": 34259,
       "size": 65,
-      "text": "BOOT = cdrom:PSX.EXE;1\r\nTCB = 4\r\nEVENT = 16\r\nSTACK = 0X801FFF00\r\n"
+      "sha256": "4693B9C09ABC33A9FD35ACDD0C9E044CCBBD1F3CC28397238DF5684253451D88"
     },
     "bootExe": "PSX.EXE",
     "exe": {

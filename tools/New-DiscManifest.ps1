@@ -304,10 +304,16 @@ try {
             entries    = $files.Count
         }
         boot         = [ordered]@{
+            # SYSTEM.CNF is identified by size and hash rather than by its bytes. Its 65 bytes are
+            # the only literal disc content this manifest would otherwise carry, and the port does
+            # not read the manifest at all - it verifies the disc against its own expected hash -
+            # so recording the bytes bought nothing and made "this repository contains no disc
+            # data" an overstatement. The boot parameters that matter are parsed out below.
             systemCnf   = [ordered]@{
-                lba  = $cnf.lba
-                size = $cnf.size
-                text = $cnfText
+                lba    = $cnf.lba
+                size   = $cnf.size
+                sha256 = ([BitConverter]::ToString(
+                    [System.Security.Cryptography.SHA256]::Create().ComputeHash($cnfBytes)) -replace '-', '')
             }
             bootExe     = $bootExe
             exe         = [ordered]@{
