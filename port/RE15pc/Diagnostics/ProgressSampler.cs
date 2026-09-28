@@ -155,6 +155,9 @@ public sealed class ProgressSampler : IDisposable
         {
             var (gl, _) = VramDump.TryReadBackend(width, height);
             if (gl != null) backendLit = CountLit(gl, width, height, dx, dy, dw, dh);
+
+            // Reads real GL state, so it is on the same slow cadence as the backend read.
+            GlStateSampler.Sample();
         }
 
         lock (_gate)
@@ -272,6 +275,9 @@ public sealed class ProgressSampler : IDisposable
             sb.AppendLine($"verdict                 : {(Stalled ? "STALLED - guest stopped writing memory" : "PROGRESSING")}");
             sb.AppendLine($"display geometries seen : {(_displayGeometries.Count == 0 ? "(none sampled)" : string.Join(" | ", _displayGeometries.OrderBy(d => d)))}");
             sb.AppendLine($"draw offsets seen       : {(_drawOffsets.Count == 0 ? "(none sampled)" : string.Join(" | ", _drawOffsets.OrderBy(d => d)))}");
+
+            var glState = GlStateSampler.Describe();
+            if (glState.Length > 0) sb.AppendLine(glState);
 
             foreach (var top in _fbWrites.Keys.OrderBy(k => k))
             {
