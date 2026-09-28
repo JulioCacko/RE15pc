@@ -145,6 +145,14 @@ public static class GpuActivity
     private static readonly Dictionary<int, long> _texRawColors = [];
     private static readonly Dictionary<int, long> _texNotRawColors = [];
 
+    /// <summary>Rolling composition of the most recent primitives, to see what is drawn late in a run.</summary>
+    private const int RecentWindow = 10000;
+    private static bool[] _recent = [];
+    private static long _recentCount;
+    private static int _recentFlat, _recentTex;
+    private static readonly Queue<string> _lastFlats = new();
+    private static int blendMode;
+
     /// <summary>
     /// Draw-area rectangles seen on textured primitives that land in a framebuffer.
     /// </summary>
@@ -348,6 +356,41 @@ public static class GpuActivity
         if (e.SemiTransparent) Interlocked.Increment(ref _semiTransparent);
         if (e.Skip) Interlocked.Increment(ref _skipped);
 
+        // Rolling composition over the most recent primitives. The assumption that flat primitives are
+        // drawn only in the early frames - relied on since the first attempts to localise this - was made
+        // with an instrument later found unreliable, and a flat overlay drawn throughout the room phase
+        // would explain both the black frame and why skipping flat drawing restores it. No frame number
+        // is available here, and none is needed: position in the event stream stands in for time.
+        lock (Gate)
+        {
+            if (_recent.Length == 0) _recent = new bool[RecentWindow];
+
+            var i = (int)(_recentCount % RecentWindow);
+            if (_recentCount >= RecentWindow && _recent[i]) _recentTex--;
+            else if (_recentCount >= RecentWindow) _recentFlat--;
+
+            _recent[i] = e.Textured;
+            if (e.Textured) _recentTex++; else _recentFlat++;
+            _recentCount++;
+
+            // The last few flat primitives, with their extent and colour. If the ones drawn during the
+            // room phase cover the screen in black, that is the overlay that erases the room, and
+            // skipping the flat category is exactly the instrument that would remove it.
+            if (!e.Textured)
+            {
+                var w = Math.Max(e.X[0], Math.Max(e.X[1], e.X[2])) - Math.Min(e.X[0], Math.Min(e.X[1], e.X[2]));
+                var h = Math.Max(e.Y[0], Math.Max(e.Y[1], e.Y[2])) - Math.Min(e.Y[0], Math.Min(e.Y[1], e.Y[2]));
+
+                var rec = $"x {Math.Min(e.X[0], Math.Min(e.X[1], e.X[2]))}..{Math.Max(e.X[0], Math.Max(e.X[1], e.X[2]))} " +
+                          $"y {Math.Min(e.Y[0], Math.Min(e.Y[1], e.Y[2]))}..{Math.Max(e.Y[0], Math.Max(e.Y[1], e.Y[2]))} " +
+                          $"({w}x{h}) rgb=({RecompOne.Runtime.Gpu.DiagR},{RecompOne.Runtime.Gpu.DiagG},{RecompOne.Runtime.Gpu.DiagB}) " +
+                          $"semi={e.SemiTransparent} blend={blendMode}";
+
+                if (_lastFlats.Count >= 6) _lastFlats.Dequeue();
+                _lastFlats.Enqueue(rec);
+            }
+        }
+
         // Vertices 0..2 only. A quad's fourth vertex is left at zero for triangles, and
         // including it would drag the bounding box to the origin.
         lock (Gate)
@@ -532,6 +575,9 @@ public static class GpuActivity
         sb.AppendLine(GpuGlAccess.DescribeWritebacksByOrigin());
         sb.AppendLine(GpuGlAccess.DescribeBlit());
         sb.AppendLine(GpuGlAccess.DescribeBatchStates());
+        sb.AppendLine($"  most recent primitives   : of the last {Math.Min(_recentCount, RecentWindow)} drawn, " +
+                      $"{_recentTex} textured and {_recentFlat} flat");
+        sb.AppendLine($"  the last flat primitives : {(_lastFlats.Count == 0 ? "(none)" : string.Join(" | ", _lastFlats))}");
         sb.AppendLine(GpuGlAccess.DescribeVertexHashes());
         sb.AppendLine(GpuGlAccess.DescribeUpload());
         sb.AppendLine($"  settle on readback      : {Interlocked.Read(ref GpuGlAccess.SettleCalls)} call(s), " +

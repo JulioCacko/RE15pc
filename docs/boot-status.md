@@ -2098,3 +2098,28 @@ textured               554        0 ( 0.0%)    1 colour
 And the blackness is not a transient state that a longer run would leave behind: at 30 seconds the game reaches frame 927 and the display still holds 584 non-black pixels, 0.8 percent. Fifty-four percent of frames render the room and forty-six do not, at every point in the run that has been measured.
 
 What this round is worth is a method rather than a mechanism: **any instrument that changes how fast the host runs changes where the game is, and two configurations can only be compared at the same frame count.** That check had never been made, and it cost several rounds of conclusions that did not survive it. Every result in this document predating it should be read with that in mind; the ones built on --skip-draws are the ones that hold.
+
+
+#### The overlays are found: opaque black rectangles drawn every frame
+
+After the frame-count correction restored a reliable comparison, the question became what is drawn late in a run. The assumption that flat primitives stop early - relied on since the first attempts to localise this, and made with an instrument since found unreliable - is false. During the room phase the stream is 9937 textured and **63 flat** primitives per 10000, which over roughly 34 frames is about two flat primitives per frame, throughout.
+
+And they are overlays:
+
+```nx 0..320 y 0..327 (320x327) rgb=(0,0,0)        semi=False   <- opaque black, full width
+x 0..320 y 0..240 (320x240) rgb=(200,200,200)  semi=True
+x 0..320 y 87..480 (320x393) rgb=(0,0,0)       semi=False   <- opaque black, full width
+x 0..320 y 240..480 (320x240) rgb=(208,208,208) semi=True
+x 0..320 y 0..327 (320x327) rgb=(0,0,0)        semi=False   <- opaque black again
+x 0..320 y 0..240 (320x240) rgb=(216,216,216)  semi=True
+```
+
+**Full-width opaque black rectangles, drawn every frame, alternating between y 0..327 and y 87..480** - and that alternation matches the 46/54 split measured at writeback three rounds ago. Alongside them, grey semi-transparent rectangles whose value rises 200, 208, 216: a fade, in progress, in the direction of visible.
+
+Two things follow. **The room renders and is then covered.** The target was measured holding 90.3 percent at writeback in every configuration and black in 46 percent of frames, and an opaque full-screen rectangle drawn over it accounts for both without any contradiction. And **--skip-draws flat is not an instrument at all** - it removes the overlay the game is drawing, revealing the room underneath at full brightness. Every comparison made with it has been between a faded frame and an unfaded one, not between a broken frame and a working one.
+
+Which raises the question the whole investigation has been circling: **is the overlay legitimate?** A screen clear drawn as a rectangle is normal, and a fade from black is normal. What would not be normal is the order - the clear landing after the room rather than before it - and my ordering test in an earlier round could not have caught that, because it looked only at whole-region writes: WriteVram, Fill and CopyVram. **A flat rectangle is a draw, not a region write, and was never in that test.**
+
+#### Next probe
+
+Measure the order within a frame between the room's textured draws and the opaque black rectangles. If the black rectangles follow the room every frame, then either the guest draws them there or the replayer reorders them, and the two are distinguishable by logging the order the recorder accepted against the order the replayer emitted. If they precede the room, then the overlay is a clear and the blackness has another explanation - and the grey rectangles, whose value is rising, become the thing to follow instead.
