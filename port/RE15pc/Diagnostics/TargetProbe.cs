@@ -31,23 +31,24 @@ internal static class TargetProbe
     /// queue the presentation loop drains, with a bounded wait - that queue has no timeout and stops
     /// being drained once the guest ends.
     /// </remarks>
-    public static (int Lit, int Total, string Note) Read()
+    public static (int Lit, int Written, int Total, string Note) Read()
     {
         if (GpuGlAccess.Gl is null || !GpuGlAccess.Available)
-            return (0, 0, "no GL target available");
+            return (0, 0, 0, "no GL target available");
 
         if (!GpuJobs.Claimed)
-            return (0, 0, "GPU job queue not claimed");
+            return (0, 0, 0, "GPU job queue not claimed");
 
         var width = GpuGlAccess.TargetWidth;
         var height = GpuGlAccess.TargetHeight;
         var fbo = GpuGlAccess.TargetFbo;
 
         if (width <= 0 || height <= 0 || fbo == 0)
-            return (0, 0, "target has no dimensions");
+            return (0, 0, 0, "target has no dimensions");
 
         var pixels = new byte[width * height * 4];
         var lit = 0;
+        var written = 0;
         var note = "ok";
 
         var done = new ManualResetEventSlim(false);
@@ -68,9 +69,14 @@ internal static class TargetProbe
 
                 for (var i = 0; i + 3 < pixels.Length; i += 4)
                 {
-                    // Colour only. The target's alpha carries the PlayStation mask bit, and a cleared
-                    // target can legitimately have alpha set with no colour.
                     if (pixels[i] != 0 || pixels[i + 1] != 0 || pixels[i + 2] != 0) lit++;
+
+                    // Alpha carries the mask bit, and the fragment shader writes it as
+                    // max(stp, uSetMask), so a drawn pixel has it set even when the colour comes out
+                    // black. Counting it separates "nothing was drawn here" from "something was drawn
+                    // and it was black" - a distinction the colour count alone cannot make, and one
+                    // that matters because every conclusion so far rests on the colour count.
+                    if (pixels[i + 3] != 0) written++;
                 }
 
                 WriteArtifacts(pixels, width, height);
@@ -91,9 +97,9 @@ internal static class TargetProbe
 
         reader.Start();
 
-        if (!done.Wait(TimeSpan.FromSeconds(3))) return (0, 0, "target read timed out");
+        if (!done.Wait(TimeSpan.FromSeconds(3))) return (0, 0, 0, "target read timed out");
 
-        return (lit, width * height, note);
+        return (lit, written, width * height, note);
     }
     /// <summary>
     /// Writes the target surface to disk, so it can be looked at rather than only counted.

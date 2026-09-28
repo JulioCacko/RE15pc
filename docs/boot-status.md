@@ -1078,33 +1078,44 @@ and all of them were looking one stage too late in the pipeline. The question is
 `GlCore`'s batched draw rasterises nothing for these primitives, and why the presence of flat
 primitives changes that.
 
+#### The target is filled with black, not empty: rasterisation works
+
+The colour count said the render target was empty. It is not. The fragment shader writes alpha as
+`max(stp, uSetMask)`, so counting pixels whose alpha is set counts what was **drawn** regardless of
+what colour came out - and that count is nearly identical in both configurations:
+
+```
+                                    failing config      working config
+target pixels non-black             9,299               1,080,879
+target pixels with alpha set        718,240 (peak)      719,920 (peak)
+draw environments                   3 distinct          2 distinct
+  texture window                    mask=(0,0) off=(0,0) mask=(0,0) off=(0,0)
+  clip                              (0,240)..(319,479)   (0,240)..(319,479)
+```
+
+**Both configurations rasterise.** Roughly 718,000 of 1,228,800 target pixels are written with alpha
+set in each - 58% of the surface. So the room's draws are filling the target and the fragments come out
+**black**, which a colour-counting probe cannot distinguish from an empty surface.
+
+That invalidates a conclusion drawn one round earlier, and it changes where the fault is. The
+rasteriser is fine, the vertices are fine, the clip is fine, the texture window is the identity in both
+(`mask=(0,0) off=(0,0)`, so the sample coordinate is unmasked), and the blend chain was verified
+earlier. What differs is only the colour the fragment ends up with.
+
+Since `quant5(c8) == 0` implies `(t8 * vColor) >> 7 < 8`, a zero result needs either a nearly black
+texel or a very dark modulation. Forcing neutral modulation changed nothing, which was verified
+without disturbing the texpage, so the modulation is not it - which leaves the **sampled texel**.
+
 #### Next probe
 
-Validate the vertices themselves. Three measurements have now narrowed this to a very small place:
+Read the texel the shader actually samples, at the page base the vertex carries plus the tile's
+coordinate, and compare that region between the two configurations. This is not the same as asking the
+runtime where a page resolves to, which was checked earlier and resolved to non-black VRAM: what
+matters is the bytes actually in VRAM at that address when the draw happens.
 
-```
-                                        failing config        working config
-render target surface (non-black)       9,299                 1,080,879
-triangles reaching the backend          269,511               271,117
-vertices reaching the driver            835,083               834,717
-in-framebuffer textured clip            x 0..319, y 0..239    x 0..319, y 0..239
-```
-
-The target is empty in one and holds the room in the other, while **the vertices reach the driver in
-both, in near-identical numbers**, and the **draw area is the full framebuffer and identical in both**.
-So it is not a lost-vertex problem and not a scissor problem: GL is asked to rasterise the same
-geometry, under the same clip, into the right target, and produces nothing in one case and the room in
-the other.
-
-What has not been measured is whether those vertices are *valid* - their positions, and the uniforms
-that transform them (`uPosBias`, `uFbInv`, `uScale`). A vertex count says three vertices were handed
-over, not that they form a triangle anywhere on screen. Degenerate, NaN or off-surface positions would
-produce exactly this: correct counts, correct clip, correct target, no pixels.
-
-So the next probe is to capture a sample of the `GlVertex` values the driver receives for
-in-framebuffer textured draws, in both configurations, and compare. `GlCore.V` builds them and
-`BufferSubData` uploads them, so a bounded capture there is a small addition to the patch set already in
-place, and it is the last unmeasured link between the guest's command and a pixel.
+The alpha-set pixels give a cheap cross-check for the same question: a colour histogram restricted to
+pixels whose alpha is set says exactly what colours the drawn fragments are producing, without the
+undrawn black surface diluting it.
 
 
 #### Where thirty rounds of measurement leave this

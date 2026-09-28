@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..06e1088 100644
+index bc045ae..3d633f5 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,91 @@ public static class GpuGlAccess
+@@ -17,6 +17,254 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -90,6 +90,169 @@ index bc045ae..06e1088 100644
 +    /// target event, which leaves these.
 +    /// </remarks>
 +    public static Action<string>? TransferObserver;
++
++    /// <summary>
++    /// Diagnostics only: the range and validity of the vertex positions handed to the driver.
++    /// </summary>
++    /// <remarks>
++    /// Three measurements have narrowed this to a very small place. The render target is empty in the
++    /// failing configuration and holds the room in the working one, so the fault is rasterisation
++    /// rather than writeback. The vertices reach the driver in both, in near-identical numbers -
++    /// 835083 against 834717 - so nothing is being lost on the way. And the draw area, which supplies
++    /// the scissor, is the full framebuffer and identical in both.
++    ///
++    /// What a vertex count does not say is whether the vertices are valid. Three vertices arriving is
++    /// not the same as three vertices forming a triangle anywhere on the target, and degenerate,
++    /// non-finite or off-surface positions would produce exactly the observed combination: correct
++    /// counts, correct clip, correct target, no pixels. These are the values themselves.
++    /// </remarks>
++    private static readonly object VertexGate = new();
++    private static long _texVerts, _texBad, _flatVerts, _flatBad;
++    private static float _texMinX = float.MaxValue, _texMaxX = float.MinValue;
++    private static float _texMinY = float.MaxValue, _texMaxY = float.MinValue;
++    private static float _flatMinX = float.MaxValue, _flatMaxX = float.MinValue;
++    private static float _flatMinY = float.MaxValue, _flatMaxY = float.MinValue;
++
++    public static void NoteVertex(bool textured, float x, float y)
++    {
++        var bad = float.IsNaN(x) || float.IsInfinity(x) || float.IsNaN(y) || float.IsInfinity(y);
++
++        lock (VertexGate)
++        {
++            if (textured)
++            {
++                _texVerts++;
++                if (bad) _texBad++;
++                else
++                {
++                    if (x < _texMinX) _texMinX = x;
++                    if (x > _texMaxX) _texMaxX = x;
++                    if (y < _texMinY) _texMinY = y;
++                    if (y > _texMaxY) _texMaxY = y;
++                }
++            }
++            else
++            {
++                _flatVerts++;
++                if (bad) _flatBad++;
++                else
++                {
++                    if (x < _flatMinX) _flatMinX = x;
++                    if (x > _flatMaxX) _flatMaxX = x;
++                    if (y < _flatMinY) _flatMinY = y;
++                    if (y > _flatMaxY) _flatMaxY = y;
++                }
++            }
++        }
++    }
++
++    public static string DescribeVertices()
++    {
++        lock (VertexGate)
++        {
++            var t = _texVerts == 0
++                ? "none"
++                : $"x {_texMinX:0.#}..{_texMaxX:0.#}, y {_texMinY:0.#}..{_texMaxY:0.#} " +
++                  $"({_texVerts} verts, {_texBad} non-finite)";
++            var f = _flatVerts == 0
++                ? "none"
++                : $"x {_flatMinX:0.#}..{_flatMaxX:0.#}, y {_flatMinY:0.#}..{_flatMaxY:0.#} " +
++                  $"({_flatVerts} verts, {_flatBad} non-finite)";
++
++            return $"  vertex positions        : textured {t}{Environment.NewLine}" +
++                   $"                            flat     {f}";
++        }
++    }
++
++    /// <summary>
++    /// Diagnostics only: whether the vertices in a flush fall inside the target that flush draws into.
++    /// </summary>
++    /// <remarks>
++    /// Vertices carry raw VRAM coordinates and the shader shifts them into the target by
++    /// <c>uPosBias = (margin - rt.X, -rt.Y)</c>. A vertex at VRAM y 240 drawn into a target at y 0
++    /// becomes target y 240, which is outside a 240-tall target and is clipped away entirely. That
++    /// would give exactly what has been measured: correct vertices, correct scissor, correct target,
++    /// no pixels - and it would explain why the presence of flat primitives changes the outcome, since
++    /// they change how draws are grouped into flushes without changing the vertices themselves.
++    /// </remarks>
++    private static readonly object FlushGate = new();
++    private static readonly Dictionary<string, long> _flushBands = [];
++
++    public static void NoteFlush(int targetVramY, float minY, float maxY, int count)
++    {
++        string band;
++        if (maxY < targetVramY || minY >= targetVramY + 240) band = "OUTSIDE the target";
++        else if (minY >= targetVramY && maxY < targetVramY + 240) band = "inside";
++        else band = "straddling";
++
++        var key = $"target y={targetVramY,-4} verts y {minY,6:0}..{maxY,-6:0} -> {band}";
++
++        lock (FlushGate)
++        {
++            _flushBands[key] = _flushBands.TryGetValue(key, out var c) ? c + 1 : 1;
++        }
++    }
++
++    public static string DescribeFlushes()
++    {
++        lock (FlushGate)
++        {
++            if (_flushBands.Count == 0) return "  flush target bands      : none recorded";
++
++            var outside = _flushBands.Where(k => k.Key.EndsWith("OUTSIDE the target")).Sum(k => k.Value);
++            var total = _flushBands.Values.Sum();
++
++            var worst = _flushBands.OrderByDescending(k => k.Value).Take(4)
++                .Select(k => $"{k.Key} x{k.Value}");
++
++            return $"  flush target bands      : {outside} of {total} flush(es) put their vertices outside the target"
++                   + Environment.NewLine + "                            "
++                   + string.Join(Environment.NewLine + "                            ", worst);
++        }
++    }
++
++    /// <summary>
++    /// Diagnostics only: draw environments as the backend receives them, by texture window and clip.
++    /// </summary>
++    /// <remarks>
++    /// The render target turned out to be filled with BLACK rather than empty: counting alpha, which
++    /// the fragment shader writes as max(stp, uSetMask), gives 718240 drawn pixels in the failing
++    /// configuration against 719920 in the working one. So rasterisation works and the fragments are
++    /// written; it is the colour that comes out black, which a colour-counting probe cannot see and
++    /// which every earlier conclusion rested on.
++    ///
++    /// That moves the question to the shader's inputs. The texture window masks and offsets the
++    /// sampled coordinates - `uv = (raw &amp; mask) | offset` - and with no window set it is the identity at
++    /// mask 0xFF, offset 0. A window left set by an earlier draw would collapse the sample to one
++    /// small, possibly black region, which would produce exactly this.
++    /// </remarks>
++    private static readonly object EnvGate = new();
++    private static readonly Dictionary<string, long> _drawEnvs = [];
++
++    public static void NoteDrawEnv(in RecompOne.Runtime.Hle.HleDrawEnv env)
++    {
++        var key = $"texwindow mask=({env.TwMaskX},{env.TwMaskY}) off=({env.TwOffX},{env.TwOffY})" +
++                  $"  clip=({env.ClipX0},{env.ClipY0})..({env.ClipX1},{env.ClipY1})" +
++                  $"  setMask={env.SetMask} checkMask={env.CheckMask}";
++
++        lock (EnvGate)
++        {
++            _drawEnvs[key] = _drawEnvs.TryGetValue(key, out var c) ? c + 1 : 1;
++        }
++    }
++
++    public static string DescribeDrawEnvs()
++    {
++        lock (EnvGate)
++        {
++            if (_drawEnvs.Count == 0) return "  draw environments       : none recorded";
++
++            var rows = _drawEnvs.OrderByDescending(k => k.Value).Take(4).Select(k => $"{k.Key} x{k.Value}");
++            return $"  draw environments       : {_drawEnvs.Count} distinct"
++                   + Environment.NewLine + "                            "
++                   + string.Join(Environment.NewLine + "                            ", rows);
++        }
++    }
 +
      public static void Bind()
      {

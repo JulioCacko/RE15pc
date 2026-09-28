@@ -126,6 +126,16 @@ public sealed class ProgressSampler : IDisposable
     private int _targetNow, _targetPeak;
     private string _targetNote = "";
 
+    /// <summary>
+    /// Pixels whose alpha is set, which counts what was DRAWN rather than what is non-black.
+    ///
+    /// This matters because every conclusion about the target so far rested on a colour count, and a
+    /// pixel that was drawn and came out black reads as absent to a colour count. Alpha is written by
+    /// the fragment shader as max(stp, uSetMask), so it distinguishes "nothing was drawn here" from
+    /// "something was drawn and it was black".
+    /// </summary>
+    private int _targetWritten, _targetWrittenPeak;
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -220,13 +230,15 @@ public sealed class ProgressSampler : IDisposable
             // Reads real GL state, so it is on the same slow cadence as the backend read.
             GlStateSampler.Sample();
 
-            var (targetLit, _, targetNote) = TargetProbe.Read();
+            var (targetLit, targetWritten, _, targetNote) = TargetProbe.Read();
 
             lock (_gate)
             {
                 _targetNow = targetLit;
+                _targetWritten = targetWritten;
                 _targetNote = targetNote == "ok" ? "" : targetNote;
                 if (targetLit > _targetPeak) _targetPeak = targetLit;
+                if (targetWritten > _targetWrittenPeak) _targetWrittenPeak = targetWritten;
             }
 
             lock (_gate)
@@ -430,7 +442,8 @@ public sealed class ProgressSampler : IDisposable
                     sb.AppendLine($"backend store (0,{b * 240,-3})      : non-black now {_gpuBufferNow[b]}, " +
                                   $"peak {_gpuBufferPeak[b]} over {_gpuSamples} sample(s)");
 
-            sb.AppendLine($"render target surface     : non-black now {_targetNow}, peak {_targetPeak}" +
+            sb.AppendLine($"render target surface     : non-black now {_targetNow}, peak {_targetPeak}");
+            sb.AppendLine($"render target written     : alpha set now {_targetWritten}, peak {_targetWrittenPeak}" +
                           $"{(_targetNote.Length > 0 ? $"   ({_targetNote})" : "")}");
 
             if (_vramTimeline.Count > 0)
