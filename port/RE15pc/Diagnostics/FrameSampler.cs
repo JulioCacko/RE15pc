@@ -81,33 +81,6 @@ public static class FrameSampler
     private static int _maxVoiceVol, _framesWithVoiceVol, _maxVoicesOn;
     private static long _audioFrames;
 
-    /// <summary>
-    /// The largest amplitude found by mixing a block DURING the run, and how many blocks were mixed.
-    ///
-    /// An end-of-run mix can only report whether something happened to be playing at that instant, and
-    /// it reported silence - which was then corrected by finding that voice volume is non-zero on 9% of
-    /// frames. Measuring audibility needs a block rendered while voices actually have volume, so a
-    /// block is mixed occasionally and only when the volume is non-zero, which bounds the disturbance
-    /// to the audio the guest is playing.
-    /// </summary>
-    private static int _peakMixed, _blocksMixed;
-
-    private static readonly short[] MixBlock = new short[256 * 2];
-
-    /// <summary>
-    /// The peak amplitude mixed during the run, which is the meaningful measure of whether the SPU
-    /// produces sound.
-    /// </summary>
-    /// <remarks>
-    /// An end-of-run mix can only report whether something happened to be playing at that instant, and
-    /// for this game it is silent - which once produced a "silent audio" verdict that was wrong. The
-    /// acceptance test reports this value rather than its own end-of-run sample, so that the check
-    /// supports the claim instead of contradicting it.
-    /// </remarks>
-    public static int PeakMixedDuringRun => _peakMixed;
-
-    public static int BlocksMixedDuringRun => _blocksMixed;
-
     private static readonly object Gate = new();
 
     public static void Attach()
@@ -250,31 +223,6 @@ public static class FrameSampler
             if (on > _maxVoicesOn) _maxVoicesOn = on;
         }
 
-        // Only while voices carry volume, and only occasionally, so the guest's audio is disturbed as
-        // little as possible.
-        if (maxVol == 0 || _audioFrames % 32 != 0) return;
-
-        try
-        {
-            spu.Mix(MixBlock, 256);
-        }
-        catch
-        {
-            return;
-        }
-
-        var blockPeak = 0;
-        foreach (var sample in MixBlock)
-        {
-            var magnitude = Math.Abs((int)sample);
-            if (magnitude > blockPeak) blockPeak = magnitude;
-        }
-
-        lock (Gate)
-        {
-            _blocksMixed++;
-            if (blockPeak > _peakMixed) _peakMixed = blockPeak;
-        }
     }
 
     private static int Count(ushort[] vram, int top)
@@ -347,8 +295,6 @@ public static class FrameSampler
                     sb.AppendLine($"  voice volume over time  : peak VolL/VolR seen {_maxVoiceVol}, " +
                                   $"non-zero on {_framesWithVoiceVol} of {_audioFrames} frames, " +
                                   $"peak voices on {_maxVoicesOn} of 24");
-                    sb.AppendLine($"  mixed during run        : peak amplitude {_peakMixed} of 32767 " +
-                                  $"across {_blocksMixed} block(s) mixed while voices carried volume");
                 }
             }
 

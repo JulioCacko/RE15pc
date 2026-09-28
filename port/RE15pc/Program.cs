@@ -1,280 +1,212 @@
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text.Json;
 using RecompOne.Runtime;
 using RecompOne.Runtime.Config;
+using RecompOne.Runtime.Diagnostics;
 using RecompOne.Runtime.Dispatch;
 using RecompOne.Runtime.Memory;
 using RE15pc.Diagnostics;
 
 namespace RE15pc;
 
-/// <summary>
-/// Host application for the recompiled Biohazard 2 (November 6, 1996) prototype.
-/// </summary>
-/// <remarks>
-/// This exists because RecompOne ships a runtime library and no game. A port has
-/// to supply the executable that owns the memory, points the runtime at a disc,
-/// installs the game's overlay policy, and starts the boot sequence. Everything
-/// else - GPU, SPU, CD, memory cards, input, the debug panels - comes from
-/// <c>RecompOne.Runtime</c>.
-///
-/// Run it from the repository root so that <c>settings.json</c> and the diagnostics
-/// directory land in predictable places.
-/// </remarks>
 public static class Program
 {
-    private const string WindowTitle = "RE15pc - Biohazard 1.5 (Nov 6, 1996 prototype)";
-
-    private static readonly object FinishGate = new();
-    private static bool _finished;
-    private static ProgressSampler? _sampler;
+    private static long _frame;
+    private static int _timedOut, _deadlineReached;
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static int Main(string[] args)
     {
         if (!Options.TryParse(args, out var options, out var error))
         {
             Console.Error.WriteLine(error);
-            Console.Error.WriteLine();
-            Options.PrintUsage();
             return 2;
         }
-
-        if (options.Help)
-        {
-            Options.PrintUsage();
-            return 0;
-        }
-
+        if (options.Help) { Options.PrintUsage(); return 0; }
+        var sourceRoot = Directory.GetCurrentDirectory();
         var cue = Path.GetFullPath(options.Cue);
-        if (!File.Exists(cue))
-        {
-            Console.Error.WriteLine($"disc image not found: {cue}");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine("RE15pc requires your own copy of the Biohazard 1.5 (Nov 6, 1996)");
-            Console.Error.WriteLine("prototype. Place Bio2Nov96.bin and Bio2Nov96.cue in the repository");
-            Console.Error.WriteLine("root, or pass --cue <path>.");
-            return 2;
-        }
+        var output = Path.GetFullPath(options.OutDir);
+        if (!File.Exists(cue)) { Console.Error.WriteLine($"disc cue not found: {cue}"); return 2; }
+        if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
+        { Console.Error.WriteLine($"--out must be empty: {output}"); return 2; }
+        Runtime.DiscValidator = DiscIdentity.CreateValidator(options.FullHash || options.Frames is not null);
+        if (Runtime.DiscValidator(cue) is { } rejection)
+        { Console.Error.WriteLine(rejection); return 2; }
 
-        // Validate before anything expensive happens, and do it through the same
-        // reader the game itself will use.
-        var validator = DiscIdentity.CreateValidator(options.FullHash);
-        Runtime.DiscValidator = validator;
-
-        // Validate up front as well as handing the validator to the runtime.
-        // Runtime.WaitForValidDisc loops forever on a rejected disc and throws the
-        // reason away, so without this an unusable image produces a window that
-        // hangs with no explanation at all.
-        if (validator(cue) is { } rejection)
-        {
-            Console.Error.WriteLine();
-            Console.Error.WriteLine($"RE15pc cannot boot this disc: {rejection}");
-            return 2;
-        }
-
-        // Verbose logging is off by default because it is extremely chatty. A typo in
-        // a category name would otherwise look identical to "the runtime did nothing",
-        // so unknown names are reported rather than ignored.
-        var unknownLog = options.ApplyLogFlags();
-        if (unknownLog.Count > 0)
-        {
-            Console.Error.WriteLine($"[RE15pc] unknown --log categories ignored: {string.Join(", ", unknownLog)}");
-            Console.Error.WriteLine("[RE15pc] valid: bios spu gpu dma cd sdk vsync mdec irq all");
-        }
-
+        Directory.CreateDirectory(output);
+        var revision = Git(sourceRoot, "rev-parse", "HEAD");
+        var dirty = Git(sourceRoot, "status", "--porcelain");
+        var configFiles = Directory.GetFiles(Path.Combine(sourceRoot, "port", "config"), "*", SearchOption.AllDirectories)
+            .Concat(Directory.GetFiles(Path.Combine(sourceRoot, "patches"), "*.patch"));
+        var hashes = configFiles.Order().ToDictionary(p => Path.GetRelativePath(sourceRoot, p), Hash);
+        foreach (var name in new[] { "settings.json", "interface.ini" })
+            if (File.Exists(Path.Combine(sourceRoot, name))) hashes[name] = Hash(Path.Combine(sourceRoot, name));
+        // Acceptance runs must not modify the player's settings or memory cards.
+        foreach (var name in new[] { "settings.json", "interface.ini", "carda.sav", "cardb.sav" })
+            if (File.Exists(Path.Combine(sourceRoot, name)))
+                File.Copy(Path.Combine(sourceRoot, name), Path.Combine(output, name));
+        var bounded = options.Frames is not null || options.SmokeSeconds is not null;
+        if (bounded) Directory.SetCurrentDirectory(output);
+        ConsoleMirror.Install();
+        using var accumulator = new RunAccumulator();
         var memory = new PSMemory();
-
-        // HostWindow.Initialize calls ConfigManager.Load() itself, and that would
-        // overwrite a CdPath set only in memory - and create a fresh settings.json
-        // if none exists, losing it entirely. So load, override, and persist, in
-        // that order, before the runtime gets a chance to read it back.
+        var checks = new List<CheckResult>();
+        var states = new List<object>();
+        var clock = Stopwatch.StartNew();
+        Exception? hostFailure = null;
         ConfigManager.Load();
         ConfigManager.Game.CdPath = cue;
+        if (bounded)
+        {
+            ConfigManager.Game.CardAPath = IsolateCard(ConfigManager.Game.CardAPath, "carda.sav");
+            ConfigManager.Game.CardBPath = IsolateCard(ConfigManager.Game.CardBPath, "cardb.sav");
+        }
         ConfigManager.SaveGame();
-
         OverlayPolicy.Attach();
-
-        if (options.SkipDraws.Length > 0)
-        {
-            GpuActivity.SuppressMode = options.SkipDraws;
-            Console.WriteLine($"[gpu] suppressing '{options.SkipDraws}' drawing: uploads, VRAM copies and fills only");
-        }
-
-        if (options.NeutralModulation)
-        {
-            RecompOne.Runtime.Hle.GpuGlAccess.ForceNeutralModulation = true;
-            Console.WriteLine("[gpu] forcing neutral modulation for textured primitives (diagnostic)");
-        }
-
+        Dispatcher.Tolerant = options.Tolerant;
+        var unknown = options.ApplyLogFlags();
+        if (unknown.Count > 0) checks.Add(new("log-options", false, string.Join(", ", unknown)));
+        GpuActivity.SuppressMode = options.SkipDraws;
+        RecompOne.Runtime.Hle.GpuGlAccess.ForceNeutralModulation = options.NeutralModulation;
         GpuActivity.Attach(options.SoftwareGpu);
-        GlStateSampler.Attach();
         FrameSampler.Attach();
-
-        // Scripted input is what makes an unattended run able to get past the first screen
-        // that waits for a pad. Only attached when asked for, so a normal interactive run
-        // is untouched.
-        if (!string.IsNullOrWhiteSpace(options.Input))
-            ScriptedInput.Attach(options.Input);
-
-        // Tolerant mode logs unmapped calls and continues. It is a debugging aid
-        // and it hides real bugs, so it is opt-in and the default is strict.
-        if (options.Tolerant)
+        AudioVerification.Attach();
+        ScriptedInput.Attach(options.Input, options.TraceInput);
+        var sampleEvery = Math.Max(1L, (long)Math.Ceiling(options.SampleSeconds * 30));
+        Runtime.FrameCompleted = frame =>
         {
-            Dispatcher.Tolerant = true;
-            Console.WriteLine("[RE15pc] tolerant mode: unmapped calls will be logged, not thrown");
-        }
-
-        // Distinguishes "the guest is running" from "the guest has wedged", which is
-        // otherwise unanswerable: recompiled code has no program counter to sample.
-        _sampler = new ProgressSampler(memory, options.SampleSeconds);
-
-        Console.WriteLine($"[RE15pc] disc    : {cue}");
-        Console.WriteLine($"[RE15pc] strict  : {!options.Tolerant} (unmapped calls throw)");
-        Console.WriteLine($"[RE15pc] sampling: guest memory every {options.SampleSeconds:0.##}s");
-        if (options.SmokeSeconds is { } seconds)
-            Console.WriteLine($"[RE15pc] smoke   : will stop after {seconds:0.##}s");
-
-        var timer = options.SmokeSeconds is { } smokeSeconds
-            ? new Timer(_ =>
+            Interlocked.Exchange(ref _frame, frame);
+            if (frame % sampleEvery == 0 || frame == options.Frames)
+                states.Add(new { frame, overlays = Dispatcher.ActiveNames,
+                    ramSha256 = Convert.ToHexString(SHA256.HashData(memory.Ram)) });
+            if (frame == options.Frames) Runtime.RequestStop();
+        };
+        using var emergency = new Timer(_ =>
+        {
+            // A stuck guest cannot yield a consistent snapshot. Fail without inspecting it.
+            try
             {
-                var code = Finish(memory, options, "smoke window elapsed");
-                Halt(code);
-            }, null, TimeSpan.FromSeconds(smokeSeconds), Timeout.InfiniteTimeSpan)
-            : null;
+                File.WriteAllText(Path.Combine(output, "verdict.txt"), "FAIL\nreason: guest failed to stop\n");
+                File.WriteAllText(Path.Combine(output, "run.json"), JsonSerializer.Serialize(new
+                {
+                    schemaVersion = 1, revision, dirty, cue, configHashes = hashes,
+                    passed = false, completedFrames = Interlocked.Read(ref _frame),
+                    failures = new[] { "guest failed to stop within 15 seconds; no final snapshot" }
+                }, JsonOptions));
+            }
+            finally { Halt(1); }
+        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        using var limit = new Timer(_ =>
+        {
+            Interlocked.Exchange(ref _deadlineReached, 1);
+            if (options.Frames is not null) Interlocked.Exchange(ref _timedOut, 1);
+            Runtime.RequestStop();
+            emergency.Change(TimeSpan.FromSeconds(15), Timeout.InfiniteTimeSpan);
+        }, null, bounded ? TimeSpan.FromSeconds(options.SmokeSeconds ?? options.TimeoutSeconds)
+                         : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        Console.WriteLine($"[RE15pc] output={output}; targetFrames={options.Frames}; strict={!options.Tolerant}");
+        try { Runtime.Run(() => Recompiled.Entry.Run(memory, cue, "RE15pc - Biohazard 1.5")); }
+        catch (Exception ex) { hostFailure = ex; Console.Error.WriteLine(ex); }
+        limit.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        emergency.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
+        var findings = accumulator.Snapshot();
+        checks.Add(Acceptance.Completion(options.Frames, _frame, _timedOut != 0, Runtime.GameStopped));
+        if (options.SmokeSeconds is not null)
+            checks.Add(new("smoke-duration", _deadlineReached != 0, "smoke must reach its requested duration"));
+        checks.Add(new("runtime", hostFailure is null && Runtime.GameFailure is null,
+            (hostFailure ?? Runtime.GameFailure)?.ToString() ?? "guest returned without exception"));
+        checks.Add(new("preservation", !options.Tolerant && options.SkipDraws.Length == 0 &&
+            !options.NeutralModulation && !options.SoftwareGpu, "acceptance requires strict, unmodified rendering"));
+        if (Runtime.GameStopped)
+        {
+            Check("artifacts", () =>
+            {
+                var vram = VramDump.Dump(Runtime.Gpu, output);
+                RunReport.WriteArtifacts(output, memory, findings, "guest stopped", ScriptedInput.Describe(), vram);
+                foreach (var name in new[] { "ram-full.bin", "framebuffer-gl.png", "vram-gl.rgb555.bin" })
+                    if (!File.Exists(Path.Combine(output, name))) throw new IOException($"missing {name}");
+                File.WriteAllText(Path.Combine(output, "input.json"), JsonSerializer.Serialize(ScriptedInput.Trace(), JsonOptions));
+                File.WriteAllText(Path.Combine(output, "states.json"), JsonSerializer.Serialize(states, JsonOptions));
+                return new("artifacts", true, "stopped guest RAM, GPU readback, input and state trace written");
+            });
+            if (options.VerifyAudio) Check("audio", AudioVerification.Verify);
+            // Snapshot gameplay findings before synthetic verification mutates the dispatcher.
+            if (options.VerifyOverlays) Check("overlays", OverlayVerification.Verify);
+        }
+        else
+        {
+            checks.Add(new("artifacts", false, "no snapshot: guest not stopped"));
+            if (options.VerifyAudio) checks.Add(new("audio", false, "not evaluated"));
+            if (options.VerifyOverlays) checks.Add(new("overlays", false, "not evaluated"));
+        }
+        var after = accumulator.Snapshot();
+        if (after.ListenerErrors > findings.ListenerErrors || after.Crashed)
+            checks.Add(new("verification-runtime", false, "runtime/listener failure during verification"));
+        try { if (Runtime.GameStopped) Runtime.Shutdown(); }
+        catch (Exception ex) { checks.Add(new("shutdown", false, ex.ToString())); }
+        var passed = Acceptance.Passed(findings, checks);
         try
         {
-            Runtime.Run(() => Recompiled.Entry.Run(memory, cue, WindowTitle));
+            var report = new
+            {
+                schemaVersion = 1, revision, dirty, cue,
+                discSha256 = DiscIdentity.ExpectedSha256,
+                discHashVerified = options.FullHash || options.Frames is not null,
+                configHashes = hashes, requested = new { options.Frames, options.SmokeSeconds,
+                    options.TimeoutSeconds, options.Input, options.VerifyAudio, options.VerifyOverlays },
+                completedFrames = _frame, elapsedSeconds = clock.Elapsed.TotalSeconds,
+                guestStopped = Runtime.GameStopped, findings, checks, passed,
+                evidence = Directory.GetFiles(output).Select(Path.GetFileName).Order().ToArray()
+            };
+            File.WriteAllText(Path.Combine(output, "run.json"), JsonSerializer.Serialize(report, JsonOptions));
+            File.WriteAllText(Path.Combine(output, "verdict.txt"), passed ? "PASS\n" : "FAIL\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) { passed = false; Console.Error.WriteLine($"report failed: {ex}"); }
+        foreach (var check in checks) Console.WriteLine($"[{check.Name}] {(check.Passed ? "PASS" : "FAIL")}: {check.Detail}");
+        Console.WriteLine($"SMOKE VERDICT: {(passed ? "PASS" : "FAIL")}");
+        Console.WriteLine($"artifacts: {output}");
+        Halt(passed ? 0 : 1);
+        return passed ? 0 : 1;
+
+        string IsolateCard(string configured, string name)
         {
-            Console.Error.WriteLine($"[RE15pc] Runtime.Run threw: {ex}");
-        }
-        finally
-        {
-            timer?.Dispose();
+            var source = Path.GetFullPath(configured, sourceRoot);
+            var target = Path.Combine(output, name);
+            if (File.Exists(source)) File.Copy(source, target, true);
+            return target;
         }
 
-        return Finish(memory, options, "Runtime.Run returned");
+        void Check(string name, Func<CheckResult> action)
+        {
+            try { checks.Add(action()); }
+            catch (Exception ex) { checks.Add(new(name, false, ex.ToString())); }
+        }
     }
 
-    /// <summary>
-    /// Evaluates the run once and writes its artifacts. Idempotent, because either
-    /// the smoke timer or the returning game thread can get here first.
-    /// </summary>
-    private static int Finish(PSMemory memory, Options options, string reason)
+    private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+    private static string Git(string directory, params string[] args)
     {
-        lock (FinishGate)
-        {
-            if (_finished) return 0;
-            _finished = true;
-        }
-
-        _sampler?.Dispose();
-
-        var findings = RunReport.AnalyseMirror();
-        var progress = (_sampler?.Describe() ?? "") + Environment.NewLine + ScriptedInput.Describe();
-
-        // Dump video memory before the process goes away, since the whole point is to
-        // see what the guest drew without a human watching the window.
-        var vram = "";
-        try
-        {
-            vram = VramDump.Dump(Runtime.Gpu, options.OutDir) + Environment.NewLine + GpuActivity.Describe();
-        }
-        catch (Exception ex)
-        {
-            vram = $"  VRAM dump failed: {ex.Message}";
-        }
-
-        string report;
-        try
-        {
-            report = RunReport.WriteArtifacts(options.OutDir, memory, findings, reason, progress, vram);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[RE15pc] could not write diagnostics: {ex.Message}");
-            report = findings.Describe();
-        }
-
-        Console.WriteLine();
-        Console.WriteLine("================ RE15pc run report ================");
-        Console.WriteLine(report);
-        Console.WriteLine($"artifacts: {Path.GetFullPath(options.OutDir)}");
-        Console.WriteLine($"OverlayPolicy evictions: {OverlayPolicy.Evictions}");
-
-        // Runs last, after the guest has stopped, because it resets the dispatcher.
-        if (options.VerifyOverlays)
-        {
-            var overlayCheck = OverlayVerification.Verify();
-            Console.WriteLine();
-            Console.WriteLine(overlayCheck);
-
-            var checkPath = Path.Combine(options.OutDir, "overlay-dispatch.txt");
-            Directory.CreateDirectory(options.OutDir);
-            File.WriteAllText(checkPath, overlayCheck + Environment.NewLine);
-            Console.WriteLine($"wrote {checkPath}");
-        }
-
-        if (options.VerifyAudio)
-        {
-            var audioCheck = AudioVerification.Verify();
-            Console.WriteLine();
-            Console.WriteLine(audioCheck);
-
-            Directory.CreateDirectory(options.OutDir);
-            File.WriteAllText(Path.Combine(options.OutDir, "audio.txt"), audioCheck + Environment.NewLine);
-        }
-
-        Console.WriteLine("===================================================");
-
-        // Last line, greppable, and authoritative in a way the exit code is not.
-        Console.WriteLine($"SMOKE VERDICT: {(findings.Failed ? "FAIL" : "PASS")}");
-        Console.Out.Flush();
-
-        return findings.Failed ? 1 : 0;
+        var start = new ProcessStartInfo("git") { WorkingDirectory = directory, RedirectStandardOutput = true,
+            RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+        foreach (var arg in args) start.ArgumentList.Add(arg);
+        using var process = Process.Start(start)!;
+        var value = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        if (process.ExitCode != 0) throw new IOException("cannot record git provenance");
+        return value.Trim();
     }
-
-    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool TerminateProcess(IntPtr hProcess, uint exitCode);
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool TerminateProcess(IntPtr process, uint code);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern IntPtr GetCurrentProcess();
-
-    /// <summary>
-    /// Ends the process immediately with <paramref name="code"/>, deliberately running
-    /// no teardown.
-    /// </summary>
-    /// <remarks>
-    /// Both obvious alternatives are broken here, and this was established by reading
-    /// the crash rather than guessing:
-    ///
-    /// Calling <c>Runtime.Shutdown()</c> from this timer gives 0xC0000005, an access
-    /// violation, because it walks into GL object deletion from a thread-pool thread
-    /// with no current GL context:
-    /// <c>GL.DeleteFramebuffers -&gt; Gl45Vram.Dispose -&gt; GlCore.Dispose -&gt;
-    /// HostWindow.OnClosing</c>.
-    ///
-    /// Plain <c>Environment.Exit</c> gives 0xC0000409, because it runs finalizers and
-    /// AppDomain shutdown on this thread while the guest thread and the native audio,
-    /// video and detour libraries are still live.
-    ///
-    /// The guest loop never returns on its own - a title screen waits on interrupts
-    /// forever - so the harness has to stop the process from outside it. Terminating
-    /// outright is the only path that leaves the exit code as the verdict actually
-    /// earned. Artifacts and <c>verdict.txt</c> are already written and flushed by
-    /// <see cref="Finish"/> before this runs.
-    /// </remarks>
     private static void Halt(int code)
     {
         Console.Out.Flush();
         Console.Error.Flush();
-
-        if (OperatingSystem.IsWindows())
-        {
-            TerminateProcess(GetCurrentProcess(), (uint)code);
-            return; // not reached when the call succeeds
-        }
-
-        Environment.Exit(code);
+        if (OperatingSystem.IsWindows()) TerminateProcess(GetCurrentProcess(), (uint)code);
+        else Environment.Exit(code);
     }
 }

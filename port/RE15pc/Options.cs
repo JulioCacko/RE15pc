@@ -11,6 +11,9 @@ public sealed class Options
     /// pass/fail code instead of running until the game thread ends.
     /// </summary>
     public double? SmokeSeconds { get; private init; }
+    public long? Frames { get; private init; }
+    public double TimeoutSeconds { get; private init; } = 300;
+    public bool TraceInput { get; private init; }
 
     /// <summary>Log unmapped calls and continue, rather than throwing.</summary>
     public bool Tolerant { get; private init; }
@@ -19,7 +22,7 @@ public sealed class Options
     public bool FullHash { get; private init; }
 
     /// <summary>Where diagnostics are written.</summary>
-    public string OutDir { get; private init; } = Path.Combine("out", "diagnostics");
+    public string OutDir { get; private init; } = Path.Combine("out", "runs", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
 
     /// <summary>
     /// Comma-separated runtime log categories to enable, or empty for none. Names
@@ -74,9 +77,12 @@ public sealed class Options
     {
         var cue = "Bio2Nov96.cue";
         double? smoke = null;
+        long? frames = null;
+        double timeout = 300;
+        var traceInput = false;
         var tolerant = false;
         var fullHash = false;
-        var outDir = Path.Combine("out", "diagnostics");
+        var outDir = Path.Combine("out", "runs", DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..8]);
         var log = "";
         var sample = 0.5;
         var input = "";
@@ -91,6 +97,20 @@ public sealed class Options
         {
             switch (args[i])
             {
+                case "--frames":
+                    if (++i >= args.Length || !long.TryParse(args[i], out var count) || count <= 0)
+                    { error = "--frames needs a positive integer"; options = new Options(); return false; }
+                    frames = count;
+                    break;
+                case "--timeout":
+                    if (++i >= args.Length || !double.TryParse(args[i], System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out timeout) ||
+                            !double.IsFinite(timeout) || timeout <= 0 || timeout > 86400)
+                    { error = "--timeout needs finite seconds in (0, 86400]"; options = new Options(); return false; }
+                    break;
+                case "--trace-input":
+                    traceInput = true;
+                    break;
                 case "--cue":
                     if (++i >= args.Length) { error = "--cue needs a path"; options = new Options(); return false; }
                     cue = args[i];
@@ -100,7 +120,7 @@ public sealed class Options
                     if (++i >= args.Length) { error = "--smoke needs a number of seconds"; options = new Options(); return false; }
                     if (!double.TryParse(args[i], System.Globalization.NumberStyles.Float,
                             System.Globalization.CultureInfo.InvariantCulture, out var seconds) ||
-                        seconds <= 0)
+                        !double.IsFinite(seconds) || seconds <= 0 || seconds > 86400)
                     {
                         error = $"--smoke expects a positive number of seconds, got '{args[i]}'";
                         options = new Options();
@@ -130,7 +150,7 @@ public sealed class Options
                 case "--sample":
                     if (++i >= args.Length) { error = "--sample needs a number of seconds"; options = new Options(); return false; }
                     if (!double.TryParse(args[i], System.Globalization.NumberStyles.Float,
-                            System.Globalization.CultureInfo.InvariantCulture, out sample) || sample <= 0)
+                            System.Globalization.CultureInfo.InvariantCulture, out sample) || !double.IsFinite(sample) || sample <= 0 || sample > 86400)
                     {
                         error = $"--sample expects a positive number of seconds, got '{args[i]}'";
                         options = new Options();
@@ -183,10 +203,17 @@ public sealed class Options
             }
         }
 
+        if (frames is not null && smoke is not null)
+        { error = "--frames and --smoke are mutually exclusive"; options = new Options(); return false; }
+        if (!string.IsNullOrWhiteSpace(input) && !InputSchedule.TryParse(input, out _, out error))
+        { options = new Options(); return false; }
         options = new Options
         {
             Cue = cue,
             SmokeSeconds = smoke,
+            Frames = frames,
+            TimeoutSeconds = timeout,
+            TraceInput = traceInput,
             Tolerant = tolerant,
             FullHash = fullHash,
             OutDir = outDir,
@@ -254,12 +281,15 @@ public sealed class Options
         Console.WriteLine("usage: RE15pc [options]");
         Console.WriteLine();
         Console.WriteLine("  --cue <path>        disc cue sheet to boot (default Bio2Nov96.cue)");
+        Console.WriteLine("  --frames <count>    stop at this completed guest frame; exact-count acceptance");
+        Console.WriteLine("  --timeout <secs>    frame-run wall timeout, default 300; timeout fails");
+        Console.WriteLine("  --trace-input      log pad values delivered to the guest");
         Console.WriteLine("  --smoke <seconds>   run for N seconds, write diagnostics, then exit");
         Console.WriteLine("                      non-zero if the run crashed or made an unmapped call");
         Console.WriteLine("  --tolerant          log unmapped calls and continue instead of throwing;");
         Console.WriteLine("                      a debugging aid that hides real bugs, so off by default");
         Console.WriteLine("  --full-hash         verify the whole disc SHA-256, not just its geometry");
-        Console.WriteLine("  --out <dir>         diagnostics directory (default out/diagnostics)");
+        Console.WriteLine("  --out <dir>         empty diagnostics directory (default unique out/runs/<id>)");
         Console.WriteLine("  --log <categories>  enable runtime logging. One or more of:");
         Console.WriteLine("                        bios spu gpu dma cd sdk vsync mdec irq all");
         Console.WriteLine("                      e.g. --log irq,vsync,cd");
@@ -268,7 +298,7 @@ public sealed class Options
         Console.WriteLine("                        --input 90:start,210:cross,330:cross");
         Console.WriteLine("                      buttons: select start up down left right l1 r1 l2 r2");
         Console.WriteLine("                               l3 r3 triangle circle cross square");
-        Console.WriteLine("                      each press is held for 12 frames");
+        Console.WriteLine("                      frame:buttons[:duration], default 12; none releases; latest step wins");
         Console.WriteLine("  --software-gpu      disable the GPU HLE so the software rasteriser draws into");
         Console.WriteLine("                      shadow VRAM; a diagnostic for isolating the GL path");
         Console.WriteLine("  --help              show this message");

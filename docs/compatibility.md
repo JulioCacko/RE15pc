@@ -41,7 +41,7 @@ behavioural changes impossible to attribute. Bump it deliberately, re-run Phase
 `bootstrap.ps1` applies every `patches/*.patch` in filename order with
 `git apply --3way`, and fails loudly if one does not apply.
 
-*No patches yet.* The expectation is that the SPU sequence player is the most
+Seven patches are now tracked. Patches 0001–0006 preserve the earlier GPU and crash diagnostics; patch 0007 adds controlled guest stopping, passive output observation, full-run log observation, and safe window-close reporting. See [acceptance.md](acceptance.md). Historical expectation: The expectation is that the SPU sequence player is the most
 likely place one becomes necessary: `PSX/SOUND/*.BGM` are PSY-Q SEQ banks
 driving VAB samples through the SPU, and `PSX.EXE` carries the strings
 `Can't Open Sequence data any more` and `This is an old SEQ Data Format.`, which
@@ -176,7 +176,7 @@ gaps table below rather than described as working.
 
 ## Known gaps
 
-_None recorded yet; this table is filled in from Phase 6 onward._
+Gameplay remains unverified. See [acceptance.md](acceptance.md) for current evidence; the older phase summaries are not gold acceptance.
 
 | Subsystem | Status | Notes |
 |---|---|---|

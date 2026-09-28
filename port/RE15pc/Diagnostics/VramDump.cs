@@ -153,6 +153,12 @@ public static class VramDump
             return (null, "GPU job queue not claimed");
 
         var buffer = new ushort[width * height];
+        if (GpuJobs.IsOwner)
+        {
+            backend.ReadVram(0, 0, width, height, buffer);
+            return (buffer, "");
+        }
+        Exception? failure = null;
         var done = new ManualResetEventSlim(false);
 
         var reader = new Thread(() =>
@@ -161,9 +167,9 @@ public static class VramDump
             {
                 GpuJobs.Run(() => backend.ReadVram(0, 0, width, height, buffer));
             }
-            catch
+            catch (Exception ex)
             {
-                // Reported through the timeout/absence of data below.
+                failure = ex;
             }
             finally
             {
@@ -178,7 +184,7 @@ public static class VramDump
         reader.Start();
 
         return done.Wait(TimeSpan.FromSeconds(5))
-            ? (buffer, "")
+            ? (failure is null ? (buffer, "") : (null, $"backend read failed: {failure.Message}"))
             : (null, "backend read timed out");
     }
 

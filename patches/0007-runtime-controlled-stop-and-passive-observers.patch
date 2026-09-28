@@ -1,0 +1,219 @@
+diff --git a/RecompOne.Runtime/Diagnostics/ConsoleMirror.cs b/RecompOne.Runtime/Diagnostics/ConsoleMirror.cs
+index 69ab0de..2800ce8 100644
+--- a/RecompOne.Runtime/Diagnostics/ConsoleMirror.cs
++++ b/RecompOne.Runtime/Diagnostics/ConsoleMirror.cs
+@@ -4,6 +4,8 @@ namespace RecompOne.Runtime.Diagnostics;
+ 
+ public static class ConsoleMirror
+ {
++    // Observers see every complete line, before the UI ring buffer can discard it.
++    public static event Action<string>? LineWritten;
+     private const int MaxLines = 4000;
+ 
+     private static readonly object _gate = new();
+@@ -76,9 +78,11 @@ public static class ConsoleMirror
+ 
+     private static void FlushPendingLocked()
+     {
+-        _lines.Add(_pending.ToString());
++        var line = _pending.ToString();
++        _lines.Add(line);
+         _pending.Clear();
+         if (_lines.Count > MaxLines) _lines.RemoveRange(0, _lines.Count - MaxLines);
++        LineWritten?.Invoke(line);
+     }
+ 
+     private sealed class Tee : TextWriter
+@@ -116,4 +120,4 @@ public static class ConsoleMirror
+             _inner.Flush();
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/Host/Audio.cs b/RecompOne.Runtime/Host/Audio.cs
+index 26aa204..4bf2e68 100644
+--- a/RecompOne.Runtime/Host/Audio.cs
++++ b/RecompOne.Runtime/Host/Audio.cs
+@@ -111,6 +111,7 @@ internal static unsafe class Audio
+ 
+             _al.BufferData(buf, BufferFormat.Stereo16, _sampleBuf, 44100);
+             _al.SourceQueueBuffers(_source, 1, &buf);
++            Runtime.AudioOutputObserved?.Invoke(_sampleBuf);
+             processed--;
+         }
+ 
+@@ -122,8 +123,7 @@ internal static unsafe class Audio
+     public static void Shutdown()
+     {
+         if (_alc == null) return;
+-        _running = false;
+-        _mixerThread?.Join();
++        StopMixing();
+         if (_al != null)
+         {
+             _al.SourceStop(_source);
+@@ -134,4 +134,10 @@ internal static unsafe class Audio
+         if (_context != null) _alc.DestroyContext(_context);
+         if (_device != null) _alc.CloseDevice(_device);
+     }
+-}
+\ No newline at end of file
++
++    public static void StopMixing()
++    {
++        _running = false;
++        _mixerThread?.Join();
++    }
++}
+diff --git a/RecompOne.Runtime/Host/Window/HostWindow.cs b/RecompOne.Runtime/Host/Window/HostWindow.cs
+index 757c064..10f691a 100644
+--- a/RecompOne.Runtime/Host/Window/HostWindow.cs
++++ b/RecompOne.Runtime/Host/Window/HostWindow.cs
+@@ -290,8 +290,8 @@ public static class HostWindow
+ 
+         if (_window.IsClosing)
+         {
+-            Runtime.Shutdown();
+-            Environment.Exit(0);
++            Runtime.RequestStop();
++            return;
+         }
+ 
+         InputManager.Poll();
+@@ -329,8 +329,8 @@ public static class HostWindow
+         
+         if (_window.IsClosing)
+         {
+-            Runtime.Shutdown();
+-            Environment.Exit(0);
++            Runtime.RequestStop();
++            return;
+         }
+         
+         InputManager.Poll();
+@@ -378,8 +378,8 @@ public static class HostWindow
+ 
+         if (_window.IsClosing)
+         {
+-            Runtime.Shutdown();
+-            Environment.Exit(0);
++            Runtime.RequestStop();
++            return;
+         }
+ 
+         _window.DoRender();
+@@ -387,6 +387,7 @@ public static class HostWindow
+ 
+     public static void Shutdown()
+     {
++        OnClosing();
+         if (!_headless && _window != null && !_window.IsClosing)
+             _window.Close();
+         InputManager.Shutdown();
+@@ -468,8 +469,8 @@ public static class HostWindow
+ 
+         if (!closing) return;
+ 
+-        Runtime.Shutdown();
+-        Environment.Exit(0);
++        Runtime.RequestStop();
++            return;
+     }
+ 
+     private static void OnLoad()
+@@ -729,6 +730,8 @@ public static class HostWindow
+ 
+     private static void OnClosing()
+     {
++        Runtime.RequestStop();
++        if (!Runtime.GameStopped) return; // Guest may still have queued GL work.
+         if (_closed) return;
+         _closed = true;
+         ConfigManager.SaveView(PanelManager.Panels);
+diff --git a/RecompOne.Runtime/Runtime.cs b/RecompOne.Runtime/Runtime.cs
+index 6ab7c39..d3e1a52 100644
+--- a/RecompOne.Runtime/Runtime.cs
++++ b/RecompOne.Runtime/Runtime.cs
+@@ -197,6 +197,18 @@ public static class Runtime
+     }
+ 
+     private static volatile bool _gameDone;
++    private static volatile bool _stopRequested;
++    private sealed class StopRequestedSignal : Exception { }
++    public static Action<long>? FrameCompleted;
++    public delegate void AudioOutputObserver(ReadOnlySpan<short> samples);
++    public static AudioOutputObserver? AudioOutputObserved;
++    public static Exception? GameFailure { get; private set; }
++    public static bool GameStopped => _gameDone;
++    public static void RequestStop() => _stopRequested = true;
++    public static void CheckStop()
++    {
++        if (_stopRequested) throw new StopRequestedSignal();
++    }
+     private static readonly System.Diagnostics.Stopwatch _presentWatch = System.Diagnostics.Stopwatch.StartNew();
+     private static double _nextPresentMs;
+     
+@@ -215,6 +227,8 @@ public static class Runtime
+         
+         while (!_gameDone)
+             PresentLoop();
++        thread.Join();
++        Audio.StopMixing();
+     }
+     
+     private static void RunGame(Action boot)
+@@ -225,6 +239,10 @@ public static class Runtime
+                 boot();
+                 break;
+             }
++            catch (StopRequestedSignal)
++            {
++                break;
++            }
+             catch (HardResetSignal)
+             {
+                 Console.WriteLine("[Runtime] hard reset, game restarting");
+@@ -232,6 +250,7 @@ public static class Runtime
+             }
+             catch (Exception e)
+             {
++                GameFailure = e;
+                 // The stack trace names the recompiled function that made the failing call. Without it
+                 // the report says only that some address was unmapped, which is not enough to act on:
+                 // the caller is what identifies which guest routine expects something to be there.
+@@ -323,6 +342,7 @@ public static class Runtime
+     
+     public static void PresentFrame()
+     {
++        CheckStop();
+         if (_hardResetPending)
+         {
+             _hardResetPending = false;
+@@ -355,4 +375,4 @@ public static class Runtime
+         Audio.Shutdown();
+         HostWindow.Shutdown();
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Runtime/sdk/LibEtc.cs b/RecompOne.Runtime/sdk/LibEtc.cs
+index a69db17..790fa99 100644
+--- a/RecompOne.Runtime/sdk/LibEtc.cs
++++ b/RecompOne.Runtime/sdk/LibEtc.cs
+@@ -51,6 +51,8 @@ public static class LibEtc
+         }
+ 
+         c.V0 = elapsed;
++        Runtime.FrameCompleted?.Invoke(_vcount);
++        Runtime.CheckStop();
+     }
+ 
+     private static uint Elapsed()
+@@ -92,4 +94,4 @@ public static class LibEtc
+ 
+         var extra = Interrupts.VBlankCount - target;
+     }
+-}
+\ No newline at end of file
++}

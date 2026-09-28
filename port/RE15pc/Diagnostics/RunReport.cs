@@ -204,14 +204,6 @@ public static class RunReport
         var text = sb.ToString();
         File.WriteAllText(Path.Combine(outDir, "report.txt"), text);
 
-        // A standalone machine-readable verdict. The process exit code cannot carry it:
-        // terminating while the guest thread and the GL/audio stacks are live trips a
-        // native fail-fast, so callers must read this file instead of trusting $?.
-        var verdict = findings.Failed ? "FAIL" : "PASS";
-        File.WriteAllText(Path.Combine(outDir, "verdict.txt"),
-            $"{verdict}\nreason: {reason}\ncrash: {findings.Crashed}\n" +
-            $"unmappedCalls: {findings.UnmappedCalls}\nlistenerErrors: {findings.ListenerErrors}\n");
-
         return text;
     }
 
