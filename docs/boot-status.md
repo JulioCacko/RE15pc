@@ -427,12 +427,69 @@ a large primitive exercises differently from a small one:
 - `GlCore.FillRect` walks the render targets and can take a `FillRtFull` path, which a large quad
   makes more likely to be selected.
 
+#### The draws do land: it is not a classification or binding defect
+
+`Classify` is private, but its effect is observable. `VramTracker` is public and `GlCore` calls
+`MarkGpuWrite` when it writes a render target back into VRAM and when it draws without one, so
+sampling `IsGpuDirty` and `Generation` for each framebuffer region says whether draws are reaching
+it:
+
+| configuration | framebuffer (0,0) | framebuffer (0,240) | display crop |
+|---|---|---|---|
+| default | gpu-dirty 50/52 samples, generation changed 50x | gpu-dirty 50/52, changed 50x | 585 (0.8%) |
+| `--skip-draws flat` | gpu-dirty 43/51, changed 46x | gpu-dirty 43/51, changed 46x | 67,557 (88.0%) |
+
+**Both regions are written on essentially every sample in both configurations.** The draws are
+landing in the framebuffer. So the three candidates the previous section listed - `Classify`
+selecting a target that is never composited, `RebindTarget` leaving the wrong framebuffer bound, and
+`FillRect`'s `FillRtFull` path - are all eliminated, because a mis-bound or uncomposited target would
+show as a region that stops being marked written. It does not.
+
+That leaves a narrower and more awkward statement. In the default configuration the textured draws
+happen after the clear, land in the framebuffer, sample correct data, sit at correct positions - and
+the pixels they produce are black. Removing the screen-covering flat quads changes the *colour* the
+same draws produce.
+
+#### The remaining candidate: blend state left by the clear
+
+A primitive before them changing the colour they produce points at blend state rather than geometry,
+and `GlCore`'s semi-transparent path is the place to look:
+
+```csharp
+if (_legacy)              { Disable(Blend); DrawArrays(...); }
+else if (!_kTransparent)  { Disable(Blend); DrawArrays(...); }   // no BlendEquation reset
+else
+{
+    Enable(Blend);
+    BlendFuncSeparate(Src1Color, Src1Alpha, One, Zero);
+    if (_kBlend == 2)
+    {
+        BlendEquation(FuncAdd); SetBlend(0f, 1f); DrawArrays(...);
+        if (needDest) { _vram.BeginDestRead(destTex, ...); RebindTarget(rt); }
+        BlendEquationSeparate(FuncReverseSubtract, FuncAdd); SetBlend(1f, 1f);
+        Uniform4(_uBlendOpaque, 0f, 0f, 0f, 1f); DrawArrays(...);
+    }
+    ...
+}
+```
+
+Two things stand out. First, the opaque branches **disable blending without resetting the blend
+equation**, so `FuncReverseSubtract` set by an earlier subtract-blended quad stays in the GL state.
+Second, and more significantly, the shader is told the blend mode as a uniform
+(`Uniform1(_uBlendMode, _kBlend)`, line 861), so the blend may be implemented *in the shader* against
+a destination-read texture rather than by fixed-function blending.
+
+A reverse subtract evaluated as `destination - source` against a black clear gives `0 - source`,
+which clamps to black - and that is precisely the observed result: correct geometry, correct texture,
+landing in the right place, producing nothing. It would also explain why removing the subtract-blended
+screen quads changes the colour of draws that come after them.
+
 #### Next probe
 
-Instrument `Classify()`: whether it returns a target or null for the draws that follow a
-screen-covering quad, and which target. That separates "classified into a target that is never
-composited" from "bound to the wrong framebuffer by a rebind". `RebindTarget` and `BeginDestRead`
-are the two functions to read first, given the blend-2 path already calls both mid-draw.
+Establish whether blend mode 2's shader path leaves state that later draws consume. The specific
+question is whether `_uBlendMode` and the destination-read texture are correctly set for draws that
+are not themselves semi-transparent, and whether `BlendEquation` is reset on the opaque branches.
+`GlCore.cs:874-912` is the whole of it.
 
 ---
 
