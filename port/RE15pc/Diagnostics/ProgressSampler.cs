@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using RecompOne.Runtime;
 using RecompOne.Runtime.Memory;
 
 namespace RE15pc.Diagnostics;
@@ -47,6 +48,20 @@ public sealed class ProgressSampler : IDisposable
     /// </summary>
     private readonly HashSet<string> _drawOffsets = [];
 
+    /// <summary>
+    /// Timeline of non-black pixels in the display region, per store.
+    ///
+    /// This is the measurement that distinguishes the two candidate mechanisms for the black
+    /// frame: a shadow that fills and is then overwritten by a backend readback, versus one that
+    /// is never filled at all. Sampling only at the end cannot tell them apart, and both look
+    /// identical in a single dump.
+    /// </summary>
+    private readonly List<(double Seconds, int ShadowLit, int BackendLit)> _vramTimeline = [];
+    private int _ticks;
+
+    /// <summary>Backend VRAM reads need the GL thread, so they are taken far less often.</summary>
+    private const int BackendEvery = 8;
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -82,11 +97,76 @@ public sealed class ProgressSampler : IDisposable
 
                     _drawOffsets.Add($"{gpu.DrawOffsetX},{gpu.DrawOffsetY}");
                 }
+
+            SampleVram();
         }
         catch
         {
             // Diagnostics must never take down the run they are describing.
         }
+    }
+
+    /// <summary>
+    /// Counts non-black pixels in the display region of each VRAM store, to build a timeline.
+    /// </summary>
+    private void SampleVram()
+    {
+        if (RecompOne.Runtime.Runtime.Gpu is not { } gpu) return;
+
+        const int width = Gpu.VramWidth;
+        const int height = Gpu.VramHeight;
+
+        var dx = gpu.DisplayX;
+        var dy = gpu.DisplayY;
+        var dw = Math.Clamp(gpu.DisplayWidth, 0, width);
+        var dh = Math.Clamp(gpu.DisplayHeight, 0, height);
+        if (dw <= 0 || dh <= 0) return;
+
+        var shadow = gpu.Vram;
+        if (shadow.Length < width * height) return;
+
+        var shadowLit = CountLit(shadow, width, height, dx, dy, dw, dh);
+
+        var tick = ++_ticks;
+        var backendLit = -1;
+
+        if (tick % BackendEvery == 0)
+        {
+            var (gl, _) = VramDump.TryReadBackend(width, height);
+            if (gl != null) backendLit = CountLit(gl, width, height, dx, dy, dw, dh);
+        }
+
+        lock (_gate)
+        {
+            // Collapse runs of identical readings; a static screen otherwise produces a
+            // timeline of thousands of rows and no information.
+            var last = _vramTimeline.Count > 0 ? _vramTimeline[^1] : default;
+            var sameAsLast = _vramTimeline.Count > 0
+                             && last.ShadowLit == shadowLit
+                             && (backendLit < 0 || last.BackendLit == backendLit);
+
+            if (sameAsLast && backendLit < 0) return;
+
+            _vramTimeline.Add((_clock.Elapsed.TotalSeconds, shadowLit, backendLit));
+        }
+    }
+
+    private static int CountLit(ushort[] vram, int width, int height, int dx, int dy, int dw, int dh)
+    {
+        var lit = 0;
+
+        for (var y = 0; y < dh; y++)
+        {
+            var row = ((dy + y) & (height - 1)) * width;
+
+            for (var x = 0; x < dw; x++)
+            {
+                var px = vram[row + ((dx + x) & (width - 1))];
+                if (px != 0 && px != 0x8000) lit++;
+            }
+        }
+
+        return lit;
     }
 
     /// <summary>Distinct memory states observed, i.e. how many times RAM actually changed.</summary>
@@ -141,6 +221,26 @@ public sealed class ProgressSampler : IDisposable
             sb.AppendLine($"verdict                 : {(Stalled ? "STALLED - guest stopped writing memory" : "PROGRESSING")}");
             sb.AppendLine($"display geometries seen : {(_displayGeometries.Count == 0 ? "(none sampled)" : string.Join(" | ", _displayGeometries.OrderBy(d => d)))}");
             sb.AppendLine($"draw offsets seen       : {(_drawOffsets.Count == 0 ? "(none sampled)" : string.Join(" | ", _drawOffsets.OrderBy(d => d)))}");
+
+            if (_vramTimeline.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"  display-region non-black pixels over time " +
+                              $"('-' = backend not sampled; backend sampled every {BackendEvery} ticks):");
+
+                var shown = _vramTimeline.Count <= 14
+                    ? _vramTimeline
+                    : _vramTimeline.Take(7).Concat(_vramTimeline.TakeLast(7)).ToList();
+
+                for (var i = 0; i < shown.Count; i++)
+                {
+                    if (_vramTimeline.Count > 14 && i == 7) sb.AppendLine("    ...");
+
+                    var (sec, shadowLit, backendLit) = shown[i];
+                    sb.AppendLine($"    {sec,6:0.0}s  shadow {shadowLit,6}" +
+                                  (backendLit < 0 ? "   backend      -" : $"   backend {backendLit,6}"));
+                }
+            }
 
             if (_samples.Count > 0)
             {

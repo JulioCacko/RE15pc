@@ -264,14 +264,49 @@ store is empty in that mode, and presentation reads the backend, so the window s
 nothing. It is a diagnostic, not a workaround, and it must not be described as making the game
 playable.
 
+#### A timeline of both stores, and what it adds
+
+A single end-of-run dump cannot distinguish "never filled" from "filled and then overwritten".
+Sampling non-black pixels in the display region over time, for both stores, does:
+
+```
+   0,0s  shadow      0   backend      -
+   3,0s  shadow  31801   backend      -      <- title screen appears in the shadow
+   4,0s  shadow  31801   backend  31906      <- both stores AGREE
+   8,0s  shadow  31801   backend  13203      <- backend loses content the shadow keeps
+   9,0s  shadow  61135   backend      -
+  12,0s  shadow  61135   backend  21840
+  16,0s  shadow  61135   backend  12104
+  19,0s  shadow      0   backend      -      <- both collapse, at the stage transition
+  20,0s  shadow      0   backend    581
+  28,0s  shadow      0   backend    586
+```
+
+Three things follow.
+
+**The pipeline can work.** At 4 s the two stores agree to within 0.3% (31801 vs 31906). Whatever
+is wrong is not a permanently broken path - it works, and then it stops working.
+
+**The backend loses content the shadow retains.** Between 4 s and 8 s the backend drops from
+31906 to 13203 while the shadow holds at 31801. Content *disappearing* from the backend, rather
+than never arriving, points at something overwriting it: `GlCore` flushes dirty render targets
+into `_vram` with `WritebackDirtyIntersecting`, so a target that holds only what was *drawn*
+(a cleared surface plus a handful of primitives) would be written over the uploaded background
+and take two thirds of it away. That is the shape of the symptom.
+
+**Both stores collapse at the stage transition**, around 19 s, and neither recovers: the backend
+settles at ~580 pixels, which is the small text element, and the shadow at zero. So the room
+background never arrives after the transition, and a single dump taken at the end shows only
+that final state - which is why it read as a uniformly black screen for so long.
+
 #### Next probes
 
-1. **Instrument `Replay`.** Whether the frame graph is replayed at all, how often, and whether
-   the `WriteVram` and `Tri` ops in it are visited, is the single question that separates
-   "recorded and dropped" from "replayed but written to the wrong target".
-2. **`GlCore`'s render targets.** `Classify()` picks a target from a two-slot display-rect ring
-   and `WritebackDirtyIntersecting` flushes dirty targets into `_vram`. A target that is never
-   marked dirty, or never flushed, would hold the drawing invisibly.
+1. **`GlCore`'s render targets.** Whether a target covering the framebuffer is seeded from
+   `_vram` before drawing, and whether `WritebackDirtyIntersecting` composites only the pixels
+   actually drawn or the whole surface. `SyncRtsFromVram` and `WritebackDirtyIntersecting` are
+   the two functions to read; the timeline predicts that a flush is destroying uploaded content.
+2. **Instrument `Replay`.** Whether the deferred `WriteVram` and `CopyVram` operations in the
+   frame graph are visited, since those are what keep the render targets in sync with an upload.
 3. **PGXP grouping.** `InterpBackend.Group`/`Mix` key off `HleVertex.Transform` and accumulate
    texture-coordinate ranges and page masks per group. Worth a run with PGXP off.
 
@@ -487,9 +522,12 @@ outside, and terminating outright is the only path that leaves the exit code mea
 
 ## Next
 
-1. **Instrument `Replay`** in `InterpBackend`: whether the deferred frame graph is replayed, how
-   often, and whether its `WriteVram` and `Tri` operations are visited. This is the blocker and
-   the question is now narrow - recorded-and-dropped versus replayed-to-the-wrong-target.
+1. **Read `GlCore.SyncRtsFromVram` and `WritebackDirtyIntersecting`.** The per-store timeline
+   predicts that a render-target flush is destroying uploaded content: the backend holds 31906
+   non-black pixels at 4 s, agreeing with the shadow, and only 13203 four seconds later while
+   the shadow is unchanged. Confirming whether a target covering the framebuffer is seeded from
+   `_vram`, and whether the flush composites the whole surface or only what was drawn, is the
+   blocker.
 2. **Turn reaching STAGE1 into a one-line regression check.** It currently needs a hand-written
    `--input` script; naming a standard script for it would make every later phase cheap to
    re-verify.

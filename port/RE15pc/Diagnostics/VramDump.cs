@@ -142,7 +142,7 @@ public static class VramDump
     /// guest thread ends, so the wait is bounded here and the read is skipped rather than
     /// hanging the run it is diagnosing.
     /// </remarks>
-    private static (ushort[]? Data, string Note) TryReadBackend(int width, int height)
+    internal static (ushort[]? Data, string Note) TryReadBackend(int width, int height)
     {
         if (GpuHle.Backend is not { Ready: true } backend)
             return (null, "no ready backend");
