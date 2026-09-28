@@ -726,6 +726,70 @@ Getting it would need sampling synchronised to the frame rather than to a wall c
 buffers at a fixed point in each frame, as the guest's `VSync` gives, and comparing consecutive
 frames. That is a change to when the sample is taken, not to what is sampled.
 
+#### Per-frame sampling settles it: the erasure is one-off
+
+The wall-clock sampler could not see inside a frame, so a per-frame sampler was added, reading both
+framebuffers at the guest's `VSync` every second frame. Six changes in 868 frames:
+
+```
+    frame    2   buffer(0,0)     0   buffer(0,240)     0
+    frame   98   buffer(0,0) 31801   buffer(0,240) 31801     title image
+    frame  276   buffer(0,0) 31801   buffer(0,240) 61135     select image
+    frame  278   buffer(0,0) 61135   buffer(0,240) 61135     both at 79.6%
+    frame  596   buffer(0,0)     0   buffer(0,240) 61135     (0,0) wiped
+    frame  598   buffer(0,0)     0   buffer(0,240)     0     (0,240) wiped
+```
+
+Four things follow, and the third and fourth are new.
+
+**The erasure is not per-frame.** Between frames 278 and 596 both buffers hold 61135 continuously,
+across more than three hundred sampled frames, with no clearing at all. A per-frame fill or a
+per-frame stale writeback would show as constant alternation. There is none.
+
+**It happens once, at frames 596 and 598, two frames apart.** This is exactly the discriminator the
+earlier measurement could not apply: a one-off wipe points at a **render target being destroyed and
+recreated**, not at a fill and not at a stale whole-surface writeback, because those two would recur
+every frame.
+
+**The background is uploaded once, not per frame.** Six changes across 868 frames means the framebuffer
+contents are written a handful of times in the entire run. So the room background is uploaded at the
+room load and never again - which is why a single wipe is permanent, and why the frame stays black for
+the remaining 270 frames rather than recovering.
+
+**Both buffers are wiped separately, two frames apart.** Frame 596 takes `(0,0)` while `(0,240)` keeps
+61135, and only at 598 does `(0,240)` follow. So these are two events targeting one buffer each, which
+is consistent with per-buffer render targets being destroyed and recreated rather than with a single
+operation on both.
+
+#### What this points at
+
+`GetOrCreateRt` is the only path in `GlCore` that destroys a render target, and it does so when it needs
+a slot for a target at a different position or size:
+
+```csharp
+if (_rts[slot] is { } old)
+{
+    if (old.Dirty) Writeback(old);
+    old.Destroy(_gl);
+    InvalidateClassify();
+}
+```
+
+A room load is exactly the kind of event that changes the display geometry and the clip rectangle, so
+it is exactly the kind of event that makes a new target necessary and evicts an old one. The replacement
+is seeded from VRAM with `SyncRtFromVram(fresh, fbX, fbY, fbW, fbH)`, so the question is whether that
+seeding covers the framebuffer region in this case, or whether the eviction happens while `_vram` holds
+what should survive - and, since `_vram` is only written by `WriteVram`, `CopyVram`, `FillRect` and
+`Writeback`, whether one of those writes emptiness during the same transition.
+
+#### Next probe
+
+Instrument the target lifecycle rather than the result: log every `GetOrCreateRt` creation and eviction
+with its rectangle, timestamped against the guest frame, and check what the framebuffer regions hold
+immediately before and after frames 596 and 598. `_rts` is small - a handful of slots - so the log is
+short, and it will say directly whether the wipe coincides with an eviction.
+
+
 #### What can be said with confidence
 
 Both buffers hold 79.6% of the frame - the uploaded background figure exactly - and end at zero, while

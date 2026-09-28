@@ -100,6 +100,7 @@ public static class Program
 
         GpuActivity.Attach(options.SoftwareGpu);
         GlStateSampler.Attach();
+        FrameSampler.Attach();
 
         // Scripted input is what makes an unattended run able to get past the first screen
         // that waits for a pad. Only attached when asked for, so a normal interactive run

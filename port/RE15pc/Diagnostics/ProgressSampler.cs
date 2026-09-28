@@ -350,6 +350,9 @@ public sealed class ProgressSampler : IDisposable
             var glState = GlStateSampler.Describe();
             if (glState.Length > 0) sb.AppendLine(glState);
 
+            var frameState = FrameSampler.Describe();
+            if (frameState.Length > 0) sb.AppendLine(frameState);
+
             if (_combined.Count > 0)
             {
                 sb.AppendLine();
