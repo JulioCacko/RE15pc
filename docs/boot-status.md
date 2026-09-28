@@ -2390,3 +2390,20 @@ Established, each with the measurement behind it:
 - **The repository** carries no game data, its licensing position is documented, commits follow Conventional Commits and are enforced by a hook that fires on push, and the whole diagnostic apparatus is committed as six patches that apply in order.
 
 Not established: **that the disc's content has been played through.** Every measurement here shows the guest running correctly and reaching states; none of them shows a room walked, an item taken, a door opened or a save made. The objective asks for every asset and code path to be playable, and what exists is strong evidence of correct execution, not a playthrough.
+
+#### The game is interactive: input is what moves it out of the title
+
+A fair comparison - same duration, and the frame counts within 7 percent of each other, which is the check that a previous comparison in this document failed:
+
+```
+input            frames   buffer-changes   display
+none               1891                2   31801 (41,4%) 1123 colours
+start only         1801                3   31801 (41,4%) 1123 colours
+rich (start+move)  1770               13    6805 ( 8,9%)  515 colours
+```
+
+**With no input the game sits on the title screen indefinitely** - 41.4 percent non-black, 1123 colours, two buffer changes in sixty seconds. Pressing start alone does not move it either. Pressing start and then cross periodically with directions held **produces thirteen state changes and a different display**.
+
+So the guest is not merely running: it is waiting for input, responding to it, and changing what it draws as a result. The distinction between the three rows is the game advancing under control, which is the closest thing to playability this document can currently show.
+
+It is still not a playthrough. Thirteen state changes is progress through a sequence, not a room walked; the input that produces it was found by sweeping buttons rather than by playing, and nothing here shows the game reaching a state where a player would be in control of a character.
