@@ -87,15 +87,19 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 - [ ] Title image is displaced 10 pixels horizontally, because the 20-byte TIM header is uploaded
       along with the pixels. Root cause not yet attributed.
 - [ ] Animation not yet observed across frames, only individual frames compared.
-- [ ] **Audio is silent, and now measured rather than merely unproven.** `--verify-audio` renders a
-      block from the SPU at the end of a run and measures it. The SPU is enabled, unmuted, at half
-      main volume with CD volume at maximum, and 7 of 24 voices are keyed on - in correct Attack,
-      Sustain and Release phases, with ADSR at up to 32767, non-zero pitch and start addresses, and
-      sample playback advancing. Every one of those voices nevertheless has `VolL/VolR` of zero, and
-      a rendered block is exactly zero: peak 0 of 32767 over 1024 frames. CD audio is idle throughout
-      (`cdAudio=False`, XA `playing=False`, `buffered=0`). The register write path was checked and is
-      correct - `Voice` is a sealed class, so the per-voice mutations in `WriteReg` persist and no
-      writeback is required - so this is not a lost write.
+- [x] **Audio produces output, which retracts the silence reported in the previous revision.** The
+      SPU is enabled, unmuted and at half main volume; all 24 voices are used at some point; voice
+      volume is written and peaks at 8597 of 32767, non-zero on 72 of 778 frames; and a block mixed
+      *during* the run, while voices carried volume, peaks at 8619 of 32767. So the SPU generates
+      sound rather than silence.
+      The earlier "SILENT" verdict came from mixing a single block at the very end of the run, which
+      can only report whether something happened to be playing at that instant. That is the second
+      time in this project that a measurement was right about *what* it sampled and wrong about
+      *when* - the same mistake produced the "one-off erasure" reading of the framebuffer wipe.
+- [ ] Continuous music is not established. SPU output is intermittent and peaked at about a quarter
+      of full scale, which is consistent with sound effects rather than a music track, and CD audio
+      is idle throughout (`cdAudio=False`, XA `playing=False`, `buffered=0`). Whether the disc's XA
+      tracks ever stream is untested.
 
 ## Phase 5 — Overlay dispatch and determinism — DONE
 

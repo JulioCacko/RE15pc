@@ -1,5 +1,6 @@
 using RecompOne.Runtime;
 using RecompOne.Runtime.Events;
+using RecompOne.Runtime.Hardware;
 using RecompOne.Runtime.Hle;
 
 namespace RE15pc.Diagnostics;
@@ -65,6 +66,33 @@ public static class FrameSampler
     private static long _texturedSinceClear;
 
     private static readonly List<(long Frame, long AfterClear)> FrameOrder = [];
+
+    /// <summary>
+    /// Voice volume sampled every frame, to separate "the guest never sets it" from "it decays to zero
+    /// by the end of the run".
+    ///
+    /// The end-of-run audio check found seven voices keyed on with ADSR at full scale, sample playback
+    /// advancing, and VolL/VolR of zero on every one of them, producing an exactly silent mix. That is
+    /// either a guest that never writes voice volume or a guest whose writes are being lost or
+    /// mis-decoded - and a single sample at the end of the run cannot tell those apart.
+    /// </summary>
+    private static readonly Spu.VoiceDebug[] VoiceScratch = new Spu.VoiceDebug[24];
+
+    private static int _maxVoiceVol, _framesWithVoiceVol, _maxVoicesOn;
+    private static long _audioFrames;
+
+    /// <summary>
+    /// The largest amplitude found by mixing a block DURING the run, and how many blocks were mixed.
+    ///
+    /// An end-of-run mix can only report whether something happened to be playing at that instant, and
+    /// it reported silence - which was then corrected by finding that voice volume is non-zero on 9% of
+    /// frames. Measuring audibility needs a block rendered while voices actually have volume, so a
+    /// block is mixed occasionally and only when the volume is non-zero, which bounds the disturbance
+    /// to the audio the guest is playing.
+    /// </summary>
+    private static int _peakMixed, _blocksMixed;
+
+    private static readonly short[] MixBlock = new short[256 * 2];
 
     private static readonly object Gate = new();
 
@@ -151,6 +179,8 @@ public static class FrameSampler
                 FrameOrder.Add((_frame, Interlocked.Read(ref _texturedSinceClear)));
         }
 
+        SampleVoiceVolume();
+
         if (_frame % EveryNthFrame != 0) return;
 
         if (Runtime.Gpu is not { } gpu) return;
@@ -166,6 +196,70 @@ public static class FrameSampler
             _last0 = lit0;
             _last240 = lit240;
             Changes.Add((_frame, lit0, lit240));
+        }
+    }
+
+    /// <summary>
+    /// Records the largest voice volume seen and how many frames had any at all.
+    /// </summary>
+    private static void SampleVoiceVolume()
+    {
+        if (Runtime.Spu is not { } spu) return;
+
+        try
+        {
+            spu.CaptureDebug(VoiceScratch, out _);
+        }
+        catch
+        {
+            return;
+        }
+
+        var maxVol = 0;
+        var on = 0;
+
+        for (var i = 0; i < VoiceScratch.Length; i++)
+        {
+            var v = VoiceScratch[i];
+            if (v.Phase == Spu.AdsrPhase.Off) continue;
+
+            on++;
+            if (v.VolL > maxVol) maxVol = v.VolL;
+            if (v.VolR > maxVol) maxVol = v.VolR;
+        }
+
+        lock (Gate)
+        {
+            _audioFrames++;
+            if (maxVol > _maxVoiceVol) _maxVoiceVol = maxVol;
+            if (maxVol > 0) _framesWithVoiceVol++;
+            if (on > _maxVoicesOn) _maxVoicesOn = on;
+        }
+
+        // Only while voices carry volume, and only occasionally, so the guest's audio is disturbed as
+        // little as possible.
+        if (maxVol == 0 || _audioFrames % 32 != 0) return;
+
+        try
+        {
+            spu.Mix(MixBlock, 256);
+        }
+        catch
+        {
+            return;
+        }
+
+        var blockPeak = 0;
+        foreach (var sample in MixBlock)
+        {
+            var magnitude = Math.Abs((int)sample);
+            if (magnitude > blockPeak) blockPeak = magnitude;
+        }
+
+        lock (Gate)
+        {
+            _blocksMixed++;
+            if (blockPeak > _peakMixed) _peakMixed = blockPeak;
         }
     }
 
@@ -231,6 +325,16 @@ public static class FrameSampler
 
                     foreach (var (frame, afterClear) in FrameOrder.TakeLast(12))
                         sb.AppendLine($"    frame {frame,6}  {afterClear,6} textured draw(s) after the clear");
+                }
+
+                if (_audioFrames > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"  voice volume over time  : peak VolL/VolR seen {_maxVoiceVol}, " +
+                                  $"non-zero on {_framesWithVoiceVol} of {_audioFrames} frames, " +
+                                  $"peak voices on {_maxVoicesOn} of 24");
+                    sb.AppendLine($"  mixed during run        : peak amplitude {_peakMixed} of 32767 " +
+                                  $"across {_blocksMixed} block(s) mixed while voices carried volume");
                 }
             }
 
