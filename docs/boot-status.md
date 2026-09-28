@@ -573,10 +573,49 @@ knowing, given the two buffers are supposed to be independent.
 and `srcA=ONE`, `dstA=ZERO` - which is consistent with the core path using `PrimFs` and its
 `BlendColor` output. So the dual-source design really is what runs, and it is not a leftover.
 
-**`srcRgb` reads as `0x88F9`, which is not a blend factor.** It is constant across every sample of
-both runs. Either the enum used for the query does not mean what it is assumed to mean, or a factor
-is being set to a value that is not a valid `GLenum`. This needs decoding before the factors can be
-read at all, and the sampler's `Factor` mapping should not be trusted until it is.
+**`srcRgb=0x88F9` and `dstRgb=0x8589` are `GL_SRC1_COLOR` and `GL_SRC1_ALPHA`.** The first reading of
+these was wrong because the sampler's own factor table used the older `EXT` numbering, where
+`SRC1_COLOR` is `0x8589`; in `ARB_blend_func_extended`, which is what a GL 4.5 driver reports,
+`GL_SRC1_COLOR` is `0x88F9` and `GL_SRC1_ALPHA` is `0x8589`. Decoded, the factors are exactly
+`BlendFuncSeparate(Src1Color, Src1Alpha, One, Zero)` from `GlCore.cs:887` - source colour from the
+shader's second output, source alpha from it as the destination factor.
+
+**That is the important structural fact.** `SetBlend` sets the *uniform* `uBlend`; it does not touch
+the GL blend factors at all. So every blended draw runs with the same fixed GL factors, and the entire
+blend is carried by the shader's `BlendColor` output, which is `stp > 0.5 ? uBlend : uBlendOpaque`.
+What a primitive blends by is therefore decided **per texel by the texture's STP bit**, not by the
+draw's blend mode. A flat primitive has no texel, so per-texel selection cannot apply to it at all.
+
+#### Retracted: the blend arms are not inverted
+
+`GlShaders.cs:223` reads `BlendColor = texel.a >= 0.5 ? uBlend : uBlendOpaque;` while lines 188 and
+215 read `BlendColor = stp > 0.5 ? uBlend : uBlendOpaque;`, and that looked like the arms had been
+swapped on the main texture path. It was written up as a root cause, the swap was applied, and the
+frame did not change - 644 non-black pixels against a 585 baseline, which is noise.
+
+Re-reading the two paths shows why, and they are not comparable. At 188 and 215, `stp` is
+**recomputed** as `texel.a < 0.95 ? 1.0 : 0.0`, an alpha used as a 0..1 coverage value for the
+replacement-texture paths, and `stp > 0.5` means semi-transparent. At 223, `texel.a` **is the STP bit
+itself** - the PlayStation stores semi-transparency as a bit, surfaced here as alpha 0 or 1 - so
+`texel.a >= 0.5` already means semi-transparent and `? uBlend : uBlendOpaque` is correct. The two
+lines use different alpha semantics; they are consistent, not inverted.
+
+The swap was reverted and the checkout verified clean, and the baseline reproduced. This is the
+fourth mechanism written up as a finding and withdrawn, and the second that was derived by comparing
+two pieces of code without first establishing that their inputs mean the same thing.
+
+#### A structural fact worth carrying forward
+
+Decoding the factors above leaves one thing that is both established and unexplained. The GL blend
+factors are fixed at `(Src1Color, Src1Alpha, One, Zero)` for every blended draw, so the blend is
+entirely determined by the shader's `BlendColor` output, and `BlendColor` is chosen **per texel from
+the texture's STP bit**. That works for textured primitives. A **flat primitive has no texel**, so
+whatever `BlendColor` it produces cannot come from an STP bit, and how the blend mode of a
+semi-transparent flat primitive reaches the shader is not something this document has established.
+
+That question is worth answering next, because the primitives whose presence turns a correct frame
+into a black one are flat and screen-covering, and 632 of the 856 are semi-transparent.
+
 
 #### What is suggested but not established
 

@@ -125,10 +125,10 @@ public static class GlStateSampler
             0x0306 => "DST_COLOR",
             0x0307 => "ONE_MINUS_DST_COLOR",
             0x0308 => "SRC_ALPHA_SATURATE",
-            0x8589 => "SRC1_COLOR",
-            0x858A => "ONE_MINUS_SRC1_COLOR",
-            0x858B => "SRC1_ALPHA",
-            0x858C => "ONE_MINUS_SRC1_ALPHA",
+            0x8589 => "SRC1_ALPHA",
+            0x858A => "ONE_MINUS_SRC1_ALPHA",
+            0x88F9 => "SRC1_COLOR",
+            0x88FA => "ONE_MINUS_SRC1_COLOR",
             _ => $"0x{factor:X4}"
         };
     }
