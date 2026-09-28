@@ -3,6 +3,7 @@ using RecompOne.Runtime.Assets;
 using RecompOne.Runtime.Hle;
 using RecompOne.Runtime.Host;
 
+
 namespace RE15pc.Diagnostics;
 
 /// <summary>
@@ -142,6 +143,7 @@ public static class VramDump
     /// guest thread ends, so the wait is bounded here and the read is skipped rather than
     /// hanging the run it is diagnosing.
     /// </remarks>
+    /// <summary>Reads the whole of the backend's VRAM.</summary>
     internal static (ushort[]? Data, string Note) TryReadBackend(int width, int height)
     {
         if (GpuHle.Backend is not { Ready: true } backend)

@@ -116,6 +116,16 @@ public sealed class ProgressSampler : IDisposable
     private readonly int[] _gpuBufferPeak = new int[2];
     private int _gpuSamples;
 
+    /// <summary>
+    /// Non-black pixels on the surface draws actually go into, tracked by peak.
+    ///
+    /// This is the reading that splits the remaining space: either the room is present in the render
+    /// target and the writeback is what fails, or the target is empty as well and the draw itself
+    /// produces nothing. Every earlier reading came from VRAM rather than from the drawn surface.
+    /// </summary>
+    private int _targetNow, _targetPeak;
+    private string _targetNote = "";
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -209,6 +219,15 @@ public sealed class ProgressSampler : IDisposable
 
             // Reads real GL state, so it is on the same slow cadence as the backend read.
             GlStateSampler.Sample();
+
+            var (targetLit, _, targetNote) = TargetProbe.Read();
+
+            lock (_gate)
+            {
+                _targetNow = targetLit;
+                _targetNote = targetNote == "ok" ? "" : targetNote;
+                if (targetLit > _targetPeak) _targetPeak = targetLit;
+            }
 
             lock (_gate)
             {
@@ -410,6 +429,9 @@ public sealed class ProgressSampler : IDisposable
                 for (var b = 0; b < 2; b++)
                     sb.AppendLine($"backend store (0,{b * 240,-3})      : non-black now {_gpuBufferNow[b]}, " +
                                   $"peak {_gpuBufferPeak[b]} over {_gpuSamples} sample(s)");
+
+            sb.AppendLine($"render target surface     : non-black now {_targetNow}, peak {_targetPeak}" +
+                          $"{(_targetNote.Length > 0 ? $"   ({_targetNote})" : "")}");
 
             if (_vramTimeline.Count > 0)
             {

@@ -1044,24 +1044,48 @@ title screen and the room, but the shadow cannot see it and never could. The bac
 what it shows is that the room's drawn output never arrives there.
 
 
+#### The render target itself is empty: the failure is rasterisation
+
+Every reading in this investigation until now came from VRAM. Draws do not go to VRAM - they go into a
+render target and reach VRAM only through `Writeback` - so the two remaining possibilities had never
+been separated. Reading the target's own pixels separates them:
+
+```
+DEFAULT (black)
+  backend store (0,0)   : now 581,     peak 31906      = 41.5% of 76800
+  render target surface : now 9299,    peak 510496     = 41.5% of 1228800
+  target as luminance   : essentially blank
+
+--skip-draws flat (renders)
+  backend store (0,0)   : now 67558,   peak 67609      = 88.0% of 76800
+  render target surface : now 1080879, peak 1081702    = 88.0% of 1228800
+  target as luminance   : the room, fully drawn
+```
+
+**The target and the backend agree in both configurations**, as percentages of their respective areas.
+So the writeback works, and it is exonerated along with everything at VRAM level: `Writeback`,
+`SyncRtsFromVram`, the target lifecycle, the two-store plumbing, and every mechanism that acts on VRAM
+rather than on the drawn surface.
+
+**The room's draws produce nothing inside the render target.** In the default configuration the target
+holds only the uploaded title image and nothing else; with flat drawing suppressed it holds the room at
+88%, captured to `out/diagnostics/target-surface-ascii.txt`, and that is the first time this project has
+actually seen this game render.
+
+That is a real narrowing and it is also a retraction. Several rounds were spent on mechanisms that
+operate on VRAM - the sync-versus-writeback ratio, the two stores disagreeing, whole-region transfers -
+and all of them were looking one stage too late in the pipeline. The question is now specifically why
+`GlCore`'s batched draw rasterises nothing for these primitives, and why the presence of flat
+primitives changes that.
+
 #### Next probe
 
-The measurement that splits the remaining space in two, attempted in the final round and not completed:
-**read the render target's own pixels rather than VRAM's.**
-
-Every reading taken so far has come from VRAM, whether the software shadow or the backend store. But
-draws do not go to VRAM - they go into a render target, and reach VRAM only through `Writeback`. So
-the two remaining possibilities have never been separated:
-
-- the room **is** in the render target, and the writeback is what fails; or
-- the target is empty too, and the draw itself produces nothing.
-
-`GpuGlAccess` already exposes what is needed: `TargetFbo`, `TargetWidth` and `TargetHeight` are public,
-so binding that framebuffer and reading its pixels answers the question directly. The attempt stalled
-on Silk.NET's `ReadPixels` overload resolution - the pointer form wins over the span form in this
-version - and was reverted rather than left half-integrated, so the tree is clean and builds.
-
-That is one small piece of API work, not a research problem, and it is the first thing to do next.
+Count the vertices that reach the batched draw and the vertices that reach the driver, per configuration.
+That separates the two remaining possibilities cleanly: if `_count` accumulates and `Flush` calls
+`DrawArrays` with the room's vertices, then GL is being asked to rasterise them and is not; if the count
+stays at zero or the batch is flushed empty, the vertices are being lost between `DrawTri` and the
+driver. `GlCore` batches into `_verts` and flushes on a target or state change, so both numbers are
+cheap to instrument from the patch set already in place.
 
 
 #### Where thirty rounds of measurement leave this
