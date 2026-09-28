@@ -60,19 +60,26 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 **Gate met:** `[Dispatcher] loaded overlay: main` appears and the process survives frames.
 
 ## Phase 4 — Boot to title — PARTIAL
+
 - [x] Guest code executes: `ResetGraph:jtb=8007e308,env=8007e350` is guest output, not
       runtime output.
 - [x] **Zero unmapped calls** in a 60 second run with `Dispatcher.Tolerant = false`.
-- [x] Guest progresses rather than wedging: 48 distinct memory states over 25 seconds, last
-      change at the sampling instant.
+- [x] Guest progresses rather than wedging: 300 distinct memory states over 150 seconds, still
+      changing at the sampling instant.
 - [x] Runtime delivers interrupts: 2840 IRQ deliveries in 20 seconds; the guest is calling
       `VSync`, DMA channel 6, `PAD_dr` and `ChangeTh`.
-- [x] The `title` overlay loads.
-- [x] The framebuffer is a picture, not noise: 41.4% non-black, 1123 distinct colours.
-- [x] `TITLEJ.TIM` proven resident at the display origin at **100.00% word-exact** match.
-- [ ] **Title image is displaced 10 pixels horizontally** because the 20-byte TIM header was
-      uploaded along with the pixels. Root cause not yet attributed.
-- [ ] Animation not yet observed across frames, only a single frame compared.
+- [x] The `title` overlay loads, and `stage1` loads after it - so the game is driven past the
+      opening screens into gameplay, which takes scripted controller input because the title and
+      character select both wait for a pad. See `--input` in `docs/boot-status.md`.
+- [x] `TITLEJ.TIM` proven resident at the display origin at a **100.00% word-exact** match, and
+      the title screen is a picture rather than noise: 41.4% non-black, 1123 distinct colours.
+- [ ] **The composed frame is black after the stage transition.** The blocker. The backend holds
+      31906 non-black pixels at 4 s and about 585 after the transition, so the pipeline works and
+      then stops; localised to whatever fills the framebuffer after the stage load not reaching
+      the backend, while the same operation does reach the software store.
+- [ ] Title image is displaced 10 pixels horizontally, because the 20-byte TIM header is uploaded
+      along with the pixels. Root cause not yet attributed.
+- [ ] Animation not yet observed across frames, only individual frames compared.
 - [ ] Audio not proven to play at all.
 
 ## Phase 5 — Overlay dispatch and determinism — DONE
