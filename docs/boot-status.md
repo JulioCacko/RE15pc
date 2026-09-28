@@ -699,6 +699,42 @@ That also removes the last puzzle about the composition figures, because they no
 rather than as alternatives: uploads fill both buffers to 79.6%, and either the textured detail is
 added on top for 88% or the buffers are wiped back to zero.
 
+#### When the erasure happens
+
+```
+ 0,0s  buffer(0,0)      0   buffer(0,240)      0
+ 3,0s  buffer(0,0)  31801   buffer(0,240)  31801     title screen fills BOTH
+ 9,0s  buffer(0,0)  61135   buffer(0,240)  61135     both reach 79.6%
+19,0s  buffer(0,0)  61135   buffer(0,240)      0     (0,240) wiped first
+19,5s  buffer(0,0)      0   buffer(0,240)      0     then (0,0)
+```
+
+Only five changes in 28 seconds. Both buffers fill together - 31801 at 3 s, the title image, then
+61135 at 9 s - and then at 19 s and 19.5 s both are wiped to zero, one buffer at a time, half a second
+apart. Neither refills. The wipe lands at the stage transition.
+
+Half a second apart is roughly fifteen frames, so these are two separate events rather than one
+operation covering both buffers, which is worth noting for whoever picks this up.
+
+**A caveat that limits what this can conclude.** The sampler runs about twice a second, so a
+fill-and-wipe cycle inside a single frame would also read as a constant zero - the timeline collapses
+runs, and it cannot see inside a frame. So "the erasure is a one-off" is **not** established by this
+measurement, and the discriminator it was meant to provide - one-off pointing at target eviction,
+per-frame pointing at a fill or a stale writeback - has not actually been applied.
+
+Getting it would need sampling synchronised to the frame rather than to a wall clock: reading both
+buffers at a fixed point in each frame, as the guest's `VSync` gives, and comparing consecutive
+frames. That is a change to when the sample is taken, not to what is sampled.
+
+#### What can be said with confidence
+
+Both buffers hold 79.6% of the frame - the uploaded background figure exactly - and end at zero, while
+with flat drawing suppressed they hold 88% and never lose it. Whatever the mechanism, it destroys
+content that was demonstrably present, rather than preventing it from arriving. That is the reframing
+this round established, and it survives the caveat above: a per-frame wipe and a one-off wipe are both
+erasures.
+
+
 #### What it means for the search
 
 An erasure has a different candidate set from a failure to draw, and a smaller one. Something that

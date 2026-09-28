@@ -90,6 +90,15 @@ public sealed class ProgressSampler : IDisposable
     private readonly List<(double Seconds, int OriginX, int OriginY, int ShadowLit, int BackendLit, string Gl)>
         _combined = [];
 
+    /// <summary>
+    /// Content of each framebuffer over time, collapsed to the moments it changes.
+    ///
+    /// Both buffers reached 61135 non-black pixels and then fell to zero, and where that happens in
+    /// time separates the candidates: a single wipe points at a render target being destroyed and
+    /// recreated, a wipe every frame points at a fill or a stale whole-surface writeback.
+    /// </summary>
+    private readonly List<(double Seconds, int Lit0, int Lit240)> _bufferTimeline = [];
+
     private readonly record struct Observation(double Seconds, string Hash);
 
     public ProgressSampler(PSMemory memory, double intervalSeconds)
@@ -240,6 +249,19 @@ public sealed class ProgressSampler : IDisposable
                 _fbWrites[top] = s;
             }
         }
+
+        lock (_gate)
+        {
+            var lit0 = _fbWrites.TryGetValue(0, out var a) ? a.LastLit : -1;
+            var lit240 = _fbWrites.TryGetValue(240, out var b) ? b.LastLit : -1;
+
+            if (_bufferTimeline.Count == 0
+                || _bufferTimeline[^1].Lit0 != lit0
+                || _bufferTimeline[^1].Lit240 != lit240)
+            {
+                _bufferTimeline.Add((_clock.Elapsed.TotalSeconds, lit0, lit240));
+            }
+        }
     }
 
     private static int CountLit(ushort[] vram, int width, int height, int dx, int dy, int dw, int dh)
@@ -312,6 +334,18 @@ public sealed class ProgressSampler : IDisposable
             sb.AppendLine($"verdict                 : {(Stalled ? "STALLED - guest stopped writing memory" : "PROGRESSING")}");
             sb.AppendLine($"display geometries seen : {(_displayGeometries.Count == 0 ? "(none sampled)" : string.Join(" | ", _displayGeometries.OrderBy(d => d)))}");
             sb.AppendLine($"draw offsets seen       : {(_drawOffsets.Count == 0 ? "(none sampled)" : string.Join(" | ", _drawOffsets.OrderBy(d => d)))}");
+
+            if (_bufferTimeline.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("  framebuffer contents over time, at each change (0..76800 non-black):");
+
+                var rows = _bufferTimeline.Count <= 24 ? _bufferTimeline : _bufferTimeline.TakeLast(24).ToList();
+                if (_bufferTimeline.Count > 24) sb.AppendLine($"    ... {_bufferTimeline.Count - 24} earlier change(s) omitted");
+
+                foreach (var (sec, lit0, lit240) in rows)
+                    sb.AppendLine($"    {sec,6:0.0}s  buffer(0,0) {lit0,6}   buffer(0,240) {lit240,6}");
+            }
 
             var glState = GlStateSampler.Describe();
             if (glState.Length > 0) sb.AppendLine(glState);
