@@ -484,12 +484,65 @@ which clamps to black - and that is precisely the observed result: correct geome
 landing in the right place, producing nothing. It would also explain why removing the subtract-blended
 screen quads changes the colour of draws that come after them.
 
-#### Next probe
+#### Both blend paths are internally consistent (two candidates retracted)
 
-Establish whether blend mode 2's shader path leaves state that later draws consume. The specific
-question is whether `_uBlendMode` and the destination-read texture are correctly set for draws that
-are not themselves semi-transparent, and whether `BlendEquation` is reset on the opaque branches.
-`GlCore.cs:874-912` is the whole of it.
+Two asymmetries looked wrong on first reading and both turn out to be fine, which is worth
+recording so they are not "fixed".
+
+There are **two fragment shader variants**, and each set of uniforms belongs to its own:
+
+| variant | colour output | blending |
+|---|---|---|
+| `PrimFs` (core, GLSL 330+) | `layout(location = 0, index = 0) out vec4 FragColor;` and `layout(location = 0, index = 1) out vec4 BlendColor;` | fixed-function, dual-source |
+| `PrimFs120` (GLSL 120) | `gl_FragColor` | in-shader, via `uSemiTrans` and `uBlendMode` |
+
+So `Src1Color`/`Src1Alpha` **are** meaningful on the core path, because `PrimFs` really does write a
+second colour output at index 1 - that retracts the dual-source suspicion. And `uSemiTrans` and
+`uBlendMode` being assigned only inside `if (_legacy)` is correct rather than a defect, because they
+belong to `PrimFs120`, which is the shader that path uses - that retracts the legacy-only suspicion.
+`_uBlendOpaque` belongs to `PrimFs`, which is why the non-legacy branch sets it and the legacy one
+does not.
+
+#### A real finding: a subtract-blended draw can be a no-op
+
+The blend-2 path is a two-pass subtract:
+
+```csharp
+BlendEquation(FuncAdd); SetBlend(0f, 1f); DrawArrays(...);          // pass 1
+if (needDest) { _vram.BeginDestRead(destTex, ...); RebindTarget(rt); }
+BlendEquationSeparate(FuncReverseSubtract, FuncAdd); SetBlend(1f, 1f);
+Uniform4(_uBlendOpaque, 0f, 0f, 0f, 1f); DrawArrays(...);           // pass 2
+```
+
+`SetBlend(0f, 1f)` gives a source factor of zero and a destination factor of one, so **pass 1 leaves
+the destination exactly as it found it**. The subtraction that was supposed to happen depends
+entirely on pass 2, and pass 2 needs the destination bound as a texture. `needDest` is not set from
+anything the primitive carries; when it is false the second pass runs anyway, with
+`uBlendOpaque = (0,0,0,1)` making the source factor zero again.
+
+So when `needDest` is false, a subtract-blended primitive **draws nothing at all** - two passes that
+each leave the destination unchanged. 632 of the 856 flat primitives are subtract-blended, and
+subtract-blended draws exist in the textured class too.
+
+That is a genuine defect regardless of whether it is the one behind the black frame, and it is the
+same class of problem the offset field had: a value the backend needs that has no reliable way to
+travel. It is also testable - forcing `needDest` true, or forcing it false, and re-measuring, would
+show directly how much of the frame depends on this path.
+
+#### Where this leaves the black frame
+
+It is still not explained, and the honest position is that the surviving candidate set has shrunk to
+the blend and render-target interaction rather than any single line. What is established:
+
+- geometry, texture addressing, the sampled VRAM contents, uploads, VRAM copies, fills, the drawing
+  offset and the draw order are all correct;
+- the draws land in the framebuffer, so it is not classification or binding;
+- screen-covering flat quads are drawn as clears first and the scene follows;
+- removing every flat primitive yields a correct frame at 88%, and no sub-class reproduces that;
+- subtract-blended draws can silently do nothing.
+
+The next useful step is not another hypothesis. It is to force `needDest` both ways and measure,
+because that is the only remaining stateful behaviour with a direct, observable consequence.
 
 ---
 
