@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..167c3b9 100644
+index bc045ae..a7853d8 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,770 @@ public static class GpuGlAccess
+@@ -17,6 +17,808 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -770,6 +770,44 @@ index bc045ae..167c3b9 100644
 +    public static bool SplitDraw { get; } =
 +        Environment.GetEnvironmentVariable("RE15PC_SPLIT_DRAW") == "1";
 +
++    /// <summary>
++    /// Diagnostics only: whether the vertex upload carries everything the batch holds.
++    /// </summary>
++    /// <remarks>
++    /// The fault begins at the third triangle of a batch and is present before the driver reads
++    /// anything, since splitting the draw into per-triangle calls changes nothing. That leaves the
++    /// upload. A short or misplaced upload is the one explanation that fits a fault starting at the
++    /// third triangle rather than the first: the first few vertices would be correct and the rest would
++    /// hold whatever an earlier batch left behind.
++    ///
++    /// The comparison itself lives in GlCore, which can see GlVertex; only the outcome crosses over.
++    /// </remarks>
++    private static long _uploadChecks, _uploadBad, _uploadVerts;
++    private static int _firstBadIndex = -1, _firstBadCount = -1;
++
++    /// <summary>Diagnostic only: read the vertex buffer back after each upload. Set by RE15PC_CHECK_UPLOAD.</summary>
++    public static bool CheckUploads { get; } =
++        Environment.GetEnvironmentVariable("RE15PC_CHECK_UPLOAD") == "1";
++
++    public static void NoteUploadCheck(int count, int firstBadVertex)
++    {
++        _uploadChecks++;
++        _uploadVerts += count;
++
++        if (firstBadVertex < 0) return;
++
++        _uploadBad++;
++        if (_firstBadIndex < 0) { _firstBadIndex = firstBadVertex; _firstBadCount = count; }
++    }
++
++    public static string DescribeUpload()
++    {
++        if (_uploadChecks == 0) return "  vertex upload           : not checked";
++
++        return $"  vertex upload           : {_uploadChecks} batch(es), {_uploadVerts} vertices, " +
++               $"{_uploadBad} with a mismatch" +
++               $"{(_firstBadIndex >= 0 ? $"; first mismatch at vertex {_firstBadIndex} of a {_firstBadCount}-vertex batch" : "")}";
++    }
      public static void Bind()
      {
          if (Gl == null) return;

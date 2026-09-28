@@ -1977,3 +1977,27 @@ This is a narrower statement than the previous round's, and it eliminates the wh
 #### Next probe
 
 Compare what is in _verts for a batch against what the batch is supposed to contain. The batch that fails has between nine and a few thousand vertices, of which only the first few produce anything, so the question is what those later entries actually hold - stale vertices from an earlier batch, the right vertices at the wrong index, or correct data that BufferSubData never uploads. Reading back the vertex buffer with GetBufferSubData after the upload and comparing it against _verts would answer that in one measurement, and would also show whether the upload is short - which is the one remaining explanation that fits a fault beginning at the third triangle rather than the first.
+
+
+#### The upload is faithful, and the experiment has a confound
+
+Reading the vertex buffer back with GetBufferSubData after each upload and comparing it field by field against _verts gives a clean negative:
+
+```nflushEvery=off   1348 batch(es)   592470 vertices   0 with a mismatch
+flushEvery=9    41853 batch(es)   380325 vertices   0 with a mismatch
+flushEvery=3    35059 batch(es)   113937 vertices   0 with a mismatch
+```
+
+**The upload is not short and not misplaced.** The buffer holds exactly what _verts holds, in every configuration, for every batch. Batch sizes also come out as intended - 439, 9 and 3.25 vertices per batch respectively - so the forced-flush diagnostic does what it claims.
+
+Two things follow, and the second is a warning about the experiment itself.
+
+**The corruption, if there is any, is in _verts itself.** Everything downstream of the array is now proven faithful: the upload carries it, the attribute layout reads it correctly, the driver's state is constant and clean, and splitting the draw changes nothing.
+
+**But the vertex totals differ fivefold between configurations** - 592470 submitted with large batches against 113937 with three-vertex batches, for the same 18-second run. Forcing a flush is therefore not merely regrouping the same draws: fewer vertices reach the driver at all. That means ForceFlushEvery changes the vertex *stream*, not just its grouping, and it is a confound in the experiment that found the batch-size effect. The effect is still real - the same run renders 0.5 percent of the screen with large batches and 45.5 percent with three-vertex batches - but the explanation that the batching alone is at fault is no longer sufficient, because the batching also changes what the guest's commands become.
+
+That is the kind of thing worth writing down when it is found rather than after it has misled someone. Flush calls Writeback, and a writeback changes VRAM; the guest reads VRAM; so a diagnostic that changes when flushing happens can change the game's behaviour. Both of my only-working instruments share that property.
+
+#### Next probe
+
+Establish whether the batch-size effect survives without the confound. A flush that does not write anything back - flushing the batch only, without the VRAM consequences - would change the grouping while leaving the guest's view of VRAM untouched. If the frame still renders at a small batch size, the grouping alone is the cause; if it does not, then the earlier result was about VRAM timing and the search reopens along the line the writeback findings pointed at.

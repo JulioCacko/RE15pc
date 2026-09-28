@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..3ccc3df 100644
+index 45a0f96..bec6709 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -185,6 +185,7 @@ public sealed class GlCore : IGpuBackend
@@ -157,10 +157,29 @@ index 45a0f96..3ccc3df 100644
          GpuGlAccess.TargetFbo = rt == null ? _vram.Fbo : rt.Fbo;
          GpuGlAccess.TargetWidth = destW;
          GpuGlAccess.TargetHeight = destH;
-@@ -871,15 +921,33 @@ public sealed class GlCore : IGpuBackend
+@@ -871,15 +921,52 @@ public sealed class GlCore : IGpuBackend
          _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
          _gl.BufferSubData<GlVertex>(BufferTargetARB.ArrayBuffer, 0, _verts.AsSpan(0, _count));
  
++        if (GpuGlAccess.CheckUploads)
++        {
++            var scratch = new GlVertex[_count];
++            _gl.GetBufferSubData<GlVertex>(BufferTargetARB.ArrayBuffer, 0, scratch.AsSpan());
++
++            var firstBad = -1;
++            for (var ci = 0; ci < _count; ci++)
++            {
++                var want = _verts[ci];
++                var gotv = scratch[ci];
++                if (want.X == gotv.X && want.Y == gotv.Y && want.U == gotv.U &&
++                    want.V == gotv.V && want.Texpage == gotv.Texpage) continue;
++                firstBad = ci;
++                break;
++            }
++
++            GpuGlAccess.NoteUploadCheck(_count, firstBad);
++        }
++
 +        // Counted wherever the batch is actually handed to the driver, so this and TrisIn together say
 +        // whether the failure is before the driver or inside it.
 +        GpuGlAccess.VertsOut += _count;
@@ -193,7 +212,7 @@ index 45a0f96..3ccc3df 100644
          }
          else
          {
-@@ -890,7 +958,7 @@ public sealed class GlCore : IGpuBackend
+@@ -890,7 +977,7 @@ public sealed class GlCore : IGpuBackend
              {
                  _gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
                  SetBlend(0f, 1f);
@@ -202,7 +221,7 @@ index 45a0f96..3ccc3df 100644
  
                  if (needDest)
                  {
-@@ -901,19 +969,89 @@ public sealed class GlCore : IGpuBackend
+@@ -901,19 +988,89 @@ public sealed class GlCore : IGpuBackend
                  _gl.BlendEquationSeparate(BlendEquationModeEXT.FuncReverseSubtract, BlendEquationModeEXT.FuncAdd);
                  SetBlend(1f, 1f);
                  _gl.Uniform4(_uBlendOpaque, 0f, 0f, 0f, 1f);
@@ -294,7 +313,7 @@ index 45a0f96..3ccc3df 100644
              rt.Dirty = true;
              rt.LastDrawFrame = _frame;
          }
-@@ -990,7 +1128,7 @@ public sealed class GlCore : IGpuBackend
+@@ -990,7 +1147,7 @@ public sealed class GlCore : IGpuBackend
          for (var i = 0; i < _rts.Length; i++)
          {
              if (_rts[i] is not { } rt) continue;

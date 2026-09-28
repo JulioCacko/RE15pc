@@ -527,6 +527,7 @@ public static class GpuActivity
         sb.AppendLine(GpuGlAccess.DescribeBlit());
         sb.AppendLine(GpuGlAccess.DescribeBatchStates());
         sb.AppendLine(GpuGlAccess.DescribeVertexHashes());
+        sb.AppendLine(GpuGlAccess.DescribeUpload());
         sb.AppendLine($"  settle on readback      : {Interlocked.Read(ref GpuGlAccess.SettleCalls)} call(s), " +
                       $"{Interlocked.Read(ref GpuGlAccess.SettleEmpty)} found the graph EMPTY, " +
                       $"{Interlocked.Read(ref GpuGlAccess.SettleReplayed)} replayed");
