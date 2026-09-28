@@ -43,6 +43,13 @@ public sealed class Options
     /// </summary>
     public bool SoftwareGpu { get; private init; }
 
+    /// <summary>
+    /// Suppress classes of drawing primitive, keeping uploads, VRAM copies and fills. Values are
+    /// <c>all</c>, <c>textured</c> or <c>flat</c>; empty means draw normally. A diagnostic that
+    /// separates "the content never arrives" from "drawing covers it".
+    /// </summary>
+    public string SkipDraws { get; private init; } = "";
+
     public bool Help { get; private init; }
 
     public static bool TryParse(string[] args, out Options options, out string error)
@@ -56,6 +63,7 @@ public sealed class Options
         var sample = 0.5;
         var input = "";
         var softwareGpu = false;
+        var skipDraws = "";
         var help = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -118,6 +126,17 @@ public sealed class Options
                     softwareGpu = true;
                     break;
 
+                case "--skip-draws":
+                    if (++i >= args.Length) { error = "--skip-draws needs a mode: all, textured or flat"; options = new Options(); return false; }
+                    skipDraws = args[i].ToLowerInvariant();
+                    if (skipDraws is not ("all" or "textured" or "flat"))
+                    {
+                        error = $"--skip-draws expects all, textured or flat; got '{args[i]}'";
+                        options = new Options();
+                        return false;
+                    }
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -141,6 +160,7 @@ public sealed class Options
             SampleSeconds = sample,
             Input = input,
             SoftwareGpu = softwareGpu,
+            SkipDraws = skipDraws,
             Help = help
         };
         error = "";

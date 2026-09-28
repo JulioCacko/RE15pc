@@ -91,6 +91,13 @@ public static class Program
         ConfigManager.SaveGame();
 
         OverlayPolicy.Attach();
+
+        if (options.SkipDraws.Length > 0)
+        {
+            GpuActivity.SuppressMode = options.SkipDraws;
+            Console.WriteLine($"[gpu] suppressing '{options.SkipDraws}' drawing: uploads, VRAM copies and fills only");
+        }
+
         GpuActivity.Attach(options.SoftwareGpu);
 
         // Scripted input is what makes an unattended run able to get past the first screen

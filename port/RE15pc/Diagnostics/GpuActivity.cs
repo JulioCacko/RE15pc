@@ -27,11 +27,28 @@ public static class GpuActivity
     private static bool _attached;
     private static bool _forceSoftware;
     private static long _prims;
+
+    /// <summary>
+    /// When set, primitives are suppressed through <c>RenderPrimEvent.Skip</c>, which
+    /// <c>GpuRaster</c> honours before consuming the vertices.
+    ///
+    /// This separates two very different explanations for a black frame: uploads and VRAM copies
+    /// never arriving, versus drawing covering the result. With every draw suppressed the frame
+    /// comes out correct, which says the content arrived and something the guest draws is painted
+    /// over it - so the interesting question becomes which class of primitive does that.
+    ///
+    /// Values: empty for none, <c>all</c>, <c>textured</c>, or <c>flat</c> (everything that is not
+    /// textured). Suppressing one class at a time identifies the culprit.
+    /// </summary>
+    public static string SuppressMode = "";
     private static long _textured;
     private static long _semiTransparent;
     private static long _skipped;
     private static int _minX = int.MaxValue, _maxX = int.MinValue;
     private static int _minY = int.MaxValue, _maxY = int.MinValue;
+    /// <summary>Primitives discarded because <c>SuppressDraws</c> is set.</summary>
+    private static long _suppressed;
+
     private static readonly HashSet<string> DrawAreas = [];
     private static readonly HashSet<int> Cluts = [];
     private static readonly HashSet<int> TexPages = [];
@@ -107,6 +124,20 @@ public static class GpuActivity
 
     private static void OnPrimitive(RenderPrimEvent e)
     {
+        var skip = SuppressMode switch
+        {
+            "all" => true,
+            "textured" => e.Textured,
+            "flat" => !e.Textured,
+            _ => false
+        };
+
+        if (skip)
+        {
+            e.Skip = true;
+            Interlocked.Increment(ref _suppressed);
+        }
+
         Interlocked.Increment(ref _prims);
         if (e.Textured) Interlocked.Increment(ref _textured);
         if (e.SemiTransparent) Interlocked.Increment(ref _semiTransparent);
@@ -218,7 +249,8 @@ public static class GpuActivity
         // The HLE render-target path. A non-zero widescreen margin changes the render target's
         // width and shifts vertices, which is a strong candidate for a blank frame.
         sb.AppendLine($"  gpu hle                 : active={GpuHle.Active}, backend={GpuHle.Backend?.GetType().Name ?? "null"}" +
-                      (_forceSoftware ? "  (software rasteriser forced)" : ""));
+                      (_forceSoftware ? "  (software rasteriser forced)" : "") +
+                      (SuppressMode.Length > 0 ? $"  (drawing suppressed: {SuppressMode}, {_suppressed} primitives skipped)" : ""));
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
