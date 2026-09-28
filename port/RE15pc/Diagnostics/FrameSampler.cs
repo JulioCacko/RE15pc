@@ -1,5 +1,6 @@
 using RecompOne.Runtime;
 using RecompOne.Runtime.Events;
+using RecompOne.Runtime.Hle;
 
 namespace RE15pc.Diagnostics;
 
@@ -31,6 +32,15 @@ public static class FrameSampler
     /// <summary>Frame number, buffer(0,0) count, buffer(0,240) count, at each change.</summary>
     private static readonly List<(long Frame, int Lit0, int Lit240)> Changes = [];
 
+    /// <summary>
+    /// Render target creations and evictions, with the framebuffer contents at that instant.
+    ///
+    /// The point is to put the one-off erasure and the target lifecycle on the same timeline. If the
+    /// framebuffers fall to zero in the same entry as an eviction, the eviction is the cause and the
+    /// question becomes whether its replacement was seeded over the framebuffer region.
+    /// </summary>
+    private static readonly List<(long Frame, int Lit0, int Lit240, string What)> RtEvents = [];
+
     private static readonly object Gate = new();
 
     public static void Attach()
@@ -39,6 +49,27 @@ public static class FrameSampler
         _attached = true;
 
         Event.AddListener<VSyncEvent>(OnVSync);
+
+        GpuGlAccess.RtObserver = OnRenderTargetEvent;
+    }
+
+    /// <summary>
+    /// Called from the GL thread when a render target is created or destroyed. Records the
+    /// framebuffer contents alongside it, which is the whole point - it says whether the erasure and
+    /// the eviction are the same event.
+    /// </summary>
+    private static void OnRenderTargetEvent(string what)
+    {
+        if (Runtime.Gpu is not { } gpu) return;
+        if (gpu.Vram.Length < Gpu.VramWidth * Gpu.VramHeight) return;
+
+        var lit0 = Count(gpu.Vram, 0);
+        var lit240 = Count(gpu.Vram, 240);
+
+        lock (Gate)
+        {
+            if (RtEvents.Count < 200) RtEvents.Add((_frame, lit0, lit240, what));
+        }
     }
 
     private static void OnVSync(VSyncEvent e)
@@ -99,6 +130,15 @@ public static class FrameSampler
 
             foreach (var (frame, lit0, lit240) in rows)
                 sb.AppendLine($"    frame {frame,6}  buffer(0,0) {lit0,6}   buffer(0,240) {lit240,6}");
+
+            lock (Gate)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"  render target lifecycle   : {RtEvents.Count} event(s), guest frame shown for each");
+
+                foreach (var (frame, lit0, lit240, what) in RtEvents.TakeLast(20))
+                    sb.AppendLine($"    frame {frame,6}  (0,0) {lit0,6}  (0,240) {lit240,6}   {what}");
+            }
 
             return sb.ToString().TrimEnd();
         }

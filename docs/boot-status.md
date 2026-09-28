@@ -761,33 +761,52 @@ the remaining 270 frames rather than recovering.
 is consistent with per-buffer render targets being destroyed and recreated rather than with a single
 operation on both.
 
-#### What this points at
+#### Eviction is eliminated, and it was this document's own last hypothesis
 
-`GetOrCreateRt` is the only path in `GlCore` that destroys a render target, and it does so when it needs
-a slot for a target at a different position or size:
+`GetOrCreateRt` was the leading candidate last round, because it is the only path that destroys a
+render target and a room load is exactly the kind of event to force one. Instrumenting the lifecycle
+refutes it outright:
 
-```csharp
-if (_rts[slot] is { } old)
-{
-    if (old.Dirty) Writeback(old);
-    old.Destroy(_gl);
-    InvalidateClassify();
-}
+```
+render target lifecycle   : 2 event(s)
+    frame      3  create  slot1 (0,240) 320x240 margin=0 live=1
+    frame      4  create  slot0 (0,0)   320x240 margin=0 live=2
 ```
 
-A room load is exactly the kind of event that changes the display geometry and the clip rectangle, so
-it is exactly the kind of event that makes a new target necessary and evicts an old one. The replacement
-is seeded from VRAM with `SyncRtFromVram(fresh, fbX, fbY, fbW, fbH)`, so the question is whether that
-seeding covers the framebuffer region in this case, or whether the eviction happens while `_vram` holds
-what should survive - and, since `_vram` is only written by `WriteVram`, `CopyVram`, `FillRect` and
-`Writeback`, whether one of those writes emptiness during the same transition.
+**Two events, both creations, at frames 3 and 4 - and no evictions at any point in the run.** The two
+framebuffer targets are made once, at the correct rectangles, and live for all 868 frames. The wipe at
+frames 596 and 598 therefore coincides with no eviction, and the seeding question that went with it
+does not arise: `SyncRtFromVram` is never called again after frame 4 to seed a replacement, because
+there is never a replacement.
+
+That is the fifth mechanism proposed here and withdrawn, and the third in a row withdrawn in the round
+after it was written.
+
+#### What is left
+
+The candidates are now constrained from both sides. The wipe is **one-off**, so it is not a per-frame
+fill and not a per-frame stale writeback. And it coincides with **no render target event**, so it is not
+eviction. What remains are the two operations that write a whole buffer once, without being primitives
+and without touching render targets:
+
+- **`FillRect`** - reached from GP0 0x02, writes `_vram` through `_vram.Fill(...)` and writes the
+  software shadow in `GpuCommands`, so a single screen clear would wipe **both** stores at once.
+- **`CopyVram`** - reached from GP0 0x80, and likewise writes both stores.
+
+Either explains what a per-frame fill and an eviction cannot: the two stores agree with each other in
+every configuration, which is what a CPU-side operation writing both would produce. And either explains
+why the wipe is permanent - the room background is uploaded **once** in the whole run, so a clear that
+lands after that upload destroys it and nothing restores it.
+
+The order question is therefore the whole question now: whether the game's own clear happens before or
+after the room content arrives, and why suppressing flat drawing changes which.
 
 #### Next probe
 
-Instrument the target lifecycle rather than the result: log every `GetOrCreateRt` creation and eviction
-with its rectangle, timestamped against the guest frame, and check what the framebuffer regions hold
-immediately before and after frames 596 and 598. `_rts` is small - a handful of slots - so the log is
-short, and it will say directly whether the wipe coincides with an eviction.
+Log `FillRect` and `CopyVram` with their rectangles and colours, timestamped against the guest frame,
+and read both stores immediately either side of frames 596 and 598. Both stores are written by these
+operations, so a single entry showing both falling to zero at the same frame identifies the operation
+and settles whether the clear precedes or follows the room's arrival.
 
 
 #### What can be said with confidence
