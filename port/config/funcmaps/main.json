@@ -6,6 +6,36 @@
       "size": 60
     },
     {
+      "address": "0x80010328",
+      "name": "func_80010328",
+      "size": 48
+    },
+    {
+      "address": "0x80010358",
+      "name": "func_80010358",
+      "size": 12
+    },
+    {
+      "address": "0x80010364",
+      "name": "func_80010364",
+      "size": 12
+    },
+    {
+      "address": "0x80010370",
+      "name": "func_80010370",
+      "size": 156
+    },
+    {
+      "address": "0x8001040C",
+      "name": "func_8001040C",
+      "size": 12
+    },
+    {
+      "address": "0x80010418",
+      "name": "func_80010418",
+      "size": 12
+    },
+    {
       "address": "0x8001034C",
       "name": "func_8001034C",
       "size": 48
