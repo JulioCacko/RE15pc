@@ -185,15 +185,16 @@ that line is measured and reproducible.
 | Audio produces sound | `--verify-audio` **driven** - AUDIBLE, all 24 voices |
 | Title renders correctly | `100.00%` word-exact against the disc's own `TITLEJ.TIM` |
 | A room renders | 79.6% of the framebuffer, both buffers, frames 352 and 576 |
-| The game waits for and responds to input | no input holds the title; rich input makes 13 state changes |
+| The pad changes the game's trajectory | 420s runs, frame counts within 0.1%: with directions 6,709 pixels in 514 colours, without 636 in 122, frozen from frame 598 |
 
 **Two ways to close the gap**, and they are the two halves of the same problem - the game
 is waiting for a button sequence that has not been found:
 
 1. **Play it.** The input that advances the game was found by sweeping buttons, not by
-   playing, and holding directions through the room changes nothing measurable (87
-   framebuffer generations against 86, frame counts within 1.3%). A controller sequence
-   from someone who knows this build would settle it immediately.
+   playing, and although directions demonstrably change the game's trajectory, the state
+   they lead to plateaus at 6,709 pixels against a full room's 61,135 rather than
+   completing. A controller sequence from someone who knows this build would settle in
+   minutes what sweeping has not settled in rounds.
 2. **Ask the guest what it is polling.** `BiosB.PadRead` dispatches a `PadReadEvent` whose
    `Buttons` field a listener can replace - that is how `ScriptedInput` works - so logging
    the states the guest *receives* alongside the state changes it makes would show which
