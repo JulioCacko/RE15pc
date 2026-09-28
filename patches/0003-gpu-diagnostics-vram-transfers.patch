@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..4183975 100644
+index bc045ae..392efc1 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,38 @@ public static class GpuGlAccess
+@@ -17,6 +17,52 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -21,6 +21,20 @@ index bc045ae..4183975 100644
 +    /// like and is not what a fill or a stale writeback looks like.
 +    /// </remarks>
 +    public static Action<string>? RtObserver;
++
++    /// <summary>
++    /// Diagnostics only: apply neutral modulation to every textured primitive, as if it were raw.
++    /// </summary>
++    /// <remarks>
++    /// Measured: not one of 206,094 in-framebuffer textured primitives is raw, so
++    /// <c>GlCore.V()</c> applies each one's vertex colour as a modulation, and their dominant colours
++    /// are 41 and 38 of 255 - about a sixth of full brightness. The shader multiplies the texel by
++    /// that and then keeps only five bits, so most texels cannot survive as anything but zero.
++    ///
++    /// Forcing neutral modulation decides between the two readings. If the room appears, the modulation
++    /// path is the defect. If it does not, the modulation is not what is losing the frame.
++    /// </remarks>
++    public static bool ForceNeutralModulation;
 +
 +    /// <summary>
 +    /// Diagnostics only: called for every whole-region VRAM transfer - a fill, a VRAM-to-VRAM copy,

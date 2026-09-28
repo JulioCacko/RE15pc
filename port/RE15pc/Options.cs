@@ -50,6 +50,12 @@ public sealed class Options
     /// </summary>
     public string SkipDraws { get; private init; } = "";
 
+    /// <summary>
+    /// Force neutral modulation for every textured primitive, as if each were raw. A diagnostic for
+    /// the room tiles' dark modulation colour, which five-bit quantisation collapses to black.
+    /// </summary>
+    public bool NeutralModulation { get; private init; }
+
     public bool Help { get; private init; }
 
     public static bool TryParse(string[] args, out Options options, out string error)
@@ -64,6 +70,7 @@ public sealed class Options
         var input = "";
         var softwareGpu = false;
         var skipDraws = "";
+        var neutralModulation = false;
         var help = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -138,6 +145,10 @@ public sealed class Options
                     }
                     break;
 
+                case "--neutral-modulation":
+                    neutralModulation = true;
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -162,6 +173,7 @@ public sealed class Options
             Input = input,
             SoftwareGpu = softwareGpu,
             SkipDraws = skipDraws,
+            NeutralModulation = neutralModulation,
             Help = help
         };
         error = "";

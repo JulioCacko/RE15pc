@@ -98,6 +98,12 @@ public static class Program
             Console.WriteLine($"[gpu] suppressing '{options.SkipDraws}' drawing: uploads, VRAM copies and fills only");
         }
 
+        if (options.NeutralModulation)
+        {
+            RecompOne.Runtime.Hle.GpuGlAccess.ForceNeutralModulation = true;
+            Console.WriteLine("[gpu] forcing neutral modulation for textured primitives (diagnostic)");
+        }
+
         GpuActivity.Attach(options.SoftwareGpu);
         GlStateSampler.Attach();
         FrameSampler.Attach();

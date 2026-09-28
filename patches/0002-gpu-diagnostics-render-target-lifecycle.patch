@@ -1,5 +1,5 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
-index 45a0f96..c370463 100644
+index 45a0f96..fffddd4 100644
 --- a/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/Common/GlCore.cs
 @@ -289,9 +289,13 @@ public sealed class GlCore : IGpuBackend
@@ -28,3 +28,12 @@ index 45a0f96..c370463 100644
          return fresh;
      }
  
+@@ -528,7 +537,7 @@ public sealed class GlCore : IGpuBackend
+ 
+     private GlVertex V(in HleVertex v, in PrimFlags f, bool dither)
+     {
+-        var raw = f.Textured && f.RawTexture;
++        var raw = f.Textured && (f.RawTexture || GpuGlAccess.ForceNeutralModulation);
+         float cr = raw ? 128f : v.R, cg = raw ? 128f : v.G, cb = raw ? 128f : v.B;
+         var tpage = f.UseImage ? 0x4000 : f.Textured ? f.TPage & 0x1FF : 0x8000;
+         if (dither && _pendingRepTex == 0) tpage |= 0x400;

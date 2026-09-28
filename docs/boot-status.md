@@ -910,15 +910,45 @@ combination this document has spent many rounds looking for: **geometry correct,
 correct, sampled data present, blend chain correct, draws landing, draws in the right order - and a
 black result, because the modulation collapses the output to zero.**
 
-#### Next probe
+#### Refuted: the modulation colour is not what loses the frame
 
-The one-line experiment, and it is worth doing before anything else: force the modulation to neutral
-128 for in-framebuffer textured primitives and see whether the room appears. If it does, the question
-becomes whether those primitives are *meant* to be raw - in which case GP0 bit 24, which is what sets
-`RawTexture`, is being decoded wrongly - or whether the modulation really is that dark and the
-multiply-then-quantise is losing it. Either way the answer is in `GpuRaster`'s colour decode, not in the
-render target plumbing, the blend state, or the draw order, all of which this document has now measured
-and cleared.
+The modulation reading above was the strongest lead this document had, and it is wrong. Forcing neutral
+modulation for every textured primitive, as if each were raw, changes nothing:
+
+```
+DEFAULT:               [gl] display crop  581 / 76800 (0.8%)
+--neutral-modulation:  [gl] display crop  588 / 76800 (0.8%)
+```
+
+So the room is black even when every texel is modulated at full brightness, and the dark modulation
+colours are a coincidence of what the game sends rather than the cause. That is the sixth mechanism
+proposed here and withdrawn.
+
+It is worth being precise about what that leaves, because the list is now long and one item on it is
+inconsistent with the others. The textured draws that paint the room have correct geometry, correct
+texture addressing, sampled data that is provably present, a blend chain that evaluates correctly,
+full-brightness modulation, they land in the framebuffer, and they are issued in the right order after
+the per-frame clear. Every one of those has been measured rather than argued. And they produce nothing.
+
+The one fact that does not fit any partial explanation remains the same: **suppressing flat drawing
+makes those same textured draws produce 88%.** A state effect is still the only shape that fits, because
+nothing local to the textured draws explains why removing unrelated earlier primitives would change
+their output.
+
+#### Where to look next
+
+With the colour path cleared, the remaining difference between a textured draw that works and one that
+does not is what the backend does with it, and `HleTri` reaches the backend by two different routes.
+`InterpBackend` records the triangle and replays it later into `GlCore` - and the recording carries
+`PrimFlags`, including `Textured`, `RawTexture`, `SemiTrans`, `TPage` and `Clut`, but the replay goes
+through `Emit` and `ReplayTri`, not through the path a direct call to `GlCore` would take. A field lost
+or altered on the way through the recorder would be invisible to every measurement made from outside
+the backend, because those measurements read state that the recorder has already passed.
+
+The next probe is to compare the `PrimFlags` recorded by `InterpBackend` against the `PrimFlags` the
+event carried, for one framebuffer-resident textured primitive. That is the last place in the chain
+that has never been inspected, and it is the only one that can explain a draw arriving correctly and
+rendering nothing.
 
 
 #### What can be said with confidence
