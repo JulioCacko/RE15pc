@@ -1,135 +1,114 @@
 # Phase gates
 
-Every phase ends in a gate that must actually pass before the next one starts.
-A phase is not "done" because the work feels finished; it is done when the gate
-below it holds. Status is updated here as gates pass.
+Every phase ends in a gate that must actually pass before the next one starts. A phase is
+not "done" because the work feels finished; it is done when the gate below it holds.
 
-Legend: **DONE** · **ACTIVE** · **TODO**
+Legend: **DONE** · **PARTIAL** · **ACTIVE** · **TODO**
+
+Current position: **Phase 4, partially met.** The port boots and runs real game code; one
+rendering defect is identified. See `docs/boot-status.md` for the evidence.
 
 ---
 
 ## Phase 0 — Repository and disc hygiene — DONE
 
-- [x] Repository scaffolded with the disc image and the upstream RecompOne clone
-      excluded before the first commit.
-- [x] `Conventional Commits v1.0.0` hook installed at `.githooks/commit-msg` and
-      verified to reject a non-conventional header, a capitalised description, an
-      unknown type, and a lowercase `BREAKING CHANGE`.
+- [x] Repository scaffolded with the disc image and the upstream RecompOne clone excluded
+      before the first commit.
+- [x] Conventional Commits v1.0.0 hook at `.githooks/commit-msg`, verified to reject a
+      non-conventional header, a capitalised description, an unknown type, and a lowercase
+      `BREAKING CHANGE`.
 - [x] Private repo `github.com/JulioCacko/RE15pc` created and pushed.
 - [x] `Bio2Nov96.cue` track mode corrected from `MODE0/2352` to `MODE2/2352`.
-- [x] `disc-manifest.json` generated and cross-checked against an independent
-      SHA-256.
-- [x] `bootstrap.ps1` pinned RecompOne at `d81dec8` and reported a clean tree.
+- [x] `disc-manifest.json` generated and cross-checked against an independent SHA-256.
+- [x] `bootstrap.ps1` pins RecompOne at `d81dec8` and reports a clean tree.
 
-**Gate:** the manifest verifies with `-Check`, and `bootstrap.ps1` reproduces the
-toolchain. Both hold.
+## Phase 1 — Toolchain and disc probe — DONE
 
----
+- [x] `RecompOne.sln` builds in Release.
+- [x] All 349 entries classified: 1 executable, 7 code, 69 media, 257 data.
 
-## Phase 1 — Toolchain and disc probe — ACTIVE
+**Gate deviation, resolved.** The gate asked for all seven overlays to be classified at
+base `0x80100000`. Two were not, and the reasons are upstream heuristic limits rather than
+disc problems: `STAGE6.BIN` was guessed as `0x8004F000`, which lies *inside* the resident
+main executable (`0x80010000` + `0x0AF000` = `0x800BF000`) and so cannot be a load address;
+`TITLE.BIN` got no base at all, because its 18 in-range pointers fall below `GuessBase`'s
+`bestHits >= 32` confidence threshold, and `AutoConfigurator` silently drops an overlay it
+cannot base. The expected false positives did *not* occur - every EMS, ITP, PLD, PLW, RDT,
+BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classification.md`.
 
-- [ ] `RecompOne.sln` builds in Release.
-- [ ] `recompone --probe-disc Bio2Nov96.cue -json out/probe.json -all` classified
-      every one of the 349 entries.
+## Phase 2 — Curated recompiler configuration — DONE
 
-**Gate:** boot resolves to `PSX.EXE`; `STAGE1..6.BIN` and `TITLE.BIN` classify as
-code with base `0x80100000`; the full classification table is archived,
-including the false positives Phase 2 intends to prune.
+- [x] `--autoconfigure` produced the baseline and the function maps.
+- [x] `port/config/bio2nov96.json` reduced to exactly seven overlays with bases declared
+      explicitly rather than accepted from the guesses.
+- [x] `stage6` and `title` maps regenerated at the correct base. This was necessary, not
+      cosmetic: `FunctionMapLoader.Load` reads stored addresses **verbatim** and does not
+      rebase them, so fixing the config's base alone would not have fixed a map swept at
+      the wrong one.
 
-**Why this gate matters:** `DiscProbe` classifies by code-density score plus an
-extension allowlist. `PSX/EMD/*.EMS`, `PSX/ITEM/*.ITP`, `PSX/PLD/*.PLD`,
-`*.PLW`, `PSX/STAGE*/*.RDT`, `*.BSS` and `PSX/SOUND/*.BGM` match neither the
-media list nor obviously-readable code, so some will be misread as code and
-swept as overlays. Knowing exactly which ones, before writing the config, is the
-difference between a curated config and megabytes of garbage functions.
+## Phase 3 — Recompile and host application — DONE
 
----
+- [x] Recompiler ran to completion: **5150 functions**, 44 SDK reimplementations applied.
+      `pointerScan` added 780 entry points to main (1359 → 2139), which is why it is on.
+- [x] `generated/Entry.cs` registers all eight tables and calls `0x80054448`.
+- [x] `port/RE15pc` builds and opens a GL 4.5 window.
+- [x] `OverlayPolicy` unloads equal-base overlays on load.
+- [x] Process exit code made meaningful by terminating rather than unwinding.
 
-## Phase 2 — Curated recompiler configuration — TODO
+**Gate met:** `[Dispatcher] loaded overlay: main` appears and the process survives frames.
 
-- [ ] `--autoconfigure` run to produce a baseline.
-- [ ] `port/config/bio2nov96.json` reduced to exactly seven overlays.
+## Phase 4 — Boot to title — PARTIAL
 
-**Gate:** `recompone port/config/bio2nov96.json` exits 0 with no skipped-overlay
-warnings and plausible per-overlay function counts.
+- [x] Guest code executes: `ResetGraph:jtb=8007e308,env=8007e350` is guest output, not
+      runtime output.
+- [x] **Zero unmapped calls** in a 60 second run with `Dispatcher.Tolerant = false`.
+- [x] Guest progresses rather than wedging: 48 distinct memory states over 25 seconds, last
+      change at the sampling instant.
+- [x] Runtime delivers interrupts: 2840 IRQ deliveries in 20 seconds; the guest is calling
+      `VSync`, DMA channel 6, `PAD_dr` and `ChangeTh`.
+- [x] The `title` overlay loads.
+- [x] The framebuffer is a picture, not noise: 41.4% non-black, 1123 distinct colours.
+- [x] `TITLEJ.TIM` proven resident at the display origin at **100.00% word-exact** match.
+- [ ] **Title image is displaced 10 pixels horizontally** because the 20-byte TIM header was
+      uploaded along with the pixels. Root cause not yet attributed.
+- [ ] Animation not yet observed across frames, only a single frame compared.
+- [ ] Audio not proven to play at all.
 
-The configuration is a hand-curated artefact, not generated output. Autoconfigure
-is a starting point that gets edited down; see `port/config/bio2nov96.json`.
+## Phase 5 — Overlay dispatch and determinism — PARTIAL
 
----
+- [x] Settled: overlays are copied into RAM **verbatim**, leading 4-byte word included, so
+      `skip` is correctly 0. Proven by byte comparison against a live RAM dump, with STAGE1
+      as a negative control. See `docs/overlay-load-verbatim.md`.
+- [x] `stage1` vs `title` region overlap handled host-side; `OverlayPolicy` reports its
+      evictions.
+- [ ] Recompile twice and confirm byte-identical `generated/` output. Not yet done, and it
+      is what decides whether `generated/` may stay ignored.
 
-## Phase 3 — Recompile and host application — TODO
-
-- [ ] Recompiler runs to completion; `generated/Entry.cs` registers all seven
-      overlays and calls the entry point at `0x80054448`.
-- [ ] `port/RE15pc` host application builds and opens a window.
-
-**Gate:** `[Dispatcher] loaded overlay: main` appears and the process survives a
-frame without crashing.
-
----
-
-## Phase 4 — Boot to title — TODO
-
-**Gate:** `CAPCOM.STR` decodes and plays; the title screen renders and animates;
-**zero** unmapped calls in a 60-second run with `Dispatcher.Tolerant = false`.
-
----
-
-## Phase 5 — Overlay dispatch and determinism — TODO
-
-- [ ] Settle whether each `.BIN` is copied verbatim to `0x80100000` or whether the
-      loader skips the leading 4-byte word.
-- [ ] Confirm `OverlayPolicy` retires `stage1` when `title` loads.
-- [ ] Recompile twice and compare output.
-
-**Gate:** RAM at `0x80100000` matches the overlay file under the decided rule;
-all seven overlays log load/unload correctly; two consecutive recompiles produce
-byte-identical `generated/`.
-
-**Open question, and how it gets answered.** Every overlay begins with a small
-word — STAGE1 `0x0000000F`, TITLE `0x0000000E`, STAGE6 `0x00000014` — followed by
-code or data. Whether that word is part of the RAM image decides whether the
-overlays need `"skip": 4`. The test is direct: dump RAM at `0x80100000`
-immediately after the first `stage1` load and compare against
-`PSX/BIN/STAGE1.BIN`.
-
-- If `ram[0x1000..] == file[0x1000..]` but the first words differ, the loader
-  strips a header and every overlay needs `"skip": 4`. `LbaStart` is unaffected,
-  since `(0 + 4) / 2048 == 0`.
-- If they match entirely, `skip` stays 0.
-
-There is a shortcut worth trying first: find the code that references the
-`Stage Bin Size      : %X` debug string at `0x80010DD8` in `PSX.EXE`, which is
-the overlay loader, and read what it does with the first word.
-
----
+The original open question was whether each `.BIN` is copied verbatim or has a leading word
+stripped. It is verbatim. The decisive evidence was a live dump: RAM at `0x80100000` began
+`0E 00 00 00 53 65 6C 65 63 74 68 33 2E 74 69 6D`, i.e. `TITLE.BIN`'s own leading word
+followed by `Selecth3.tim`. Under a shift-by-4 rule the match would have been zero bytes; it
+was 9924 of 9932, the single difference being a guest write at `0x801026C4`.
 
 ## Phase 6 — First playable room — TODO
 
-Room data (`.RDT` + `.BSS`), EMD models (`CDEMD0/1.EMS`), the player mesh
-(`PL00.PLD` with `PL00W*.PLW`), doors (`DOOR00.DO2`), collision and camera.
+Room data (`.RDT` + `.BSS`), EMD models (`CDEMD0/1.EMS`), the player mesh (`PL00.PLD` with
+`PL00W*.PLW`), doors (`DOOR00.DO2`), collision and camera.
 
-**Gate:** a STAGE1 room renders at correct speed with a controllable player and
-working doors.
-
----
+**Gate:** a STAGE1 room renders at correct speed with a controllable player and working
+doors.
 
 ## Phase 7 — Full game — TODO
 
-Sound (`PSX/SOUND/*.BGM` SEQ banks, `*.VB`/`*.EDH` samples, XA streams), memory
-card save and load, FMVs, all six stages, item data (`ITPS.ITP`), both
-scenarios, endings.
+Sound (`PSX/SOUND/*.BGM` SEQ banks, `*.VB`/`*.EDH` samples, XA streams), memory card save
+and load, FMVs, all six stages, item data (`ITPS.ITP`), both scenarios, endings.
 
 **Gate:** the acceptance criteria in `docs/compatibility.md`.
 
-This is where most of the remaining work lives, and it is an iterative grind
-rather than a single fix: linear sweep cannot recover every indirect jump, so
-unmapped calls surface one at a time as new code paths are reached.
-
----
+This is an iterative grind rather than a single fix: linear sweep cannot recover every
+indirect jump, so unmapped calls surface one at a time as new code paths are reached.
 
 ## Phase 8 — Polish — TODO
 
-Release build, settings persistence, HD texture replacement via
-`AssetReplacerManager`, widescreen and PGXP defaults, port README.
+Release build, settings persistence, HD texture replacement, widescreen and PGXP defaults,
+port README.
