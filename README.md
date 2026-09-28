@@ -135,11 +135,14 @@ pwsh -File tools/Test-RecompileDeterminism.ps1
 # (prints 8 of 8, 0 failed; writes out/diagnostics/overlay-dispatch.txt)
 dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-overlays
 
-# the SPU produces sound: all 24 voices carry volume and a block is mixed with
-# signal in it. The peak amplitude varies by run and by input - measured between
-# roughly 8600 and 17000 of 32767 - so read the figure, not a fixed number.
+# the SPU produces sound. This one MUST be driven with input: the game waits on
+# the title screen until it is, and an undriven run correctly reports SILENT
+# because nothing is playing yet - which is not the same as a silent audio path.
+# Driven, it reports AUDIBLE with all 24 voices carrying volume; the peak varies
+# by run, measured between roughly 8600 and 17000 of 32767, so read the figure.
 # (writes out/diagnostics/audio.txt)
-dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 25 --verify-audio
+dotnet run --project port/RE15pc -- --cue .\Bio2Nov96.cue --smoke 60 --verify-audio `
+  --input "90:start,240:cross,300:cross,600:up,900:cross,1200:cross"
 
 # the guest runs real game code without stopping: drives it hard with sustained
 # input and fails on any unmapped call. This is the check that caught the
