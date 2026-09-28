@@ -6,25 +6,23 @@ using RecompOne.Runtime.Host;
 namespace RE15pc.Diagnostics;
 
 /// <summary>
-/// Writes the PlayStation's video memory to PNG and to a text luminance render, so a
-/// run can be inspected without a human watching the window.
+/// Dumps video memory to disk, from every source that can provide it, and in a form that can
+/// be read without an image viewer.
 /// </summary>
 /// <remarks>
-/// This reads <c>Gpu.Vram</c>, the software shadow copy, rather than going through the
-/// OpenGL backend. Two reasons, both load-bearing: GL reads can only happen on the
-/// thread that owns the context and this runs on a diagnostics thread; and the shadow
-/// is the authoritative bytes the guest actually wrote, whereas the GL side is the
-/// presentation copy.
+/// There are two views of VRAM and this project has now been misled by each of them once.
 ///
-/// The full 1024x512 VRAM image is dumped alongside a crop of the current display area,
-/// because on this hardware textures, framebuffers and CLUTs all share VRAM. The full
-/// image shows what was uploaded; the crop shows what would be on screen.
+/// - **The software shadow**, <c>Gpu.Vram</c>. Authoritative for anything the CPU uploaded,
+///   and for VRAM-to-VRAM copies, which the command decoder performs itself. Whether it also
+///   receives *rasterised* output depends on the backend.
+/// - **The backend**, read through <c>IGpuBackend.ReadVram</c> on the GL thread.
 ///
-/// The same crop is also rendered as text. A PNG needs an image-capable reader to
-/// interpret, and the whole point of the artifact is that it can be checked from a log.
+/// Each was separately believed to be the truth and each produced a different black frame. The
+/// lesson is not to pick one, so this writes both and reports the statistics for both. A run in
+/// which the two disagree is itself the finding.
 ///
-/// A snapshot taken while the guest is writing can tear. That is acceptable for
-/// diagnosis and is noted here rather than papered over.
+/// Each source also gets a luminance text render, because the PNG needs an image-capable reader
+/// to interpret and the whole point of the artifact is that it can be checked from a log.
 /// </remarks>
 public static class VramDump
 {
@@ -34,50 +32,38 @@ public static class VramDump
     /// <summary>Dark to bright. Index 0 is a space so empty areas read as blank.</summary>
     private const string AsciiRamp = " .:-=+*#%@";
 
-    /// <summary>Dumps VRAM and returns a short human-readable summary, render included.</summary>
+    /// <summary>Dumps VRAM from every available source and returns a readable summary.</summary>
     public static string Dump(Gpu? gpu, string outDir)
     {
         if (gpu is null) return "  VRAM                    : unavailable (Runtime.Gpu is null)";
 
-        var (vram, source) = AcquireVram(gpu);
         const int width = Gpu.VramWidth;
         const int height = Gpu.VramHeight;
 
-        if (vram.Length < width * height)
-            return $"  VRAM                    : unexpected size {vram.Length}, wanted {width * height}";
-
         Directory.CreateDirectory(outDir);
 
-        try
+        var sources = new List<(string Label, ushort[] Data)>
         {
-            var full = ToRgba(vram, width, height, 0, 0, width, height);
-            PngWriter.WriteRgba(Path.Combine(outDir, "vram-full.png"), full, width, height);
+            ("shadow", gpu.Vram)
+        };
 
-            // Raw 16-bit pixels as well as the PNG. The PNG has already been converted
-            // 15-bit to 8-bit, which throws away the low bits needed for an exact
-            // comparison against a TIM texture from the disc; this keeps them.
-            var raw = new byte[vram.Length * 2];
-            Buffer.BlockCopy(vram, 0, raw, 0, raw.Length);
-            File.WriteAllBytes(Path.Combine(outDir, "vram.rgb555.bin"), raw);
-        }
-        catch (Exception ex)
-        {
-            return $"  VRAM                    : full dump failed: {ex.Message}";
-        }
+        var (glData, glNote) = TryReadBackend(width, height);
+        if (glData != null) sources.Add(("gl", glData));
+
+        var summary = new System.Text.StringBuilder();
+        summary.AppendLine($"  vram sources            : {string.Join(", ", sources.Select(s => s.Label))}" +
+                           (glNote.Length > 0 ? $"  ({glNote})" : ""));
+        summary.AppendLine($"  VRAM size               : {width}x{height}");
+        summary.AppendLine($"  display enabled         : {gpu.DisplayEnabled}");
 
         var dx = gpu.DisplayX;
         var dy = gpu.DisplayY;
         var dw = Math.Clamp(gpu.DisplayWidth, 0, width);
         var dh = Math.Clamp(gpu.DisplayHeight, 0, height);
 
-        var summary = new System.Text.StringBuilder();
-        summary.AppendLine($"  VRAM source             : {source}");
-        summary.AppendLine($"  display enabled         : {gpu.DisplayEnabled}");
         summary.AppendLine($"  display area            : {dw}x{dh} at VRAM ({dx},{dy})" +
                            (gpu.Pal ? ", PAL" : ", NTSC") +
                            (gpu.Display24Bit ? ", 24-bit" : ""));
-        summary.AppendLine($"  vram-full.png           : {width}x{height}, whole VRAM");
-        summary.AppendLine($"  vram.rgb555.bin         : raw 16-bit pixels, 2 bytes each, {width} per row");
 
         if (dw <= 0 || dh <= 0)
         {
@@ -85,94 +71,97 @@ public static class VramDump
             return summary.ToString().TrimEnd();
         }
 
-        try
+        foreach (var (label, data) in sources)
         {
-            var crop = ToRgba(vram, width, height, dx, dy, dw, dh);
-            PngWriter.WriteRgba(Path.Combine(outDir, "framebuffer.png"), crop, dw, dh);
+            if (data.Length < width * height)
+            {
+                summary.AppendLine($"  [{label}] unexpected size {data.Length}, wanted {width * height}");
+                continue;
+            }
 
-            // A blank framebuffer is the signature of a run that reached the code but
-            // never drew anything, which is worth distinguishing from a run that drew.
-            var lit = 0;
-            for (var i = 0; i < crop.Length; i += 4)
-                if (crop[i] != 0 || crop[i + 1] != 0 || crop[i + 2] != 0)
-                    lit++;
+            try
+            {
+                var full = ToRgba(data, width, height, 0, 0, width, height);
+                PngWriter.WriteRgba(Path.Combine(outDir, $"vram-{label}.png"), full, width, height);
 
-            var total = dw * dh;
-            var percent = total == 0 ? 0.0 : 100.0 * lit / total;
-            summary.AppendLine($"  non-black pixels        : {lit}/{total} ({percent:0.0}%)");
+                var raw = new byte[data.Length * 2];
+                Buffer.BlockCopy(data, 0, raw, 0, raw.Length);
+                File.WriteAllBytes(Path.Combine(outDir, $"vram-{label}.rgb555.bin"), raw);
 
-            // Distinct colour count separates "the guest drew something" from "the
-            // framebuffer is noise": a real title screen has a small palette, garbage
-            // has thousands of colours.
-            var colors = new HashSet<int>();
-            for (var i = 0; i < crop.Length; i += 4)
-                colors.Add((crop[i] << 16) | (crop[i + 1] << 8) | crop[i + 2]);
-            summary.AppendLine($"  distinct colours        : {colors.Count}");
+                var crop = ToRgba(data, width, height, dx, dy, dw, dh);
+                PngWriter.WriteRgba(Path.Combine(outDir, $"framebuffer-{label}.png"), crop, dw, dh);
 
-            var ascii = RenderAscii(crop, dw, dh, AsciiCols, AsciiRows);
-            File.WriteAllText(Path.Combine(outDir, "framebuffer-ascii.txt"), ascii);
+                var lit = 0;
+                var colors = new HashSet<int>();
+                for (var i = 0; i < crop.Length; i += 4)
+                {
+                    if (crop[i] != 0 || crop[i + 1] != 0 || crop[i + 2] != 0) lit++;
+                    colors.Add((crop[i] << 16) | (crop[i + 1] << 8) | crop[i + 2]);
+                }
 
-            summary.AppendLine($"  framebuffer.png         : {dw}x{dh} crop of the display area");
-            summary.AppendLine($"  framebuffer-ascii.txt   : {AsciiCols}x{AsciiRows} luminance render");
-            summary.AppendLine();
-            summary.AppendLine($"  display area as luminance text ({AsciiCols}x{AsciiRows}, " +
-                               $"'{AsciiRamp[0]}' = dark, '{AsciiRamp[^1]}' = bright):");
-            summary.Append(ascii.TrimEnd());
+                var total = dw * dh;
+                summary.AppendLine($"  [{label}] display crop    : {lit}/{total} non-black " +
+                                   $"({100.0 * lit / total:0.0}%), {colors.Count} distinct colours");
+
+                var ascii = RenderAscii(crop, dw, dh, AsciiCols, AsciiRows);
+                File.WriteAllText(Path.Combine(outDir, $"framebuffer-{label}-ascii.txt"), ascii);
+
+                // The GL source is the one that reflects what a rasteriser produced, so prefer it
+                // for the canonical artifact when it exists.
+                if (label == "gl" || sources.Count == 1)
+                    File.WriteAllText(Path.Combine(outDir, "framebuffer-ascii.txt"), ascii);
+            }
+            catch (Exception ex)
+            {
+                summary.AppendLine($"  [{label}] dump failed    : {ex.Message}");
+            }
         }
-        catch (Exception ex)
+
+        // Render whichever source was written as canonical, so the report is self-contained.
+        var primary = sources.FirstOrDefault(s => s.Label == "gl");
+        if (primary.Data == null) primary = sources[0];
+
+        if (primary.Data.Length >= width * height)
         {
-            summary.AppendLine($"  framebuffer             : dump failed: {ex.Message}");
+            summary.AppendLine();
+            summary.AppendLine($"  display area from '{primary.Label}' as luminance text " +
+                               $"({AsciiCols}x{AsciiRows}, '{AsciiRamp[0]}' = dark, '{AsciiRamp[^1]}' = bright):");
+            summary.Append(RenderAscii(ToRgba(primary.Data, width, height, dx, dy, dw, dh), dw, dh,
+                AsciiCols, AsciiRows).TrimEnd());
         }
 
         return summary.ToString().TrimEnd();
     }
 
     /// <summary>
-    /// Obtains video memory, preferring the GL backend whenever the HLE is active.
+    /// Reads VRAM through the GPU backend, on the thread that owns the GL context.
     /// </summary>
     /// <remarks>
-    /// This distinction is not cosmetic, it decides whether the dump means anything.
-    /// <c>GpuHleForward</c> routes rasterisation to the GL backend as soon as
-    /// <c>GpuHle.Active</c> and the backend is ready, so once that is true the software
-    /// shadow in <c>Gpu.Vram</c> only ever receives CPU-to-VRAM uploads and VRAM-to-VRAM
-    /// copies. Anything the guest *drew* is on the GL side and never appears in the shadow.
-    ///
-    /// Reading the shadow in that state produces a picture of the uploaded textures with a
-    /// black framebuffer, which reads exactly like "the game renders nothing" and is
-    /// completely wrong. The source is reported alongside the dump so a future reader can
-    /// tell which of the two they are looking at.
-    ///
-    /// GL work has to happen on the thread that owns the context, so this hands the read to
-    /// the GPU job queue the presentation loop drains. That queue has no timeout, and the
-    /// presentation loop stops draining once the guest thread ends, so the wait is bounded
-    /// here and falls back to the shadow rather than hanging the run it is diagnosing.
+    /// GL work has to happen on the owning thread, so this hands the read to the GPU job queue
+    /// the presentation loop drains. That queue has no timeout and stops being drained once the
+    /// guest thread ends, so the wait is bounded here and the read is skipped rather than
+    /// hanging the run it is diagnosing.
     /// </remarks>
-    private static (ushort[] Data, string Source) AcquireVram(Gpu gpu)
+    private static (ushort[]? Data, string Note) TryReadBackend(int width, int height)
     {
-        var shadow = gpu.Vram;
-
-        if (!GpuHle.Active)
-            return (shadow, "software shadow (GPU HLE inactive, so the shadow IS authoritative)");
-
         if (GpuHle.Backend is not { Ready: true } backend)
-            return (shadow, "software shadow (GL backend not ready)");
+            return (null, "no ready backend");
 
         if (!GpuJobs.Claimed)
-            return (shadow, "software shadow (GPU job queue not claimed yet)");
+            return (null, "GPU job queue not claimed");
 
-        var buffer = new ushort[Gpu.VramWidth * Gpu.VramHeight];
+        var buffer = new ushort[width * height];
         var done = new ManualResetEventSlim(false);
 
         var reader = new Thread(() =>
         {
             try
             {
-                GpuJobs.Run(() => backend.ReadVram(0, 0, Gpu.VramWidth, Gpu.VramHeight, buffer));
+                GpuJobs.Run(() => backend.ReadVram(0, 0, width, height, buffer));
             }
             catch
             {
-                // Reported by the timeout/fallback below; the exception itself is only
-                // interesting if the read also fails to complete.
+                // Reported through the timeout/absence of data below.
             }
             finally
             {
@@ -186,10 +175,9 @@ public static class VramDump
 
         reader.Start();
 
-        if (!done.Wait(TimeSpan.FromSeconds(5)))
-            return (shadow, "software shadow (GL read timed out; presentation loop may have stopped)");
-
-        return (buffer, "GL backend (authoritative while the HLE is active)");
+        return done.Wait(TimeSpan.FromSeconds(5))
+            ? (buffer, "")
+            : (null, "backend read timed out");
     }
 
     /// <summary>
@@ -234,9 +222,9 @@ public static class VramDump
     }
 
     /// <summary>
-    /// Expands PS1 16-bit pixels (bit 15 mask, then 5 bits each of B, G, R, low to high)
-    /// into RGBA8. The 5-to-8 bit expansion replicates the high bits into the low ones so
-    /// that full scale stays full scale.
+    /// Expands PS1 16-bit pixels (bit 15 mask, then 5 bits each of B, G, R, low to high) into
+    /// RGBA8. The 5-to-8 bit expansion replicates the high bits into the low ones so that full
+    /// scale stays full scale.
     /// </summary>
     private static byte[] ToRgba(ushort[] vram, int vramWidth, int vramHeight,
         int x0, int y0, int w, int h)

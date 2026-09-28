@@ -37,6 +37,12 @@ public sealed class Options
     /// </summary>
     public string Input { get; private init; } = "";
 
+    /// <summary>
+    /// Disable the GPU HLE so the software rasteriser draws into the shadow VRAM. A
+    /// diagnostic for isolating the GL path; see <c>GpuActivity.Attach</c>.
+    /// </summary>
+    public bool SoftwareGpu { get; private init; }
+
     public bool Help { get; private init; }
 
     public static bool TryParse(string[] args, out Options options, out string error)
@@ -49,6 +55,7 @@ public sealed class Options
         var log = "";
         var sample = 0.5;
         var input = "";
+        var softwareGpu = false;
         var help = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -107,6 +114,10 @@ public sealed class Options
                     input = args[i];
                     break;
 
+                case "--software-gpu":
+                    softwareGpu = true;
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -129,6 +140,7 @@ public sealed class Options
             Log = log,
             SampleSeconds = sample,
             Input = input,
+            SoftwareGpu = softwareGpu,
             Help = help
         };
         error = "";
@@ -200,6 +212,8 @@ public sealed class Options
         Console.WriteLine("                      buttons: select start up down left right l1 r1 l2 r2");
         Console.WriteLine("                               l3 r3 triangle circle cross square");
         Console.WriteLine("                      each press is held for 12 frames");
+        Console.WriteLine("  --software-gpu      disable the GPU HLE so the software rasteriser draws into");
+        Console.WriteLine("                      shadow VRAM; a diagnostic for isolating the GL path");
         Console.WriteLine("  --help              show this message");
         Console.WriteLine();
         Console.WriteLine("Run from the repository root so settings.json and out/ land predictably.");

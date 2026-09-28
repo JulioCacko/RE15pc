@@ -25,6 +25,7 @@ public static class GpuActivity
     private static readonly object Gate = new();
 
     private static bool _attached;
+    private static bool _forceSoftware;
     private static long _prims;
     private static long _textured;
     private static long _semiTransparent;
@@ -70,11 +71,38 @@ public static class GpuActivity
     public static long Primitives => Interlocked.Read(ref _prims);
     public static long Textured => Interlocked.Read(ref _textured);
 
-    public static void Attach()
+    /// <summary>
+    /// Attaches the recorder.
+    /// </summary>
+    /// <param name="forceSoftwareRendering">
+    /// When true, turns the GPU HLE off so <c>GpuRaster</c>'s own rasteriser draws into the
+    /// software shadow instead. This is a diagnostic that isolates the GL path: the software
+    /// path is self-contained - <c>GpuCommands.CopyVramToVram</c> performs the shadow copy
+    /// itself and only *notifies* the HLE afterwards - so with the HLE off the shadow holds a
+    /// complete, independently produced frame.
+    ///
+    /// It has to be re-asserted every frame, because <c>HostWindow</c> assigns
+    /// <c>GpuHle.Active</c> from backend readiness. <c>VSyncEvent</c> fires on the game thread
+    /// after the frame's presentation work, which is late enough to win for the rest of the
+    /// frame.
+    /// </param>
+    public static void Attach(bool forceSoftwareRendering = false)
     {
         if (_attached) return;
         _attached = true;
+
         Event.AddListener<RenderPrimEvent>(OnPrimitive);
+
+        if (!forceSoftwareRendering) return;
+
+        _forceSoftware = true;
+        GpuHle.Active = false;
+        Event.AddListener<VSyncEvent>(_ =>
+        {
+            if (_forceSoftware) GpuHle.Active = false;
+        });
+
+        Console.WriteLine("[gpu] forcing the software rasteriser: GPU HLE disabled for this run");
     }
 
     private static void OnPrimitive(RenderPrimEvent e)
@@ -189,7 +217,8 @@ public static class GpuActivity
 
         // The HLE render-target path. A non-zero widescreen margin changes the render target's
         // width and shifts vertices, which is a strong candidate for a blank frame.
-        sb.AppendLine($"  gpu hle                 : active={GpuHle.Active}, backend={GpuHle.Backend?.GetType().Name ?? "null"}");
+        sb.AppendLine($"  gpu hle                 : active={GpuHle.Active}, backend={GpuHle.Backend?.GetType().Name ?? "null"}" +
+                      (_forceSoftware ? "  (software rasteriser forced)" : ""));
         sb.AppendLine($"  widescreen              : WideAspect={GpuHle.WideAspect:0.###}, " +
                       $"SourceAspect={GpuHle.SourceAspect:0.###}, WideMargin(320)={GpuHle.WideMargin(320)}");
         sb.AppendLine($"  drawing area(s) seen    : {areas}");
