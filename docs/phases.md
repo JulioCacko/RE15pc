@@ -52,7 +52,7 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
 
 ## Phase 3 — Recompile and host application — DONE
 
-- [x] Recompiler ran to completion: **5150 functions**, 44 SDK reimplementations applied.
+- [x] Recompiler ran to completion: **5182 functions**, 44 SDK reimplementations applied. (5150 at the time this gate was written; 33 computed-jump targets were added to the main function map later, with the reason recorded under Phase 4.)
       `pointerScan` added 780 entry points to main (1359 → 2139), which is why it is on.
 - [x] `generated/Entry.cs` registers all eight tables and calls `0x80054448`.
 - [x] `port/RE15pc` builds and opens a GL 4.5 window.
@@ -82,17 +82,28 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
       stage1 664, stage2 520, stage3 626, stage4 492, stage5 628, stage6 43, title 38.
 - [x] `TITLEJ.TIM` proven resident at the display origin at a **100.00% word-exact** match, and
       the title screen is a picture rather than noise: 41.4% non-black, 1123 distinct colours.
-- [ ] **The composed frame is black.** The blocker. Stated as precisely as measurement allows: the
-      room's drawn output never reaches video memory. Uploads do reach it - the title screen, an
-      uploaded image, peaks at 31,906 non-black pixels - but over 300 textured draws per frame into
-      a framebuffer produce nothing. Draws are classified into render targets, the targets are
-      flushed more often than they are re-seeded, the vertex batch flushes correctly on target
-      change, the blend chain and modulation are correct, and OpenGL reports one error in the whole
-      run in both the failing and the working configuration. The same draws render at 88% non-black
-      with `--skip-draws flat`, which is an instrument and not a workaround.
-      An earlier revision localised this to the software store, on the reasoning that the same
-      operation reached it; that reasoning is void, because the software store receives only CPU
-      writes and never sees drawn output at all.
+- [x] **RESOLVED - the composed frame is not black, and never was.** An earlier revision of this
+      file called this the blocker and described the room's drawn output as never reaching video
+      memory. Both were wrong, and the measurements that supported them were measurements of the
+      wrong thing. The room renders at **79.6% of the framebuffer, in both buffers**, at frames 352
+      and again at 576; the game then fades itself out by drawing large flat **subtract** rectangles
+      over that correctly rendered image, which is what a fade to black is. `--skip-draws flat`
+      removes those rectangles, so it was never an instrument for a rendering fault - it was a
+      brightness control, and every conclusion drawn from it was a comparison between a faded frame
+      and an unfaded one.
+      The instruments that measured a black frame were measuring the fade correctly. The software
+      store reasoning below is void for the reason already given: it receives only CPU writes and
+      never sees drawn output at all.
+- [x] **The real blocker - fixed.** The guest used to stop at frame 704 with an unmapped call at
+      `0x800100AC`. The cause was a control-flow gap: an indexed dispatch table whose entries the
+      function detector had merged into their neighbouring functions, so the guest jumping into the
+      middle of `func_8001003C` found nothing to dispatch to. 33 computed-jump targets were added to
+      `port/config/funcmaps/main.json` - deliberate curation of a generated file, since
+      `--autoconfigure` would discard it. The same sustained input that previously stopped at frame
+      704 now runs **5414 guest frames with zero unmapped calls** and a passing verdict.
+      Phase 7 below anticipated this class of failure exactly: "linear sweep cannot recover every
+      indirect jump, so unmapped calls surface one at a time as new code paths are reached". That is
+      what happened, and the fix is the manual recovery the note implies.
 - [ ] Title image is displaced 10 pixels horizontally, because the 20-byte TIM header is uploaded
       along with the pixels. Root cause not yet attributed.
 - [ ] Animation not yet observed across frames, only individual frames compared.
@@ -107,10 +118,13 @@ BSS, BGM and DO2 file classified as data. Full table in `docs/probe-classificati
       mix. That is the third time in this project that a measurement was right about *what* it
       sampled and wrong about *when* - the same mistake produced the "one-off erasure" reading of the
       framebuffer wipe, and then the audio verdict, and then the audio check that reported it.
-- [ ] Continuous music is not established. SPU output is intermittent and peaked at about a quarter
-      of full scale, which is consistent with sound effects rather than a music track, and CD audio
-      is idle throughout (`cdAudio=False`, XA `playing=False`, `buffered=0`). Whether the disc's XA
-      tracks ever stream is untested.
+- [ ] Continuous music is not established, and the measurement has improved without settling it.
+      A 150-second run with mixed input now shows **all 24 voices carrying volume, non-zero on 2898
+      of 4268 frames**, with 91 mixed blocks peaking at 16979 of 32767 - roughly half of full scale,
+      and far more continuous than the earlier "intermittent, about a quarter" reading. Whether that
+      is a music track or sustained sound effects is not distinguished, and CD audio is idle
+      throughout (`cdAudio=False`, XA `playing=False`, `buffered=0`). Whether the disc's XA tracks
+      ever stream is untested.
 
 ## Phase 5 — Overlay dispatch and determinism — DONE
 
@@ -135,13 +149,30 @@ the configuration, and that is what makes a later change in game behaviour attri
 port rather than to recompiler drift. Run the gate after touching the configuration, the
 function maps, or anything in `patches/`.
 
-## Phase 6 — First playable room — TODO
+## Phase 6 — First playable room — PARTIAL
 
 Room data (`.RDT` + `.BSS`), EMD models (`CDEMD0/1.EMS`), the player mesh (`PL00.PLD` with
 `PL00W*.PLW`), doors (`DOOR00.DO2`), collision and camera.
 
 **Gate:** a STAGE1 room renders at correct speed with a controllable player and working
 doors.
+
+- [x] A STAGE1 room renders: **79.6% of the framebuffer, 61135 of 76800 pixels, in both
+      buffers**, at frames 352 and 576, and the game transitions out of it afterwards.
+- [x] The game is interactive and waits for input. With none it holds the title screen
+      indefinitely - two buffer changes in sixty seconds; with start and periodic cross
+      plus held directions it makes **thirteen** state changes and moves to a different
+      display. The comparison is fair: the frame counts differ by 7%.
+- [ ] **A controllable player is not demonstrated.** No state has been observed in which
+      a player character responds to the pad. The input that advances the game was found
+      by sweeping buttons rather than by playing, and progress through a sequence is not
+      the same as control of a character.
+- [ ] **Doors are not demonstrated.** No door transition has been driven deliberately; the
+      wipes observed at frames 598 and 820-822 are consistent with transitions but were
+      not caused on purpose and their contents were not identified.
+
+Phase 7 below anticipated this class of failure exactly: linear sweep cannot recover every
+indirect jump, so unmapped calls surface one at a time as new code paths are reached.
 
 ## Phase 7 — Full game — TODO
 
