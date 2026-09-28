@@ -378,58 +378,61 @@ y 0..1263`, so some extend past the VRAM edge entirely.
 **The mask bits are not involved.** Every one of the 856 is `-/-`, neither setting nor checking the
 mask, and no textured primitive is ever drawn under CheckMask. That explanation is out.
 
-#### No sub-class reproduces the fix
+#### The draw order is correct, which removes the fade explanation
 
-The blend-mode reasoning above predicted that the 224 blend-mode-0 flat primitives were the
-culprits. Two further runs test that directly, and **both refute it**:
+The obvious reading of a screen-covering black quad is a fade overlay drawn last and never
+completing. That is now measured and it is wrong:
 
-| suppressed | primitives skipped | display region |
-|---|---|---|
-| **flat + blend 0** | 226 | **0 / 76800 (0.0%)** |
-| **blend 0** (any class) | 248,433 | **0 / 76800 (0.0%)** |
-| subtract (blend 2) | 2,352 | 0 / 76800 (0.0%) |
-| **flat** | 856 | **67,603 / 76800 (88.0%)** |
-
-The counts are exhaustive, not overlapping guesses: the blend-mode histogram over all 856 flat
-primitives is `0:224, 2:632`, which sums to the whole set. So every flat primitive is either blend 0
-or blend 2, suppressing either half leaves the frame black, and only suppressing **all** of them
-fixes it.
-
-**That rules out the story this section previously told.** The defect is not "a particular flat
-primitive paints the screen black", because removing either sub-class does not reproduce the fix.
-Only the whole class does. Whatever is wrong requires the set to be present, or it is not about
-those primitives' own drawing at all.
-
-#### What that leaves
-
-The remaining candidate is a **state interaction**, and the suppression mechanism itself is the
-clue. `GpuRaster` handles `RenderPrimEvent.Skip` by returning *before* anything else:
-
-```csharp
-Event.Dispatch(e);
-if (e.Skip) return;                     // GpuRaster.cs:121
-for (var i = 0; i < n; i++) { v[i].X = e.X[i]; v[i].Y = e.Y[i]; }
-...
-HleTri(v[0], v[1], v[2], ...);          // never reached when skipped
+```
+screen-covering flat quads: 360, max textured draws after one: 143772
 ```
 
-so a skipped primitive never calls `SetDrawEnv(CurEnv())` and never reaches `DrawTri`. If the draw
-environment or some other backend state that a flat primitive establishes persists into the textured
-draws that follow, then removing all flat primitives changes the state the textured ones run under -
-which is exactly the kind of thing that produces a fix no sub-class can reproduce.
+**143,772 textured draws follow a screen-covering flat quad.** The quads are drawn early, as clears,
+and the scene is drawn over them afterwards, in the intended order. So there is no stuck fade, and
+the quad is not an overlay at all.
 
-Note also that `HleFill` does **not** call `SetDrawEnv`, unlike `HleTri`, `HleRect` and `HleLine`.
-`GlCore.SetDrawEnv` merely assigns `_env`, and `Classify()` caches its result keyed on the clip
-rectangle in that environment. Anything that leaves `_env` stale, or that changes the clip, changes
-which render target the next draw is classified into.
+That also resolves the apparent contradiction in the previous section, and the resolution is worth
+stating because it made two earlier predictions look falsified when they were only incomplete. The
+360 screen-covering quads are split across both blend subsets - 632 of the flat primitives are blend
+2 and 224 are blend 0, and screen-covering ones exist in both. So:
+
+- suppressing the blend-2 flat primitives leaves the blend-0 screen-covering quads,
+- suppressing the blend-0 flat primitives leaves the blend-2 screen-covering quads,
+- and either way a screen-covering flat quad is still drawn, so the frame stays black.
+
+Only suppressing **all** flat primitives removes every screen-covering quad at once, and only that
+reproduces the fix. The sub-class predictions failed because they each left half the culprits in
+place, not because the quads are innocent.
+
+#### What this pins down
+
+Putting the two facts together: a screen-covering flat quad is drawn first, 143,772 textured draws
+follow it at correct positions sampling correct data, and the frame still comes out black - unless
+no screen-covering flat quad is drawn at all, in which case the scene appears at 88%.
+
+**So drawing a screen-covering flat quad breaks the backend state for everything drawn afterwards.**
+It is not that the quad covers the scene; it is that after the quad, the scene's own draws stop
+producing pixels. That is a state defect, it is independent of blend mode, and it is triggered by a
+primitive large enough to cover the framebuffer.
+
+The candidates are all in how a draw picks and binds its render target, because that is the machinery
+a large primitive exercises differently from a small one:
+
+- `GlCore.Classify()` selects a target from the display-rect ring and caches on `_env.ClipX0..ClipY1`.
+  `ClassifySlow` needs the clip to be inside a registered rect, or to be a registered rect within
+  `FbSlackW`/`FbSlackH` (64 and 32) of it.
+- The blend-2 path calls `_vram.BeginDestRead(...)` and then `RebindTarget(rt)` mid-draw to read the
+  destination. A rebind that is not fully undone would leave subsequent draws bound to the wrong
+  framebuffer, which would make them land somewhere invisible - exactly the symptom.
+- `GlCore.FillRect` walks the render targets and can take a `FillRtFull` path, which a large quad
+  makes more likely to be selected.
 
 #### Next probe
 
-Establish what state a flat primitive leaves behind that a textured one depends on. The two
-concrete things to check are whether `SetDrawEnv` is called for every path that draws, and whether
-`GlCore.Classify()` returns a different render target once flat primitives stop being drawn -
-`Classify` caching on `_env.ClipX0..ClipY1` makes a stale environment a plausible mechanism for
-"the textured draws land in a target that is never composited".
+Instrument `Classify()`: whether it returns a target or null for the draws that follow a
+screen-covering quad, and which target. That separates "classified into a target that is never
+composited" from "bound to the wrong framebuffer by a rebind". `RebindTarget` and `BeginDestRead`
+are the two functions to read first, given the blend-2 path already calls both mid-draw.
 
 ---
 
