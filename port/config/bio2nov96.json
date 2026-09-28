@@ -1,0 +1,168 @@
+{
+  // ===========================================================================
+  // RE15pc — recompiler configuration for the Biohazard 2 (November 6, 1996)
+  // prototype disc.
+  //
+  // This file is HAND-CURATED, not generated. Run --autoconfigure only to
+  // regenerate the function maps in funcmaps/ and to see the baseline; do not
+  // overwrite this file with its output. Two of the seven overlay bases it
+  // guesses are wrong, and it drops one overlay entirely:
+  //
+  //   STAGE6.BIN -> guessed 0x8004F000, which is inside the resident main
+  //                 executable (0x80010000 + 0x0AF000 = 0x800BF000). An overlay
+  //                 cannot load onto live code, so the base is impossible.
+  //   TITLE.BIN  -> no base at all. Its 18 in-range pointers fall below
+  //                 GuessBase's confidence threshold, so the overlay is skipped
+  //                 with a one-line warning and the title screen ends up unmapped.
+  //
+  // All seven load at 0x80100000, established by the reasoning recorded in
+  // docs/probe-classification.md. See docs/phases.md Phase 2 for the gate this
+  // file has to pass.
+  // ===========================================================================
+
+  "game": {
+    "id": "PSXEXE",
+    "name": "re15pc",
+
+    // Paths below are relative to THIS FILE's directory, i.e. port/config/.
+    // Output therefore lands in <repo root>/generated.
+    "output": "../../generated"
+  },
+
+  "cue": "../../Bio2Nov96.cue",
+
+  // Main executable function map. --autoconfigure is the only code path that runs
+  // SdkMatcher against the PSY-Q signature bank, and those names are what let
+  // RecompOne swap library calls for HLE implementations. 324 of the 1359
+  // functions in main are named library entry points.
+  "funcMap": "funcmaps/main.json",
+
+  // Jump tables are pervasive in this codebase and pointer-scan is what resolves
+  // them across images. --autoconfigure leaves it off; the port needs it on.
+  "pointerScan": true,
+  "linearSweep": true,
+
+  // Guest address and original disassembly alongside each emitted function.
+  // Worth the build size while the port is being brought up.
+  "addressComments": true,
+  "disasmComments": true,
+  "debug": false,
+
+  // Left unset deliberately: with no "main", the generated Entry.cs falls back to
+  // Dispatcher.Call(c, m, 0x80054448u), which is the real entry PC from the PS-X
+  // EXE header. Set it only once a specific main() has been identified and
+  // verified, because a wrong value here is a silent wrong entry point.
+  //
+  // "main": "0x80054448",
+
+  // ---------------------------------------------------------------------------
+  // Overlays.
+  //
+  // Seven, and only seven. Everything else on the disc — PSX/EMD/*.EMS,
+  // PSX/ITEM/*.ITP, PSX/PLD/*.PLD and *.PLW, PSX/STAGE*/*.RDT and *.BSS,
+  // PSX/SOUND/*.BGM, PSX/DOOR/*.DO2 — classified as data or media and must not
+  // appear here. Those files are loaded by the game at runtime through the real
+  // CD path; declaring them as static overlays would sweep data as code and map
+  // it into RAM regions the game owns.
+  //
+  // "name" is load bearing. RecompOne keys overlay dispatch on
+  // CdUtils.OverlayName, which is the lowercase basename without extension. A
+  // typo here compiles cleanly and then never loads at runtime.
+  //
+  // "file" is used rather than "lba" so the disc extent supplies the size, and
+  // ResolveOverlay still derives LbaStart correctly as lba + (offset+skip)/2048
+  // -> 25, 93, 144, 208, 261, 327, 333 respectively.
+  //
+  // All seven share base 0x80100000 and so overwrite one another. Upstream's
+  // region bookkeeping only retires a fully covered overlay, which is not enough
+  // here: title (9932 bytes) cannot cover stage1 (137648 bytes). OverlayPolicy.cs
+  // in the host application handles that by unloading any active overlay that
+  // shares the incoming overlay's base.
+  //
+  // Whether the loader copies each file verbatim, or strips the leading 4-byte word each
+  // one starts with, is SETTLED: verbatim, header word included, so "skip" stays 0. Proven
+  // by comparing a live RAM dump against the overlay file byte for byte, with STAGE1 as a
+  // negative control - see docs/overlay-load-verbatim.md. Note that "skip" is not the same
+  // lever as "base": FunctionMapLoader.Load reads stored addresses from the maps verbatim
+  // and does not rebase them, so a map swept at a wrong base has to be regenerated, not
+  // corrected by editing this file.
+  // ---------------------------------------------------------------------------
+
+  "overlays": [
+    {
+      "name": "stage1",
+      "file": "PSX/BIN/STAGE1.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/stage1.json"
+    },
+    {
+      "name": "stage2",
+      "file": "PSX/BIN/STAGE2.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/stage2.json"
+    },
+    {
+      "name": "stage3",
+      "file": "PSX/BIN/STAGE3.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/stage3.json"
+    },
+    {
+      "name": "stage4",
+      "file": "PSX/BIN/STAGE4.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/stage4.json"
+    },
+    {
+      "name": "stage5",
+      "file": "PSX/BIN/STAGE5.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/stage5.json"
+    },
+    {
+      // Regenerated at the correct base with --generate-function-file, because
+      // the autoconfigured map was swept at 0x8004F000 and FunctionMapLoader
+      // reads stored addresses verbatim rather than rebasing them. Changing the
+      // base here would not have fixed that map.
+      "name": "stage6",
+      "file": "PSX/BIN/STAGE6.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/stage6.json"
+    },
+    {
+      // Generated by hand: --autoconfigure could not guess a base for this file
+      // and skipped it. Same verbatim-address caveat as stage6.
+      "name": "title",
+      "file": "PSX/BIN/TITLE.BIN",
+      "base": "0x80100000",
+      "linearSweep": true,
+      "funcMap": "funcmaps/title.json"
+    }
+  ],
+
+  // HLE is on for everything RecompOne implements. Entries here would disable
+  // specific patches; add only with a reason, because a disabled patch means
+  // guest code runs where hardware emulation was intended.
+  "disableHle": [],
+
+  // Functions to emit as no-op stubs. Each one is a place where the game's
+  // behaviour is knowingly dropped, so keep this empty until something forces it.
+  "stubs": [],
+
+  // Addresses to exclude from code generation. This is the pressure valve for
+  // linear-sweep false positives: when data is swept as code, list it here rather
+  // than editing generated output.
+  "ignored": [],
+
+  // Pre/post hooks and whole-function replacements. See docs/compatibility.md.
+  "patches": [],
+
+  // Move arrays crammed into tight regions so they can be extended.
+  "relocations": []
+}
