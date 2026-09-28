@@ -106,6 +106,18 @@ public static class GpuActivity
 
     private static readonly Dictionary<int, long> _flatMask = [];
 
+    /// <summary>
+    /// Colours of flat primitives, keyed by packed RGB, and separately for the ones that cover the
+    /// screen. This is the value that had never been measured.
+    ///
+    /// For a textured primitive the vertex colour only modulates the texture, so a defect in it shows
+    /// as a tint. For a flat primitive the colour is the entire output, so a defect in it is
+    /// invisible in every measurement that does not look at the colour directly - which is where the
+    /// frame has been stuck.
+    /// </summary>
+    private static readonly Dictionary<int, long> _flatColors = [];
+    private static readonly Dictionary<int, long> _flatScreenColors = [];
+
     /// <summary>All flat primitives, in-framebuffer or not, and how many cover most of a frame.</summary>
     private static long _flatAll, _flatAllSemi, _flatScreenSized;
     private static int _flatMinX = int.MaxValue, _flatMaxX = int.MinValue;
@@ -245,7 +257,21 @@ public static class GpuActivity
                 Interlocked.Increment(ref _flatScreenSized);
                 Interlocked.Increment(ref _screenQuads);
                 Interlocked.Exchange(ref _afterScreenQuad, 0);
+
+                var screenColour = (RecompOne.Runtime.Gpu.DiagR << 16)
+                                   | (RecompOne.Runtime.Gpu.DiagG << 8)
+                                   | RecompOne.Runtime.Gpu.DiagB;
+
+                lock (Gate)
+                    _flatScreenColors[screenColour] = _flatScreenColors.TryGetValue(screenColour, out var sc) ? sc + 1 : 1;
             }
+
+            var colour = (RecompOne.Runtime.Gpu.DiagR << 16)
+                         | (RecompOne.Runtime.Gpu.DiagG << 8)
+                         | RecompOne.Runtime.Gpu.DiagB;
+
+            lock (Gate)
+                _flatColors[colour] = _flatColors.TryGetValue(colour, out var cc) ? cc + 1 : 1;
 
             lock (Gate)
             {
@@ -405,8 +431,22 @@ public static class GpuActivity
 
         sb.AppendLine($"  flat mask state         : {maskDesc}");
         sb.AppendLine($"  textured under CheckMask: {Interlocked.Read(ref _texUnderCheckMask)}");
+
+        var colourDesc = _flatColors.Count == 0
+            ? "(none)"
+            : string.Join(", ", _flatColors.OrderByDescending(k => k.Value).Take(6)
+                .Select(k => $"#{k.Key:X6}:{k.Value}"));
+
+        var screenColourDesc = _flatScreenColors.Count == 0
+            ? "(none)"
+            : string.Join(", ", _flatScreenColors.OrderByDescending(k => k.Value).Take(6)
+                .Select(k => $"#{k.Key:X6}:{k.Value}"));
+
+        sb.AppendLine($"  flat colours (all)      : {colourDesc}");
+        sb.AppendLine($"  flat colours (screen)   : {screenColourDesc}");
         sb.AppendLine($"  screen-covering flat quads: {Interlocked.Read(ref _screenQuads)}, " +
-                      $"max textured draws after one: {Interlocked.Read(ref _maxAfterScreenQuad)}");
+                      $"max textured draws after one: {Interlocked.Read(ref _maxAfterScreenQuad)}, " +
+                      $"after the LAST one: {Interlocked.Read(ref _afterScreenQuad)}");
 
         // The decisive question: for the texture pages these primitives actually use, does the VRAM
         // region that page resolves to contain any image, or is it empty? An empty source explains

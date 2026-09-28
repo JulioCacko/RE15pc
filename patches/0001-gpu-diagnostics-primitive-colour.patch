@@ -1,0 +1,41 @@
+diff --git a/RecompOne.Runtime/Gpu/GpuRaster.cs b/RecompOne.Runtime/Gpu/GpuRaster.cs
+index 6295f79..c9e3838 100644
+--- a/RecompOne.Runtime/Gpu/GpuRaster.cs
++++ b/RecompOne.Runtime/Gpu/GpuRaster.cs
+@@ -16,6 +16,20 @@ public sealed partial class Gpu
+ 
+     private static readonly RenderPrimEvent _primEvent = new();
+ 
++    /// <summary>
++    /// Diagnostics only: the colour of the most recently decoded primitive, set immediately before
++    /// the render event is dispatched so that a listener reads the colour that draw will use.
++    /// </summary>
++    /// <remarks>
++    /// <c>RenderPrimEvent</c> carries <c>SemiTransparent</c>, <c>Clut</c>, <c>TexPage</c>,
++    /// <c>Raw</c> and <c>Gouraud</c> but no colour, and the backend exposes the render target and the
++    /// GL object but not the vertex data. For a textured primitive the colour is only a modulator,
++    /// so a defect in it shows as a tint; for a flat primitive the colour is the output, so a defect
++    /// in it is invisible until someone measures it. That asymmetry is the reason this exists.
++    /// </remarks>
++    public static int DiagR, DiagG, DiagB;
++    public static bool DiagTextured;
++
+     private void DrawPolygon()
+     {
+         var cmd = _fifo[0];
+@@ -117,6 +131,7 @@ public sealed partial class Gpu
+             e.Clut = clut;
+             e.TexPage = 0;
+             e.Skip = false;
++            DiagR = v[0].R; DiagG = v[0].G; DiagB = v[0].B; DiagTextured = tex;
+             Event.Dispatch(e);
+             if (e.Skip) return;
+             for (var i = 0; i < n; i++)
+@@ -193,6 +208,7 @@ public sealed partial class Gpu
+             e.Clut = clut;
+             e.TexPage = 0;
+             e.Skip = false;
++            DiagR = cr; DiagG = cg; DiagB = cb; DiagTextured = tex;
+             Event.Dispatch(e);
+             if (e.Skip) return;
+             x = e.X[0];

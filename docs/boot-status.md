@@ -640,6 +640,36 @@ outright; blending is disabled entirely for non-semi-transparent draws, where a 
 matter. **The blend chain is correct.** Five rounds were spent across the blend path and this is the
 one part of the frame that can now be called verified rather than un-blamed.
 
+#### The colours, measured
+
+`RenderPrimEvent` carries no colour, so measuring it needed a hook in `GpuRaster`. That is a runtime
+change and by this project's convention it lives in `patches/`, as
+`patches/0001-gpu-diagnostics-primitive-colour.patch`: three public statics on `Gpu` recording the
+colour of the most recently decoded primitive, set immediately before the render event is dispatched
+at all three dispatch sites - polygons, rectangles and lines - so a listener reads the colour that
+draw will use.
+
+```
+flat colours (all)      : #000000:378, #808080:157, #FFFFFF:8, #080808:5, #101010:5, #181818:5
+flat colours (screen)   : #000000:226, #FFFFFF:5, #CFCFCF:3, #9F9F9F:3, #6F6F6F:3, #3F3F3F:3
+screen-covering quads   : 360, after the LAST one: 120502
+```
+
+**378 of the 856 flat primitives are pure black**, and 157 more are exactly mid-grey `#808080`; 226
+of the 360 screen-covering ones are black. So the flat class really is dominated by black and
+mid-grey, which is what a screen clear and a 50% overlay look like.
+
+**But the screen-covering quads are not the culprit**, and that is a new elimination. The count of
+textured draws after the *last* screen quad is 120502, the same as the maximum, which means the
+screen quads all occur early - during the title screens - and none is drawn after the room. So they
+are clears for the title and character-select, not for the stage, and whatever turns the
+post-transition frame black is among the **496 flat primitives that are not screen-covering**.
+
+This also closes a gap in the earlier draw-order measurement, which reported only the maximum. The
+maximum says "at least one quad had the room drawn after it"; only the final value says whether any
+quad came last. Both are now reported.
+
+
 #### The remaining unknown, and why it is narrow
 
 Given a correct blend chain, correct geometry, correct texture addressing, correct sampled data and
