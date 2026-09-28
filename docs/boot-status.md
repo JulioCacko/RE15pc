@@ -1338,13 +1338,36 @@ This is the eighth mechanism withdrawn. Five of the last six were refuted by mea
 thing the mechanism predicted, which is the right way to lose them, but it also means the reasoning has
 been running ahead of the evidence for several rounds.
 
-#### Next probe
+#### The blit is faithful, so the pipeline is verified end to end
 
-Verify the blit itself. The target is written into, in the correct order, into both buffers - so the
-remaining step that has never been checked is what `Writeback` actually copies. Reading the target's
-strip immediately before the blit and VRAM's strip immediately after it, and comparing the two, would
-show whether the blit carries the content across or produces an empty result. Everything up to the blit
-has been measured; the blit has not.
+```
+                                   pairs   mean target   mean vram   target had content, vram empty
+DEFAULT                              590       1897          2421                 0
+--skip-draws flat                    450       7392          8679                 0
+```
+
+VRAM ends up holding *more* than the target's strip, which is expected since it holds other content as
+well, and **in no case did a target with content produce an empty VRAM region**. The blit carries what
+it is given, so it is exonerated.
+
+That completes the pipeline. Every step from a guest GP0 command to a pixel in VRAM has now been
+measured: the command decodes, the vertices carry correct positions, the clip contains them, the draw
+is classified into the right target, the draw reaches the driver in the right order with the right
+counts, the target is rendered into, and the blit copies it to VRAM faithfully. **The room reaches 90.3%
+in 54% of frames and is black in the other 46%, and everything downstream of the drawing is proven
+correct.**
+
+So the draws are producing black in 46% of frames, before the blit, with the target already black. Every
+part of the draw that can be measured outside the shader has been measured and matches between a frame
+that renders and one that does not. What has not been measured is **what the shader samples** - the
+texels and the palette it reads out of VRAM at the moment of the draw.
+
+That is now the only remaining place, and it is measurable from outside: for the textured primitives
+that land in a framebuffer, resolve the page base from the texpage the vertex carries, resolve the
+palette address from the clut, and read both out of VRAM's backend store at the moment of the draw. If
+those regions are black in a black frame and hold the room's data in a good frame, the sample is the
+answer and the question becomes what empties them; if they are identical either way, the shader's own
+arithmetic is all that is left.
 
 
 #### Where thirty rounds of measurement leave this

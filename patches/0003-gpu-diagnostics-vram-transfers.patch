@@ -1,8 +1,8 @@
 diff --git a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-index bc045ae..e9ac397 100644
+index bc045ae..f29d9da 100644
 --- a/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
 +++ b/RecompOne.Runtime/Gpu/Backends/GpuGlAccess.cs
-@@ -17,6 +17,434 @@ public static class GpuGlAccess
+@@ -17,6 +17,491 @@ public static class GpuGlAccess
      public static int Scale => GlVram.Scale;
      public static bool Available => Gl != null && TargetFbo != 0;
  
@@ -320,6 +320,7 @@ index bc045ae..e9ac397 100644
 +    /// </remarks>
 +    private static byte[] _writebackStrip = new byte[320 * 32 * 4];
 +    private static long _wbReads, _wbLit, _wbMaxLit, _wbEmpty;
++    private static long _lastTargetLit;
 +
 +    /// <summary>
 +    /// Per-target statistics, keyed by the target's VRAM origin.
@@ -362,6 +363,7 @@ index bc045ae..e9ac397 100644
 +
 +        _wbReads++;
 +        _wbLit += lit;
++        _lastTargetLit = lit;
 +        if (lit > _wbMaxLit) _wbMaxLit = lit;
 +        if (lit == 0) _wbEmpty++;
 +
@@ -432,6 +434,61 @@ index bc045ae..e9ac397 100644
 +               $"{_regionAfterDraw} ended with a whole-region write AFTER the last draw, " +
 +               $"{_drawAfterRegion} with draws after it, {_drawsOnly} draws only, {_regionOnly} writes only" +
 +               $"  ({100.0 * _regionAfterDraw / Math.Max(1, ordered):0.0}% in the suspect order)";
++    }
++
++    private static long _wbTargetLit, _wbVramLit, _wbPairs, _blitLostContent;
++    private static readonly ushort[] _vramStrip = new ushort[320 * 32];
++
++    /// <summary>
++    /// Reads VRAM's copy of the same strip just after a writeback, to see whether the blit carried it.
++    /// </summary>
++    /// <remarks>
++    /// Everything up to the blit has been measured: the target is written into, in the correct operation
++    /// order, in both buffers, reaching 90.3% in most frames and black in 46% of them. The one step never
++    /// checked is the blit itself. Writeback blits the target into VRAM, and if that produces an empty
++    /// result then the drawing was fine all along and the composite is the fault.
++    ///
++    /// The target's strip is counted before the blit and VRAM's strip after it, at the same relative
++    /// position, so the two can be compared directly.
++    /// </remarks>
++    public static void SampleVramAfter(IGlVram vram, int x, int y, int w, int h)
++    {
++        const int stripW = 320;
++        const int stripH = 32;
++
++        if (w < stripW || h < stripH) return;
++
++        var length = stripW * stripH;
++
++        try
++        {
++            vram.ReadRect(x, y + (h - stripH) / 2, stripW, stripH, _vramStrip.AsSpan(0, length));
++        }
++        catch
++        {
++            return;
++        }
++
++        var lit = 0;
++        for (var i = 0; i < length; i++)
++        {
++            var px = _vramStrip[i];
++            if (px != 0 && px != 0x8000) lit++;
++        }
++
++        _wbPairs++;
++        _wbTargetLit += _lastTargetLit;
++        _wbVramLit += lit;
++        if (_lastTargetLit > 0 && lit == 0) _blitLostContent++;
++    }
++
++    public static string DescribeBlit()
++    {
++        if (_wbPairs == 0) return "  blit target -> vram     : no pairs sampled";
++
++        return $"  blit target -> vram     : {_wbPairs} pair(s); mean target {_wbTargetLit / _wbPairs} of {320 * 32}, " +
++               $"mean vram {_wbVramLit / _wbPairs} of {320 * 32}; " +
++               $"{_blitLostContent} where the target had content and VRAM came out empty";
 +    }
 +
      public static void Bind()
