@@ -331,49 +331,58 @@ so a newly created target is filled from `_vram` before it is drawn into, and a 
 re-seeded by `SyncRtsFromVram` whenever an upload or VRAM copy arrives. A flush therefore writes
 back upload-plus-drawing, not an empty surface.
 
-#### The culprit: textured drawing
+#### The room renders: `--skip-draws flat`
 
-Suppressing classes of primitive through `RenderPrimEvent.Skip`, which `GpuRaster` honours
-before consuming the vertices, splits the problem cleanly:
+**A previous revision of this document read the table below backwards and concluded that textured
+primitives destroy the frame. It is the opposite, and the correction matters because it means the
+port already renders this game.**
 
-| suppressed | shadow store | backend store | primitives skipped |
+Read the table for what is *skipped*, not for what is drawn:
+
+| suppressed | what still draws | display region | primitives skipped |
 |---|---|---|---|
-| **textured** | **0 / 76800 (0.0%)** | **0 / 76800 (0.0%)** | 284,803 |
-| **flat** | 67,603 / 76800 (88.0%) | 67,560 / 76800 (88.0%) | 856 |
-| all | 61,135 / 76800 (79.6%) | 61,135 / 76800 (79.6%) | 285,659 |
+| **textured** | flat only | **0 / 76800 (0.0%)** | 284,803 |
+| **flat** | textured only | **67,603 / 76800 (88.0%)**, 1356 colours | 856 |
+| all | nothing | 61,135 / 76800 (79.6%) | 285,659 |
 
-Three conclusions, and they are strong ones.
+So **textured drawing produces the room correctly** - 88.0% non-black, and both stores agree
+(67,603 against 67,560) - while the **flat primitives are what paint it black.** With everything
+suppressed the uploaded background alone accounts for 79.6%, textured tiles add detail to reach
+88.0%, and the flat primitives take it to zero.
 
-**The upload, VRAM-copy and fill paths are correct under the HLE.** With every draw suppressed
-the two stores agree *exactly* - 61135 against 61135, and 1182 colours - and the frame is a
-coherent room. So CD loads, MDEC decoding, CPU-to-VRAM uploads, VRAM copies and fills all work.
+That is a strong result to have arrived at sideways: `--skip-draws flat` renders the game.
 
-**Textured primitives are what destroys the frame.** Suppress them and everything goes black,
-including content that was correct a moment earlier. They cover the screen - about 263 of them
-per frame at 16x16 - so a textured draw producing black produces a black screen.
+#### What the flat primitives are, and what they are not
 
-**Flat primitives are legitimate.** Suppressing them leaves the frame *better* (88.0% versus
-79.6%), which means they add content rather than remove it. A fade or clear quad would have
-shown the opposite.
+```
+flat primitives : 108 (108 semi-transparent), bounds x 0..160, y 40..351
+```
 
-So the remaining defect is one thing: **a textured primitive renders black.** Geometry is proven
-correct, the texture data is proven present in both stores, and the draw reaches the backend. What
-is left is the sampling - which texture page and CLUT the rasteriser resolves for those tiles.
+Two things follow, and the second is the interesting one.
 
-The texture page is the leading suspect. The room background sits at VRAM x = 320, which is page
-X = 5. Most games keep textures in the low pages, so a page-resolution defect would not have been
-exercised by other games, and sampling page X = 0 - the region this game's framebuffer occupies -
-would return black on exactly these tiles. Worth noting for whoever picks this up:
-`RenderPrimEvent.TexPage` is hardcoded to 0 in `GpuRaster.cs:118`, so that field cannot be used to
-observe it; the value has to come from `Gpu.CurTPage()` on the runtime side or from the shader.
+**They are not a screen-covering quad.** Only 108 of them have all three tracked vertices inside a
+framebuffer, with bounds `x 0..160, y 40..351` - a partial region, not the full frame. A simple
+"a black quad is drawn over the scene" explanation does not fit.
+
+**Every one of them is semi-transparent.** That is the clue. Suppressing 856 of 285,661 primitives
+- three tenths of a percent - takes the frame from 0% to 88%, so their effect is far out of
+proportion to their coverage. An effect that large from that few primitives is a **state** effect,
+not a geometric one.
+
+The leading explanation is therefore the one the semi-transparency points at: these are
+semi-transparent black quads, most plausibly a fade, and if the HLE path draws them **opaque**
+because the per-primitive blend mode is not what the primitive expects, a handful of them black
+out the frame completely - which is exactly the disproportion observed. On hardware a
+semi-transparent black quad dims what is under it; drawn opaque it erases it.
 
 #### Next probe
 
-Confirm the texture page and CLUT the rasteriser resolves for a background tile against where the
-data actually lives. `GpuActivity` already reports the distinct CLUTs seen (11). If the resolved
-page is 0 while the data is at page 5, that is the defect, and it is a small one to fix - either
-the texpage is not reaching the backend, or the shader decodes it differently from
-`Gpu.CurTPage()`.
+Establish the colour and blend state of those 108 semi-transparent flat primitives, and whether the
+blend mode reaches the backend for them. `RenderPrimEvent` carries `SemiTransparent` but no colour
+and no blend mode, so this needs either `Gpu.ReadStat()` bits 5-6 read from the handler - the same
+trick that recovered the texture page - or the draw environment they set. If they are black and
+drawn opaque, that is the defect, and it is the same class of defect as `HleDrawEnv` missing a
+field: state the backend needs that has nowhere to travel.
 
 ---
 
