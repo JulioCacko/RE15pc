@@ -604,17 +604,69 @@ The swap was reverted and the checkout verified clean, and the baseline reproduc
 fourth mechanism written up as a finding and withdrawn, and the second that was derived by comparing
 two pieces of code without first establishing that their inputs mean the same thing.
 
-#### A structural fact worth carrying forward
+#### The blend chain is verified correct, end to end
 
-Decoding the factors above leaves one thing that is both established and unexplained. The GL blend
-factors are fixed at `(Src1Color, Src1Alpha, One, Zero)` for every blended draw, so the blend is
-entirely determined by the shader's `BlendColor` output, and `BlendColor` is chosen **per texel from
-the texture's STP bit**. That works for textured primitives. A **flat primitive has no texel**, so
-whatever `BlendColor` it produces cannot come from an STP bit, and how the blend mode of a
-semi-transparent flat primitive reaches the shader is not something this document has established.
+The question left open above - how a semi-transparent flat primitive's blend reaches the shader when
+it has no texel to carry an STP bit - is answered, and the answer removes the concern:
 
-That question is worth answering next, because the primitives whose presence turns a correct frame
-into a black one are flat and screen-covering, and 632 of the 856 are semi-transparent.
+```glsl
+if (texMode == 4) {                                  // the untextured path
+    FragColor = vec4(quant5(ivec3(vColor.rgb * 255.0 + 0.5)), uSetMask);
+    BlendColor = uBlend;                             // selected unconditionally
+    return;
+}
+```
+
+`texMode == 4` is the flat path and it sets `BlendColor = uBlend` outright, so a flat primitive
+blends by its draw's mode rather than by a texel. And `SetBlend` is what fills that uniform:
+
+```csharp
+private void SetBlend(float src, float dst) => _gl.Uniform4(_uBlend, src, src, src, dst);
+```
+
+So `BlendColor.rgb` is the RGB source factor and `BlendColor.a` the RGB destination factor, and
+against the fixed GL factors `(Src1Color, Src1Alpha, One, Zero)` every mode evaluates correctly:
+
+| mode | `SetBlend` | `uBlend` | result |
+|---|---|---|---|
+| 0 average | `(0.5, 0.5)` | `(0.5,0.5,0.5,0.5)` | `0.5 x src + 0.5 x dst` |
+| 1 add | `(1, 1)` | `(1,1,1,1)` | `src + dst` |
+| 3 add/4 | `(0.25, 1)` | `(0.25,0.25,0.25,1)` | `0.25 x src + dst` |
+| 2 subtract, pass 1 | `(0, 1)` | `(0,0,0,1)` | `dst`, unchanged |
+| 2 subtract, pass 2 | `(1, 1)` | `(1,1,1,1)` | `dst - src` under `FUNC_REVERSE_SUBTRACT` |
+
+Textured paths select between `uBlend` and `uBlendOpaque` per texel; the flat path uses `uBlend`
+outright; blending is disabled entirely for non-semi-transparent draws, where a stale `uBlend` cannot
+matter. **The blend chain is correct.** Five rounds were spent across the blend path and this is the
+one part of the frame that can now be called verified rather than un-blamed.
+
+#### The remaining unknown, and why it is narrow
+
+Given a correct blend chain, correct geometry, correct texture addressing, correct sampled data and
+draws that verifiably land, the thing not yet observed is **the colour of the flat primitives
+themselves**.
+
+That is a different question from every one asked so far, and it is the right shape. For a textured
+primitive the vertex colour is only a *modulator*, so a colour defect would show as a tint.
+For a flat primitive the vertex colour **is** the output. A colour fault therefore blackens the flat
+primitives while leaving the textured ones looking plausible - which is exactly the split the
+suppression experiment found, and the one asymmetry nothing else has explained.
+
+The colour is also the one value that has never been measured, and it cannot be reached from where
+the other measurements were taken. `RenderPrimEvent` carries `SemiTransparent`, `Clut`, `TexPage`,
+`Raw` and `Gouraud`, but no colour, and `GpuGlAccess` exposes the target and the GL object but not the
+vertex data. The colour exists in `GpuRaster` as it decodes the GP0 colour word, flows into
+`HleVertex.R/G/B`, and reaches the shader as `vColor` - so observing it means instrumenting
+`GpuRaster`, which by this project's own convention belongs in `patches/` rather than as a direct
+edit to the checkout.
+
+#### Next probe
+
+Write a diagnostics patch that records the vertex colour of each primitive, alongside whether it is
+textured and which blend mode is in force, and report the distribution for flat screen-covering
+primitives specifically. If those quads are saturated when they should not be, a colour-decoding
+fault is the answer and the whole black frame is explained. If their colours are ordinary, the defect
+is elsewhere and the measurement at least closes the last unmeasured value in the chain.
 
 
 #### What is suggested but not established
