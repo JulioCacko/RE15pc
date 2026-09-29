@@ -141,9 +141,16 @@ to the same MIT terms.
 Licence of this repository's own contents
 -----------------------------------------
 
-The original contents of this repository — scripts, configuration, and
-documentation — are released under the MIT License, Copyright (c) 2026
-JulioCacko.
+The original contents of this repository — scripts, configuration,
+documentation, and the image assets under assets/ and docs/screenshots/ — are
+released under the MIT License, Copyright (c) 2026 JulioCacko. The full text is
+in LICENSE, kept verbatim so licence detection recognises it.
+
+The cover art under assets/ originates from SteamGridDB contributors and is
+included under the terms of that community host; no authorship of it is claimed
+here. The framebuffer captures under docs/screenshots/ are derived from the game
+disc and are not covered by the MIT grant above, because no licence is asserted
+over anything derived from the disc.
 
 No licence is asserted over recompiled output derived from the game disc, nor
 over any Capcom intellectual property. "Resident Evil", "Biohazard", and related
