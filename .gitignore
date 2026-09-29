@@ -30,6 +30,7 @@ Bio2Nov96.bin
 # --- published build: ~154 MB, with the recompiled guest compiled in ---
 # Contains a transcription of the disc's executable, exactly like /generated/.
 /dist/
+/release/
 
 # --- .NET build output ---
 bin/
