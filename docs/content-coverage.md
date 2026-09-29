@@ -45,7 +45,11 @@ only from unverified to partial. It cannot mark a file verified.
 - Mapped functions may include unused library routines or heuristic candidates.
   Unentered is not synonymous with unreachable; each exclusion needs evidence.
 - Runs from different configurations must not be combined into a release verdict.
-- Stages 2–6 still need native execution and gameplay evidence.
+- Stages 2–6 still need native execution and gameplay evidence. They are not
+  unreachable content: `docs/room-graph.md`, built from the disc's own door records
+  by `tools/New-RoomGraph.ps1`, shows stage 2 two doors from the rooftop start and
+  stages 3–5 reachable behind it. What is missing is a route that walks through
+  them, not the rooms themselves.
 
 Structural inspection found 25 sector-aligned model blocks in each CDEMD
 container. Their relative section directories and padded extents account for
