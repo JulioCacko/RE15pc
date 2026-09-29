@@ -1,0 +1,2614 @@
+{
+  "schemaVersion": 1,
+  "discSha256": "B5C26B6A5EC21FC93B16F904642DAACD527207A7460FFB8349077AA6426BC30D",
+  "generatedBy": "tools/New-RoomGraph.ps1",
+  "note": "Structural room connectivity read from the disc. Records no disc bytes.",
+  "startRoom": "1:17",
+  "totals": {
+    "rooms": 49,
+    "doors": 92.0,
+    "unresolvedDestinations": 11,
+    "roomsWithoutDoorTable": 10,
+    "reachableFromStart": 26
+  },
+  "roomsPerStage": {
+    "1": 17,
+    "2": 5,
+    "3": 10,
+    "4": 5,
+    "5": 10,
+    "6": 2
+  },
+  "reachablePerStage": {
+    "1": 7,
+    "2": 1,
+    "3": 9,
+    "4": 3,
+    "5": 6
+  },
+  "rooms": [
+    {
+      "key": "1:02",
+      "stage": 1,
+      "room": "02",
+      "path": "PSX/STAGE1/ROOM1020.RDT",
+      "size": 158400,
+      "initPointer": 7248,
+      "doorCount": 3,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -3500,
+            "z": -8400,
+            "w": 1500,
+            "h": 2300
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1A",
+            "key": "1:1A",
+            "camera": 0,
+            "floor": 0,
+            "x": -21500,
+            "y": 0,
+            "z": -12000,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11A1.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -3700,
+            "z": -19600,
+            "w": 1500,
+            "h": 2300
+          },
+          "destination": {
+            "stage": 1,
+            "room": "19",
+            "key": "1:19",
+            "camera": 0,
+            "floor": 0,
+            "x": 3000,
+            "y": 0,
+            "z": -11650,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1191.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -27900,
+            "z": -9300,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "04",
+            "key": "1:04",
+            "camera": 6,
+            "floor": 0,
+            "x": -24000,
+            "y": 0,
+            "z": 16500,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1041.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:03",
+      "stage": 1,
+      "room": "03",
+      "path": "PSX/STAGE1/ROOM1030.RDT",
+      "size": 197692,
+      "initPointer": 7212,
+      "doorCount": 3,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 1500,
+            "z": -13800,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "09",
+            "key": "1:09",
+            "camera": 0,
+            "floor": 5,
+            "x": -10277,
+            "y": -9000,
+            "z": 1317,
+            "yaw": 3072
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1091.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -16900,
+            "z": -4900,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "07",
+            "key": "1:07",
+            "camera": 0,
+            "floor": 0,
+            "x": 160,
+            "y": 0,
+            "z": 6145,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1071.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -27500,
+            "z": -4700,
+            "w": 1200,
+            "h": 2100
+          },
+          "destination": {
+            "stage": 1,
+            "room": "04",
+            "key": "1:04",
+            "camera": 0,
+            "floor": 0,
+            "x": -20083,
+            "y": 0,
+            "z": -3559,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1041.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:04",
+      "stage": 1,
+      "room": "04",
+      "path": "PSX/STAGE1/ROOM1040.RDT",
+      "size": 213288,
+      "initPointer": 4212,
+      "doorCount": 4,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 9200,
+            "z": -13800,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "16",
+            "key": "1:16",
+            "camera": 0,
+            "floor": 0,
+            "x": -17300,
+            "y": 0,
+            "z": -12000,
+            "yaw": 1648
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1161.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -20400,
+            "z": -4900,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "03",
+            "key": "1:03",
+            "camera": 8,
+            "floor": 0,
+            "x": -26214,
+            "y": 0,
+            "z": -3861,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1031.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -20400,
+            "z": -14100,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1E",
+            "key": "1:1E",
+            "camera": 2,
+            "floor": 0,
+            "x": 5112,
+            "y": 0,
+            "z": -5348,
+            "yaw": 3072
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11E1.RDT"
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -24300,
+            "z": 15600,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "02",
+            "key": "1:02",
+            "camera": 0,
+            "floor": 0,
+            "x": -25883,
+            "y": 0,
+            "z": -8767,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1021.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:07",
+      "stage": 1,
+      "room": "07",
+      "path": "PSX/STAGE1/ROOM1070.RDT",
+      "size": 181076,
+      "initPointer": 5212,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -140,
+            "z": 5100,
+            "w": 1400,
+            "h": 20100
+          },
+          "destination": {
+            "stage": 1,
+            "room": "03",
+            "key": "1:03",
+            "camera": 7,
+            "floor": 0,
+            "x": -18000,
+            "y": 0,
+            "z": -3500,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1031.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:09",
+      "stage": 1,
+      "room": "09",
+      "path": "PSX/STAGE1/ROOM1090.RDT",
+      "size": 216124,
+      "initPointer": 8408,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -12430,
+            "z": 2260,
+            "w": 4700,
+            "h": 1600
+          },
+          "destination": {
+            "stage": 1,
+            "room": "0B",
+            "key": "1:0B",
+            "camera": 0,
+            "floor": 5,
+            "x": 17164,
+            "y": -9000,
+            "z": -7892,
+            "yaw": 1041
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM10B1.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -7920,
+            "z": -21440,
+            "w": 4200,
+            "h": 5500
+          },
+          "destination": {
+            "stage": 1,
+            "room": "03",
+            "key": "1:03",
+            "camera": 2,
+            "floor": 0,
+            "x": 1478,
+            "y": 0,
+            "z": -12632,
+            "yaw": 2001
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1031.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:0B",
+      "stage": 1,
+      "room": "0B",
+      "path": "PSX/STAGE1/ROOM10B0.RDT",
+      "size": 77724,
+      "initPointer": 4400,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 12670,
+            "z": -8540,
+            "w": 3330,
+            "h": 3400
+          },
+          "destination": {
+            "stage": 1,
+            "room": "0B",
+            "key": "1:0B",
+            "camera": 0,
+            "floor": 5,
+            "x": 16870,
+            "y": -9000,
+            "z": -7887,
+            "yaw": 544
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM10B1.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -22120,
+            "z": 3560,
+            "w": 1500,
+            "h": 2100
+          },
+          "destination": {
+            "stage": 2,
+            "room": "00",
+            "key": "2:00",
+            "camera": 4,
+            "floor": 1,
+            "x": -26003,
+            "y": -1800,
+            "z": -25112,
+            "yaw": 4064
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE2/ROOM2001.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:10",
+      "stage": 1,
+      "room": "10",
+      "path": "PSX/STAGE1/ROOM1100.RDT",
+      "size": 127392,
+      "initPointer": 1520,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -23730,
+            "z": -27040,
+            "w": 2800,
+            "h": 4300
+          },
+          "destination": {
+            "stage": 1,
+            "room": "10",
+            "key": "1:10",
+            "camera": 0,
+            "floor": 0,
+            "x": -20020,
+            "y": 0,
+            "z": -25046,
+            "yaw": 40
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1101.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:15",
+      "stage": 1,
+      "room": "15",
+      "path": "PSX/STAGE1/ROOM1150.RDT",
+      "size": 140216,
+      "initPointer": 3320,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -16800,
+            "z": -12600,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "16",
+            "key": "1:16",
+            "camera": 0,
+            "floor": 0,
+            "x": -21225,
+            "y": 0,
+            "z": -18870,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1161.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:16",
+      "stage": 1,
+      "room": "16",
+      "path": "PSX/STAGE1/ROOM1160.RDT",
+      "size": 36460,
+      "initPointer": 1056,
+      "doorCount": 3,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -22370,
+            "z": -18380,
+            "w": 2280,
+            "h": 910
+          },
+          "destination": {
+            "stage": 1,
+            "room": "15",
+            "key": "1:15",
+            "camera": 0,
+            "floor": 0,
+            "x": -17150,
+            "y": 0,
+            "z": -11960,
+            "yaw": 1600
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1151.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -22740,
+            "z": -27610,
+            "w": 2280,
+            "h": 1210
+          },
+          "destination": {
+            "stage": 1,
+            "room": "21",
+            "key": "1:21",
+            "camera": 3,
+            "floor": 0,
+            "x": -20890,
+            "y": 0,
+            "z": -6560,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1211.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -11940,
+            "z": -28450,
+            "w": 1750,
+            "h": 1200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "17",
+            "key": "1:17",
+            "camera": 0,
+            "floor": 4,
+            "x": 2300,
+            "y": -7200,
+            "z": 14365,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1171.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:17",
+      "stage": 1,
+      "room": "17",
+      "path": "PSX/STAGE1/ROOM1170.RDT",
+      "size": 153976,
+      "initPointer": 2208,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 1500,
+            "z": 14400,
+            "w": 2100,
+            "h": 1700
+          },
+          "destination": {
+            "stage": 1,
+            "room": "16",
+            "key": "1:16",
+            "camera": 3,
+            "floor": 4,
+            "x": -11710,
+            "y": -7200,
+            "z": -26500,
+            "yaw": 2957
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1161.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": 5040,
+            "z": -9400,
+            "w": 1240,
+            "h": 2920
+          },
+          "destination": {
+            "stage": 1,
+            "room": "0B",
+            "key": "1:0B",
+            "camera": 0,
+            "floor": 5,
+            "x": 16490,
+            "y": -9000,
+            "z": -8110,
+            "yaw": 544
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM10B1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:19",
+      "stage": 1,
+      "room": "19",
+      "path": "PSX/STAGE1/ROOM1190.RDT",
+      "size": 179584,
+      "initPointer": 6052,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "1:1A",
+      "stage": 1,
+      "room": "1A",
+      "path": "PSX/STAGE1/ROOM11A0.RDT",
+      "size": 85076,
+      "initPointer": 1752,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -22800,
+            "z": -12300,
+            "w": 2600,
+            "h": 1500
+          },
+          "destination": {
+            "stage": 1,
+            "room": "02",
+            "key": "1:02",
+            "camera": 9,
+            "floor": 0,
+            "x": -3785,
+            "y": 0,
+            "z": -7412,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1021.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:1B",
+      "stage": 1,
+      "room": "1B",
+      "path": "PSX/STAGE1/ROOM11B0.RDT",
+      "size": 174256,
+      "initPointer": 3596,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "1:1C",
+      "stage": 1,
+      "room": "1C",
+      "path": "PSX/STAGE1/ROOM11C0.RDT",
+      "size": 105672,
+      "initPointer": 5844,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27100,
+            "z": 15900,
+            "w": 4000,
+            "h": 2700
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1B",
+            "key": "1:1B",
+            "camera": 1,
+            "floor": 0,
+            "x": -25552,
+            "y": 0,
+            "z": -25331,
+            "yaw": 3067
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11B1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:1E",
+      "stage": 1,
+      "room": "1E",
+      "path": "PSX/STAGE1/ROOM11E0.RDT",
+      "size": 166388,
+      "initPointer": 4216,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "1:20",
+      "stage": 1,
+      "room": "20",
+      "path": "PSX/STAGE1/ROOM1200.RDT",
+      "size": 167096,
+      "initPointer": 1960,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -20890,
+            "z": -27480,
+            "w": 1690,
+            "h": 770
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1E",
+            "key": "1:1E",
+            "camera": 10,
+            "floor": 0,
+            "x": 2062,
+            "y": 0,
+            "z": -24428,
+            "yaw": 1475
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11E1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "1:21",
+      "stage": 1,
+      "room": "21",
+      "path": "PSX/STAGE1/ROOM1210.RDT",
+      "size": 140484,
+      "initPointer": 7292,
+      "doorCount": 6,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -28000,
+            "z": -3500,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1E",
+            "key": "1:1E",
+            "camera": 0,
+            "floor": 0,
+            "x": 10564,
+            "y": 0,
+            "z": 5755,
+            "yaw": 1336
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11E1.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -22200,
+            "z": -7200,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "16",
+            "key": "1:16",
+            "camera": 1,
+            "floor": 0,
+            "x": -21937,
+            "y": 0,
+            "z": -25713,
+            "yaw": 3072
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1161.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -17900,
+            "z": -10900,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "23",
+            "key": "1:23",
+            "camera": 0,
+            "floor": 0,
+            "x": -17300,
+            "y": 0,
+            "z": -12000,
+            "yaw": 1648
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -22400,
+            "z": -14700,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "24",
+            "key": "1:24",
+            "camera": 0,
+            "floor": 0,
+            "x": -17300,
+            "y": 0,
+            "z": -12000,
+            "yaw": 1648
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 4,
+          "exit": {
+            "x": -17900,
+            "z": -18400,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "25",
+            "key": "1:25",
+            "camera": 0,
+            "floor": 0,
+            "x": -17300,
+            "y": 0,
+            "z": -12000,
+            "yaw": 1648
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 5,
+          "exit": {
+            "x": -17900,
+            "z": -26600,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "26",
+            "key": "1:26",
+            "camera": 0,
+            "floor": 0,
+            "x": -17300,
+            "y": 0,
+            "z": -12000,
+            "yaw": 1648
+          },
+          "resolved": false,
+          "destinationPath": null
+        }
+      ]
+    },
+    {
+      "key": "2:00",
+      "stage": 2,
+      "room": "00",
+      "path": "PSX/STAGE2/ROOM2000.RDT",
+      "size": 246496,
+      "initPointer": 5156,
+      "doorCount": 5,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -28500,
+            "z": 8600,
+            "w": 2100,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 2,
+            "room": "02",
+            "key": "2:02",
+            "camera": 0,
+            "floor": 0,
+            "x": 27000,
+            "y": -1800,
+            "z": -25000,
+            "yaw": 2048
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -28500,
+            "z": -3800,
+            "w": 2100,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 2,
+            "room": "01",
+            "key": "2:01",
+            "camera": 0,
+            "floor": 0,
+            "x": 13499,
+            "y": -7200,
+            "z": -11684,
+            "yaw": 1024
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -20600,
+            "z": -8000,
+            "w": 2100,
+            "h": 3400
+          },
+          "destination": {
+            "stage": 3,
+            "room": "00",
+            "key": "3:00",
+            "camera": 0,
+            "floor": 0,
+            "x": -23338,
+            "y": 0,
+            "z": -14647,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3001.RDT"
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -28500,
+            "z": -25400,
+            "w": 2100,
+            "h": 2500
+          },
+          "destination": {
+            "stage": 1,
+            "room": "0B",
+            "key": "1:0B",
+            "camera": 7,
+            "floor": 0,
+            "x": -21159,
+            "y": 0,
+            "z": 3289,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM10B1.RDT"
+        },
+        {
+          "index": 4,
+          "exit": {
+            "x": 3000,
+            "z": -20400,
+            "w": 2600,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1B",
+            "key": "1:1B",
+            "camera": 0,
+            "floor": 0,
+            "x": 5380,
+            "y": -7200,
+            "z": -7132,
+            "yaw": 2528
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11B1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "2:03",
+      "stage": 2,
+      "room": "03",
+      "path": "PSX/STAGE2/ROOM2030.RDT",
+      "size": 233480,
+      "initPointer": 3624,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 26900,
+            "z": -27480,
+            "w": 2100,
+            "h": 2500
+          },
+          "destination": {
+            "stage": 2,
+            "room": "00",
+            "key": "2:00",
+            "camera": 8,
+            "floor": 1,
+            "x": 25133,
+            "y": -1800,
+            "z": -13936,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE2/ROOM2001.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": 0,
+            "z": 3200,
+            "w": 2400,
+            "h": 2600
+          },
+          "destination": {
+            "stage": 3,
+            "room": "00",
+            "key": "3:00",
+            "camera": 0,
+            "floor": 0,
+            "x": -26197,
+            "y": 0,
+            "z": -16200,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3001.RDT"
+        }
+      ]
+    },
+    {
+      "key": "2:07",
+      "stage": 2,
+      "room": "07",
+      "path": "PSX/STAGE2/ROOM2070.RDT",
+      "size": 267092,
+      "initPointer": 8852,
+      "doorCount": 3,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 4200,
+            "z": -21260,
+            "w": 2540,
+            "h": 3410
+          },
+          "destination": {
+            "stage": 2,
+            "room": "07",
+            "key": "2:07",
+            "camera": 11,
+            "floor": 4,
+            "x": 9900,
+            "y": -7200,
+            "z": -15000,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE2/ROOM2070.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": 13110,
+            "z": -12420,
+            "w": 2290,
+            "h": 2600
+          },
+          "destination": {
+            "stage": 2,
+            "room": "00",
+            "key": "2:00",
+            "camera": 7,
+            "floor": 1,
+            "x": 25123,
+            "y": -1800,
+            "z": -1302,
+            "yaw": 1072
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE2/ROOM2001.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": 24300,
+            "z": -1810,
+            "w": 2880,
+            "h": 2900
+          },
+          "destination": {
+            "stage": 2,
+            "room": "07",
+            "key": "2:07",
+            "camera": 0,
+            "floor": 1,
+            "x": -2000,
+            "y": -1800,
+            "z": -25397,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE2/ROOM2070.RDT"
+        }
+      ]
+    },
+    {
+      "key": "2:09",
+      "stage": 2,
+      "room": "09",
+      "path": "PSX/STAGE2/ROOM2090.RDT",
+      "size": 102044,
+      "initPointer": 1948,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "2:0B",
+      "stage": 2,
+      "room": "0B",
+      "path": "PSX/STAGE2/ROOM20B0.RDT",
+      "size": 144668,
+      "initPointer": 4940,
+      "doorCount": 5,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -28500,
+            "z": 8600,
+            "w": 2100,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 2,
+            "room": "02",
+            "key": "2:02",
+            "camera": 0,
+            "floor": 0,
+            "x": 27000,
+            "y": -1800,
+            "z": -25000,
+            "yaw": 2048
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -28500,
+            "z": -3800,
+            "w": 2100,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 2,
+            "room": "01",
+            "key": "2:01",
+            "camera": 0,
+            "floor": 0,
+            "x": 13499,
+            "y": -7200,
+            "z": -11684,
+            "yaw": 1024
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": 8500,
+            "z": -8000,
+            "w": 2100,
+            "h": 3400
+          },
+          "destination": {
+            "stage": 3,
+            "room": "00",
+            "key": "3:00",
+            "camera": 0,
+            "floor": 0,
+            "x": -26197,
+            "y": 0,
+            "z": -16200,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3001.RDT"
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -28500,
+            "z": -25400,
+            "w": 2100,
+            "h": 2500
+          },
+          "destination": {
+            "stage": 1,
+            "room": "0B",
+            "key": "1:0B",
+            "camera": 0,
+            "floor": 0,
+            "x": 5380,
+            "y": -7200,
+            "z": -7132,
+            "yaw": 2528
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM10B1.RDT"
+        },
+        {
+          "index": 4,
+          "exit": {
+            "x": 3000,
+            "z": -20400,
+            "w": 2600,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 1,
+            "room": "1B",
+            "key": "1:1B",
+            "camera": 0,
+            "floor": 0,
+            "x": 5380,
+            "y": -7200,
+            "z": -7132,
+            "yaw": 2528
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM11B1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:00",
+      "stage": 3,
+      "room": "00",
+      "path": "PSX/STAGE3/ROOM3000.RDT",
+      "size": 114644,
+      "initPointer": 5216,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 1,
+          "exit": {
+            "x": -5890,
+            "z": -18270,
+            "w": 670,
+            "h": 1500
+          },
+          "destination": {
+            "stage": 3,
+            "room": "01",
+            "key": "3:01",
+            "camera": 1,
+            "floor": 0,
+            "x": -23168,
+            "y": 0,
+            "z": 11769,
+            "yaw": 96
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3011.RDT"
+        },
+        {
+          "index": 0,
+          "exit": {
+            "x": -30000,
+            "z": -10000,
+            "w": 10,
+            "h": 10
+          },
+          "destination": {
+            "stage": 2,
+            "room": "00",
+            "key": "2:00",
+            "camera": 8,
+            "floor": 1,
+            "x": -20418,
+            "y": -1800,
+            "z": -5895,
+            "yaw": 1655
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE2/ROOM2001.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:01",
+      "stage": 3,
+      "room": "01",
+      "path": "PSX/STAGE3/ROOM3010.RDT",
+      "size": 166784,
+      "initPointer": 8108,
+      "doorCount": 4,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -25000,
+            "z": 10620,
+            "w": 1600,
+            "h": 1820
+          },
+          "destination": {
+            "stage": 3,
+            "room": "00",
+            "key": "3:00",
+            "camera": 3,
+            "floor": 0,
+            "x": -6544,
+            "y": 0,
+            "z": -17239,
+            "yaw": 2096
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3001.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -7268,
+            "z": 8910,
+            "w": 1410,
+            "h": 1800
+          },
+          "destination": {
+            "stage": 3,
+            "room": "06",
+            "key": "3:06",
+            "camera": 0,
+            "floor": 0,
+            "x": -26027,
+            "y": 0,
+            "z": -22532,
+            "yaw": 16
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3061.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -30900,
+            "z": -20880,
+            "w": 900,
+            "h": 2120
+          },
+          "destination": {
+            "stage": 3,
+            "room": "0E",
+            "key": "3:0E",
+            "camera": 0,
+            "floor": 0,
+            "x": -19406,
+            "y": 0,
+            "z": -22938,
+            "yaw": 2000
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM30E1.RDT"
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -9200,
+            "z": -19200,
+            "w": 4000,
+            "h": 6000
+          },
+          "destination": {
+            "stage": 3,
+            "room": "02",
+            "key": "3:02",
+            "camera": 0,
+            "floor": 0,
+            "x": -25658,
+            "y": 0,
+            "z": -20400,
+            "yaw": 272
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3020.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:02",
+      "stage": 3,
+      "room": "02",
+      "path": "PSX/STAGE3/ROOM3020.RDT",
+      "size": 117496,
+      "initPointer": 2644,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -28500,
+            "z": -21800,
+            "w": 4000,
+            "h": 4000
+          },
+          "destination": {
+            "stage": 3,
+            "room": "01",
+            "key": "3:01",
+            "camera": 6,
+            "floor": 0,
+            "x": -7238,
+            "y": 0,
+            "z": -15845,
+            "yaw": 2224
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3011.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:03",
+      "stage": 3,
+      "room": "03",
+      "path": "PSX/STAGE3/ROOM3030.RDT",
+      "size": 80940,
+      "initPointer": 448,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27700,
+            "z": -17000,
+            "w": 4000,
+            "h": 1000
+          },
+          "destination": {
+            "stage": 3,
+            "room": "09",
+            "key": "3:09",
+            "camera": 7,
+            "floor": 0,
+            "x": -13584,
+            "y": 0,
+            "z": -9698,
+            "yaw": 1360
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3091.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -27700,
+            "z": -27300,
+            "w": 4000,
+            "h": 1000
+          },
+          "destination": {
+            "stage": 3,
+            "room": "09",
+            "key": "3:09",
+            "camera": 5,
+            "floor": 0,
+            "x": -25033,
+            "y": 0,
+            "z": -23750,
+            "yaw": 2408
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3091.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:04",
+      "stage": 3,
+      "room": "04",
+      "path": "PSX/STAGE3/ROOM3040.RDT",
+      "size": 72412,
+      "initPointer": 2812,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -11008,
+            "z": -27186,
+            "w": 3628,
+            "h": 900
+          },
+          "destination": {
+            "stage": 4,
+            "room": "06",
+            "key": "4:06",
+            "camera": 4,
+            "floor": 0,
+            "x": 2063,
+            "y": 0,
+            "z": -17192,
+            "yaw": 1320
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -27108,
+            "z": -6126,
+            "w": 808,
+            "h": 2500
+          },
+          "destination": {
+            "stage": 4,
+            "room": "00",
+            "key": "4:00",
+            "camera": 2,
+            "floor": 0,
+            "x": -25801,
+            "y": 0,
+            "z": -9500,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4001.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:06",
+      "stage": 3,
+      "room": "06",
+      "path": "PSX/STAGE3/ROOM3060.RDT",
+      "size": 129380,
+      "initPointer": 3700,
+      "doorCount": 4,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27900,
+            "z": -23500,
+            "w": 1500,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 3,
+            "room": "01",
+            "key": "3:01",
+            "camera": 0,
+            "floor": 0,
+            "x": -7578,
+            "y": 0,
+            "z": 10065,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3011.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -4500,
+            "z": -27300,
+            "w": 2600,
+            "h": 1300
+          },
+          "destination": {
+            "stage": 3,
+            "room": "09",
+            "key": "3:09",
+            "camera": 0,
+            "floor": 0,
+            "x": -24731,
+            "y": 0,
+            "z": 887,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3091.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": 1500,
+            "z": -17200,
+            "w": 3200,
+            "h": 1300
+          },
+          "destination": {
+            "stage": 3,
+            "room": "04",
+            "key": "3:04",
+            "camera": 7,
+            "floor": 0,
+            "x": -13621,
+            "y": 0,
+            "z": -9594,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3041.RDT"
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": 0,
+            "z": 0,
+            "w": 0,
+            "h": 0
+          },
+          "destination": {
+            "stage": 3,
+            "room": "09",
+            "key": "3:09",
+            "camera": 8,
+            "floor": 0,
+            "x": -26320,
+            "y": 0,
+            "z": -1265,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3091.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:07",
+      "stage": 3,
+      "room": "07",
+      "path": "PSX/STAGE3/ROOM3070.RDT",
+      "size": 188904,
+      "initPointer": 12228,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "3:08",
+      "stage": 3,
+      "room": "08",
+      "path": "PSX/STAGE3/ROOM3080.RDT",
+      "size": 169428,
+      "initPointer": 1816,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 0,
+            "z": 0,
+            "w": 0,
+            "h": 0
+          },
+          "destination": {
+            "stage": 4,
+            "room": "00",
+            "key": "4:00",
+            "camera": 1,
+            "floor": 0,
+            "x": -7600,
+            "y": 0,
+            "z": -6760,
+            "yaw": 1920
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4001.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:09",
+      "stage": 3,
+      "room": "09",
+      "path": "PSX/STAGE3/ROOM3090.RDT",
+      "size": 184816,
+      "initPointer": 4872,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27090,
+            "z": -1740,
+            "w": 590,
+            "h": 1440
+          },
+          "destination": {
+            "stage": 3,
+            "room": "03",
+            "key": "3:03",
+            "camera": 1,
+            "floor": 0,
+            "x": -25323,
+            "y": 0,
+            "z": -25886,
+            "yaw": 3040
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3031.RDT"
+        }
+      ]
+    },
+    {
+      "key": "3:0E",
+      "stage": 3,
+      "room": "0E",
+      "path": "PSX/STAGE3/ROOM30E0.RDT",
+      "size": 14772,
+      "initPointer": 596,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -18900,
+            "z": -23500,
+            "w": 800,
+            "h": 1320
+          },
+          "destination": {
+            "stage": 3,
+            "room": "01",
+            "key": "3:01",
+            "camera": 5,
+            "floor": 1,
+            "x": -25190,
+            "y": -1800,
+            "z": -20200,
+            "yaw": 3645
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3011.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -27100,
+            "z": -21800,
+            "w": 2700,
+            "h": 1200
+          },
+          "destination": {
+            "stage": 3,
+            "room": "07",
+            "key": "3:07",
+            "camera": 0,
+            "floor": 0,
+            "x": -11840,
+            "y": 0,
+            "z": -18140,
+            "yaw": 3360
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE3/ROOM3071.RDT"
+        }
+      ]
+    },
+    {
+      "key": "4:00",
+      "stage": 4,
+      "room": "00",
+      "path": "PSX/STAGE4/ROOM4000.RDT",
+      "size": 212248,
+      "initPointer": 4104,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27600,
+            "z": -11000,
+            "w": 2000,
+            "h": 4100
+          },
+          "destination": {
+            "stage": 5,
+            "room": "0C",
+            "key": "5:0C",
+            "camera": 6,
+            "floor": 0,
+            "x": -24583,
+            "y": 0,
+            "z": -26199,
+            "yaw": 3039
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM50C1.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -17100,
+            "z": -4600,
+            "w": 1600,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 4,
+            "room": "01",
+            "key": "4:01",
+            "camera": 0,
+            "floor": 0,
+            "x": -21044,
+            "y": 0,
+            "z": -24000,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4011.RDT"
+        }
+      ]
+    },
+    {
+      "key": "4:01",
+      "stage": 4,
+      "room": "01",
+      "path": "PSX/STAGE4/ROOM4010.RDT",
+      "size": 245312,
+      "initPointer": 1032,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -21300,
+            "z": -24800,
+            "w": 900,
+            "h": 1400
+          },
+          "destination": {
+            "stage": 4,
+            "room": "00",
+            "key": "4:00",
+            "camera": 0,
+            "floor": 0,
+            "x": -15608,
+            "y": 0,
+            "z": -3524,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4001.RDT"
+        }
+      ]
+    },
+    {
+      "key": "4:03",
+      "stage": 4,
+      "room": "03",
+      "path": "PSX/STAGE4/ROOM4030.RDT",
+      "size": 167652,
+      "initPointer": 1052,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -24000,
+            "z": -20600,
+            "w": 1900,
+            "h": 1700
+          },
+          "destination": {
+            "stage": 4,
+            "room": "00",
+            "key": "4:00",
+            "camera": 4,
+            "floor": 0,
+            "x": -14149,
+            "y": 0,
+            "z": -26101,
+            "yaw": 3248
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4001.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -24190,
+            "z": -25490,
+            "w": 40366,
+            "h": 38976
+          },
+          "destination": {
+            "stage": 45,
+            "room": "EA",
+            "key": "45:EA",
+            "camera": 0,
+            "floor": 0,
+            "x": -26630,
+            "y": -25220,
+            "z": -25250,
+            "yaw": 646
+          },
+          "resolved": false,
+          "destinationPath": null
+        }
+      ]
+    },
+    {
+      "key": "4:09",
+      "stage": 4,
+      "room": "09",
+      "path": "PSX/STAGE4/ROOM4090.RDT",
+      "size": 20144,
+      "initPointer": 1940,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -20900,
+            "z": -27200,
+            "w": 2400,
+            "h": 4700
+          },
+          "destination": {
+            "stage": 4,
+            "room": "03",
+            "key": "4:03",
+            "camera": 1,
+            "floor": 0,
+            "x": -20755,
+            "y": 0,
+            "z": -25229,
+            "yaw": 2400
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4031.RDT"
+        }
+      ]
+    },
+    {
+      "key": "4:0A",
+      "stage": 4,
+      "room": "0A",
+      "path": "PSX/STAGE4/ROOM40A0.RDT",
+      "size": 24500,
+      "initPointer": 3436,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "5:01",
+      "stage": 5,
+      "room": "01",
+      "path": "PSX/STAGE5/ROOM5010.RDT",
+      "size": 223800,
+      "initPointer": 788,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -24400,
+            "z": -18400,
+            "w": 900,
+            "h": 1400
+          },
+          "destination": {
+            "stage": 5,
+            "room": "03",
+            "key": "5:03",
+            "camera": 2,
+            "floor": 0,
+            "x": -13846,
+            "y": 0,
+            "z": -5474,
+            "yaw": 798
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5031.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:03",
+      "stage": 5,
+      "room": "03",
+      "path": "PSX/STAGE5/ROOM5030.RDT",
+      "size": 166836,
+      "initPointer": 2776,
+      "doorCount": 4,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27300,
+            "z": -17200,
+            "w": 2400,
+            "h": 3600
+          },
+          "destination": {
+            "stage": 5,
+            "room": "04",
+            "key": "5:04",
+            "camera": 0,
+            "floor": 0,
+            "x": 1754,
+            "y": 0,
+            "z": -14789,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5041.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -17200,
+            "z": -5200,
+            "w": 3600,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 5,
+            "room": "01",
+            "key": "5:01",
+            "camera": 0,
+            "floor": 0,
+            "x": -23636,
+            "y": 0,
+            "z": -18240,
+            "yaw": 456
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5011.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -5700,
+            "z": -17200,
+            "w": 2400,
+            "h": 3600
+          },
+          "destination": {
+            "stage": 4,
+            "room": "03",
+            "key": "4:03",
+            "camera": 0,
+            "floor": 0,
+            "x": -25024,
+            "y": 0,
+            "z": -25418,
+            "yaw": 3408
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4031.RDT"
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -17100,
+            "z": -27500,
+            "w": 3600,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 5,
+            "room": "0A",
+            "key": "5:0A",
+            "camera": 0,
+            "floor": 0,
+            "x": -12117,
+            "y": 0,
+            "z": 4472,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM50A1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:04",
+      "stage": 5,
+      "room": "04",
+      "path": "PSX/STAGE5/ROOM5040.RDT",
+      "size": 209068,
+      "initPointer": 5772,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 1600,
+            "z": -16000,
+            "w": 1600,
+            "h": 2200
+          },
+          "destination": {
+            "stage": 5,
+            "room": "03",
+            "key": "5:03",
+            "camera": 0,
+            "floor": 0,
+            "x": -24946,
+            "y": 0,
+            "z": -14880,
+            "yaw": 3854
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5031.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -22200,
+            "z": -25900,
+            "w": 1600,
+            "h": 4100
+          },
+          "destination": {
+            "stage": 5,
+            "room": "06",
+            "key": "5:06",
+            "camera": 0,
+            "floor": 0,
+            "x": -25500,
+            "y": 0,
+            "z": -11100,
+            "yaw": 3680
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5061.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:06",
+      "stage": 5,
+      "room": "06",
+      "path": "PSX/STAGE5/ROOM5060.RDT",
+      "size": 211916,
+      "initPointer": 10880,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27100,
+            "z": -13400,
+            "w": 1600,
+            "h": 3600
+          },
+          "destination": {
+            "stage": 5,
+            "room": "04",
+            "key": "5:04",
+            "camera": 6,
+            "floor": 0,
+            "x": -22300,
+            "y": 0,
+            "z": -22300,
+            "yaw": 2539
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5041.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:0A",
+      "stage": 5,
+      "room": "0A",
+      "path": "PSX/STAGE5/ROOM50A0.RDT",
+      "size": 156972,
+      "initPointer": 5344,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -23580,
+            "z": -17440,
+            "w": 1400,
+            "h": 2230
+          },
+          "destination": {
+            "stage": 5,
+            "room": "0C",
+            "key": "5:0C",
+            "camera": 0,
+            "floor": 0,
+            "x": -6975,
+            "y": 0,
+            "z": -10005,
+            "yaw": 152
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM50C1.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -14170,
+            "z": 4660,
+            "w": 3400,
+            "h": 1500
+          },
+          "destination": {
+            "stage": 5,
+            "room": "03",
+            "key": "5:03",
+            "camera": 5,
+            "floor": 0,
+            "x": -15020,
+            "y": 0,
+            "z": -25030,
+            "yaw": 3350
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5031.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:0C",
+      "stage": 5,
+      "room": "0C",
+      "path": "PSX/STAGE5/ROOM50C0.RDT",
+      "size": 105664,
+      "initPointer": 2312,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -26200,
+            "z": -26900,
+            "w": 2900,
+            "h": 1500
+          },
+          "destination": {
+            "stage": 4,
+            "room": "00",
+            "key": "4:00",
+            "camera": 2,
+            "floor": 0,
+            "x": -26516,
+            "y": 0,
+            "z": -8963,
+            "yaw": 104
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE4/ROOM4001.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -8500,
+            "z": -11200,
+            "w": 1600,
+            "h": 3400
+          },
+          "destination": {
+            "stage": 5,
+            "room": "0A",
+            "key": "5:0A",
+            "camera": 11,
+            "floor": 0,
+            "x": -23878,
+            "y": 0,
+            "z": -16268,
+            "yaw": 1501
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM50A1.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:10",
+      "stage": 5,
+      "room": "10",
+      "path": "PSX/STAGE5/ROOM5100.RDT",
+      "size": 117348,
+      "initPointer": 1752,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "5:11",
+      "stage": 5,
+      "room": "11",
+      "path": "PSX/STAGE5/ROOM5110.RDT",
+      "size": 67996,
+      "initPointer": 2704,
+      "doorCount": 4,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27300,
+            "z": -17200,
+            "w": 2400,
+            "h": 3600
+          },
+          "destination": {
+            "stage": 5,
+            "room": "12",
+            "key": "5:12",
+            "camera": 0,
+            "floor": 0,
+            "x": 1754,
+            "y": 0,
+            "z": -14789,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5121.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -17200,
+            "z": -5200,
+            "w": 3600,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 1,
+            "room": "07",
+            "key": "1:07",
+            "camera": 0,
+            "floor": 0,
+            "x": 160,
+            "y": 0,
+            "z": 6145,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE1/ROOM1071.RDT"
+        },
+        {
+          "index": 2,
+          "exit": {
+            "x": -5700,
+            "z": -17200,
+            "w": 2400,
+            "h": 3600
+          },
+          "destination": {
+            "stage": 5,
+            "room": "13",
+            "key": "5:13",
+            "camera": 0,
+            "floor": 0,
+            "x": -20083,
+            "y": 0,
+            "z": -3559,
+            "yaw": 2048
+          },
+          "resolved": false,
+          "destinationPath": null
+        },
+        {
+          "index": 3,
+          "exit": {
+            "x": -17100,
+            "z": -27500,
+            "w": 3600,
+            "h": 2400
+          },
+          "destination": {
+            "stage": 5,
+            "room": "14",
+            "key": "5:14",
+            "camera": 0,
+            "floor": 0,
+            "x": -12117,
+            "y": 0,
+            "z": 4472,
+            "yaw": 1024
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5141.RDT"
+        }
+      ]
+    },
+    {
+      "key": "5:12",
+      "stage": 5,
+      "room": "12",
+      "path": "PSX/STAGE5/ROOM5120.RDT",
+      "size": 165336,
+      "initPointer": 5120,
+      "doorCount": 0,
+      "doors": []
+    },
+    {
+      "key": "5:14",
+      "stage": 5,
+      "room": "14",
+      "path": "PSX/STAGE5/ROOM5140.RDT",
+      "size": 141924,
+      "initPointer": 6680,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": 9990,
+            "z": -10850,
+            "w": 5050,
+            "h": 1640
+          },
+          "destination": {
+            "stage": 6,
+            "room": "04",
+            "key": "6:04",
+            "camera": 0,
+            "floor": 0,
+            "x": -17970,
+            "y": 0,
+            "z": -20380,
+            "yaw": 1100
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE6/ROOM6041.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -14170,
+            "z": 4660,
+            "w": 3400,
+            "h": 1500
+          },
+          "destination": {
+            "stage": 5,
+            "room": "11",
+            "key": "5:11",
+            "camera": 5,
+            "floor": 0,
+            "x": -15020,
+            "y": 0,
+            "z": -25030,
+            "yaw": 3350
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5111.RDT"
+        }
+      ]
+    },
+    {
+      "key": "6:03",
+      "stage": 6,
+      "room": "03",
+      "path": "PSX/STAGE6/ROOM6030.RDT",
+      "size": 132372,
+      "initPointer": 836,
+      "doorCount": 1,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -27600,
+            "z": -24200,
+            "w": 900,
+            "h": 1700
+          },
+          "destination": {
+            "stage": 6,
+            "room": "04",
+            "key": "6:04",
+            "camera": 2,
+            "floor": 1,
+            "x": -9600,
+            "y": -1800,
+            "z": -23450,
+            "yaw": 2048
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE6/ROOM6041.RDT"
+        }
+      ]
+    },
+    {
+      "key": "6:04",
+      "stage": 6,
+      "room": "04",
+      "path": "PSX/STAGE6/ROOM6040.RDT",
+      "size": 132148,
+      "initPointer": 1324,
+      "doorCount": 2,
+      "doors": [
+        {
+          "index": 0,
+          "exit": {
+            "x": -9300,
+            "z": -24200,
+            "w": 900,
+            "h": 1400
+          },
+          "destination": {
+            "stage": 6,
+            "room": "03",
+            "key": "6:03",
+            "camera": 0,
+            "floor": 0,
+            "x": -26373,
+            "y": 0,
+            "z": -23487,
+            "yaw": 0
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE6/ROOM6031.RDT"
+        },
+        {
+          "index": 1,
+          "exit": {
+            "x": -18700,
+            "z": -20800,
+            "w": 1500,
+            "h": 1200
+          },
+          "destination": {
+            "stage": 5,
+            "room": "14",
+            "key": "5:14",
+            "camera": 13,
+            "floor": 0,
+            "x": 15368,
+            "y": 0,
+            "z": -9944,
+            "yaw": 1080
+          },
+          "resolved": true,
+          "destinationPath": "PSX/STAGE5/ROOM5141.RDT"
+        }
+      ]
+    }
+  ],
+  "reachable": [
+    "1:0B",
+    "1:15",
+    "1:16",
+    "1:17",
+    "1:1B",
+    "1:1E",
+    "1:21",
+    "2:00",
+    "3:00",
+    "3:01",
+    "3:02",
+    "3:03",
+    "3:04",
+    "3:06",
+    "3:07",
+    "3:09",
+    "3:0E",
+    "4:00",
+    "4:01",
+    "4:03",
+    "5:01",
+    "5:03",
+    "5:04",
+    "5:06",
+    "5:0A",
+    "5:0C"
+  ]
+}
