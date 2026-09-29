@@ -72,5 +72,7 @@ was the original FILE handler, not a demonstrated item-panel rendering defect. S
 [inventory-status.md](inventory-status.md).
 
 Aimed firing passes a two-shot ammunition/control gate after the cross-image
-scanner repair. Damage, kills and full weapon coverage remain open; see
-[weapon-fire.md](weapon-fire.md).
+scanner repair. A separate 4000-frame gate verifies within-run damage and
+persistent removal of two original actors, while distinguishing health resets
+and newly spawned actors. Full encounter, enemy and weapon coverage remain
+open; see [weapon-fire.md](weapon-fire.md).

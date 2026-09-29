@@ -90,6 +90,20 @@ public static class Program
                         weapon = memory.ReadU8(0x800ACA5D),
                         health = memory.ReadU16(0x800ACAEE) },
                     camera = memory.ReadU16(0x800B0FE4),
+                    // Original pool traversal at 0x800372B4/0x800428B0 bounds
+                    // twenty 0x1f4-byte records. Counts are not a high-water index.
+                    enemies = new { spawnCount = memory.ReadU16(0x800B0FF2),
+                        updateCount = memory.ReadU8(0x800ACA4E),
+                        slots = Enumerable.Range(0, 20).Select(i => {
+                            var actor = 0x800ACC2Cu + (uint)i * 0x1f4;
+                            return new { slot = i, flags = memory.ReadU32(actor),
+                                state = memory.ReadU32(actor + 4), kind = memory.ReadU8(actor + 8),
+                                behaviorFlags = memory.ReadU8(actor + 9), spawnId = memory.ReadU8(actor + 0x1c6),
+                                health = unchecked((short)memory.ReadU16(actor + 0x9a)),
+                                x = unchecked((int)memory.ReadU32(actor + 0x34)),
+                                y = unchecked((int)memory.ReadU32(actor + 0x38)),
+                                z = unchecked((int)memory.ReadU32(actor + 0x3c)) };
+                        }).ToArray() },
                     inventory = new { open = memory.ReadU8(0x800B5359) is >= 1 and <= 5,
                         mode = memory.ReadU8(0x800B5359),
                         controlBlocked = (memory.ReadU32(0x800ACA3C) & 0x40) != 0,

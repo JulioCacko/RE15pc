@@ -39,10 +39,47 @@ The control-blocked bit at 0x800ACA3C is also set while aiming. Inventory state
 now uses the original menu mode at 0x800B5359 instead: modes 1–5 are menu work,
 zero is gameplay. This prevents aiming from being reported as an open menu.
 
-Enemy health differs in the final combat dump, but damage and kill acceptance
-remain open until they are tracked within the same controlled run. This gate
-does not certify all weapons, enemy types, hit reactions, kills or reload paths.
+The separate within-run damage/removal gate below now tracks original actors
+through damage and removal. Neither gate certifies all weapons, enemy types,
+hit reactions, or reload paths.
 
 The final build passes 166 focused checks and the full Leon first-room
 regression at `out/gates/leon-cross-image-regression`. All twelve runtime/
 recompiler patches reproduce the working upstream tree.
+
+## Within-run damage and removal
+
+`out/runs/elza-damage-pool` reaches exactly 4000 guest frames with no runtime
+faults. A second cold boot at `out/runs/elza-damage-replay` passes the same
+gate and frame interval. It extends the equipment route with R1 at frame 3200, R1+Square held
+from 3260 through 3679, then release. The read-only sampler records all twenty
+0x1F4-byte actor slots at 0x800ACC2C; the original traversal bounds at
+0x800372B4 and 0x800428B0 establish this pool size. The live counts are not
+high-water slot indexes and must not truncate the capture.
+
+```powershell
+pwsh -File tools/Test-EnemyDamage.ps1 -RunDir out/runs/elza-damage-pool -TestRejections
+```
+
+The gate requires passing runtime/audio/coverage checks, exact delivered
+combat inputs, complete samples from frames 3195 through 4000, stable
+slot/kind/spawn identities, and execution of the terminal/removal handlers.
+Five in-memory negative controls reject unchanged health, a still-active
+actor, a reused identity, a truncated pool, and absent ammunition consumption.
+They never modify the recorded run or memory cards.
+
+| Frame | Ammunition | Observed original actor state |
+|---|---|---|
+| 3195 | 7 | Slots 0–5 active; health 81, 99, 97, 87, 89, 81 |
+| 3270 | 6 | Slots 1/2 reach -1; slots 4/5 fall to 49/41 |
+| 3420 | 2 | Slots 1/2/4 reset to 30 and remain active |
+| 3540–4000 | 0 | Slots 0/5 have health -39, flags 0, terminal state 0x2060107 |
+
+Negative health alone is not a kill criterion: original code at 0x80108970
+sets health to 30. Terminal handler 0x80109554 calls 0x80039A74, whose store
+at 0x80039AE8 clears actor flags. The run enters both handlers and 0x8004267C,
+which can initialize another pool record. Slots/spawn IDs 6 and 7 become
+active during this encounter and are accounted for separately. Thus this
+gate establishes damage and persistent removal of two original actors in
+one scenario; it does not establish that the encounter is cleared. Function
+entry coverage does not prove per-actor call association or branch coverage.

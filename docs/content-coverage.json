@@ -385,6 +385,172 @@
           "unentered": 6
         }
       ]
+    },
+    {
+      "path": "out/runs/elza-damage-replay",
+      "revision": "e47573273b4e394d52a365266d9ed27dee5e910b",
+      "dirty": "M port/RE15pc/Program.cs\n?? tools/Test-EnemyDamage.ps1",
+      "failureTracking": "guest-main-bios-and-host-v1",
+      "frames": 4000,
+      "input": "90:start,240:cross,300:cross,600:right,1250:cross,1800:start,2100:square,2200:right,2260:square,2320:square,2600:cross,2700:cross,2800:cross,3200:r1:60,3260:r1+square:420",
+      "configHashes": {
+        "patches\\0001-gpu-diagnostics-primitive-colour.patch": "1C306E7B92E2365DD59CCDF8FB8A154BBCFDD7131F3906EF743D050AA2056339",
+        "patches\\0002-gpu-diagnostics-render-target-lifecycle.patch": "11372688EB0AAC25C92EF39357A03B68AC59B2064A055DAB7147E4611FE67C64",
+        "patches\\0003-gpu-diagnostics-vram-transfers.patch": "40D4CF87AB12418F7677988A25EB182D9F2ACC0E54614A91172DA430A8CD0756",
+        "patches\\0004-gpu-diagnostics-interp-settle.patch": "52DACC9C96F298022BFF02AD9BF10A164DCCC676659F6E2E88101A5D8B565834",
+        "patches\\0005-diagnostics-dispatcher-call-trail.patch": "1DD24145A1759F371B57781B9DDAFBF1038D062E7713A7670A44E51F5DDA5098",
+        "patches\\0006-diagnostics-crash-call-path.patch": "E0A1307B4FBA5652038CD6B33179577D29D48EA3BA5B9E4BEBB626D6E3FEDB98",
+        "patches\\0007-runtime-controlled-stop-and-passive-observers.patch": "3043185B05C3E312F74F0063507D17D8A2AFC23FAD8B0FCA6200600FEA115BF0",
+        "patches\\0008-gpu-synchronous-guest-readback.patch": "026EF45573C1DC29F56E2A6DB39ADE46A95BB266EBF1F49C42AC912A8E0D8932",
+        "patches\\0009-input-retain-short-keyboard-presses.patch": "BF0F90A78D73E878B5FBBE1DED9CE91BF53356171CE0B41243555DDBC1F92507",
+        "patches\\0010-coverage-function-entries-and-disc-reads.patch": "AB3A3B8287944000F2C653630D7BBC8F3F69AE9BF16573E821B1109CB1441F7F",
+        "patches\\0011-runtime-propagate-guest-thread-failures.patch": "16E5EE1B940CA298046DB88B7CDF5A9D8CE23A284D39DC66F55E06BDCB20F149",
+        "patches\\0012-recompiler-discover-cross-image-gap-targets.patch": "0E0F31912A20CF267C7EB16DB448BF0191BDDB79DCFE4BDB3E45CD81ED35032C",
+        "port\\config\\bio2nov96.json": "4A37936811915F4D7C81EE577FDBACE0FC061F42F9E24D5B3AB742A4FD8A223B",
+        "port\\config\\funcmaps\\main.json": "CCB9CB0B97D0BF5F515FFD97691F09E109BB25DDDC52F60790FF024227DB0B7F",
+        "port\\config\\funcmaps\\stage1.json": "9AF6FBD969088CF25F41F165CB42B7A2A8BC32003119D6E9D3E0852584F5F132",
+        "port\\config\\funcmaps\\stage2.json": "B42F92C75CE4B930BD84092126AF131A16F231CB377E13779718B466CC1EC6FB",
+        "port\\config\\funcmaps\\stage3.json": "58B0F2FB9E732D4CA32ACAE51743E2C7155FFB10476C1C9AAD65040BFF49F9BF",
+        "port\\config\\funcmaps\\stage4.json": "015CB5E81587EEB52219236005DC2CD2626EB1DD6F00D9ED1C98268778B0A375",
+        "port\\config\\funcmaps\\stage5.json": "AE002D0E213010FBAADA005A9843F933E9AD8306E27BA85928ABAFBCB54B7D93",
+        "port\\config\\funcmaps\\stage6.json": "C9E6AC0AC07422C1AB3C0F0CF009060AC938F819BD107BD6A824D5EBAADEC979",
+        "port\\config\\funcmaps\\title.json": "712A49FDFD1C5EC302B239F3B3F1AF0D1207532BD89A98D0C95318FD9943A5DF",
+        "settings.json": "EF6761882408B55674B3EBE7EF03C03F25557CA1500EDD4E8C4AF1A2ADA5DE5E",
+        "interface.ini": "9BAEE2CBD58EEA6C4F0124CA164E74851E8FD90A3D216701A11992555B32C10E"
+      },
+      "functions": [
+        {
+          "overlay": "main",
+          "registered": 2177,
+          "entered": 608,
+          "unentered": 1569
+        },
+        {
+          "overlay": "stage1",
+          "registered": 668,
+          "entered": 25,
+          "unentered": 643
+        },
+        {
+          "overlay": "stage2",
+          "registered": 520,
+          "entered": 0,
+          "unentered": 520
+        },
+        {
+          "overlay": "stage3",
+          "registered": 626,
+          "entered": 0,
+          "unentered": 626
+        },
+        {
+          "overlay": "stage4",
+          "registered": 492,
+          "entered": 0,
+          "unentered": 492
+        },
+        {
+          "overlay": "stage5",
+          "registered": 628,
+          "entered": 0,
+          "unentered": 628
+        },
+        {
+          "overlay": "stage6",
+          "registered": 43,
+          "entered": 0,
+          "unentered": 43
+        },
+        {
+          "overlay": "title",
+          "registered": 38,
+          "entered": 32,
+          "unentered": 6
+        }
+      ]
+    },
+    {
+      "path": "out/runs/elza-damage-pool",
+      "revision": "e47573273b4e394d52a365266d9ed27dee5e910b",
+      "dirty": "M port/RE15pc/Program.cs",
+      "failureTracking": "guest-main-bios-and-host-v1",
+      "frames": 4000,
+      "input": "90:start,240:cross,300:cross,600:right,1250:cross,1800:start,2100:square,2200:right,2260:square,2320:square,2600:cross,2700:cross,2800:cross,3200:r1:60,3260:r1+square:420",
+      "configHashes": {
+        "patches\\0001-gpu-diagnostics-primitive-colour.patch": "1C306E7B92E2365DD59CCDF8FB8A154BBCFDD7131F3906EF743D050AA2056339",
+        "patches\\0002-gpu-diagnostics-render-target-lifecycle.patch": "11372688EB0AAC25C92EF39357A03B68AC59B2064A055DAB7147E4611FE67C64",
+        "patches\\0003-gpu-diagnostics-vram-transfers.patch": "40D4CF87AB12418F7677988A25EB182D9F2ACC0E54614A91172DA430A8CD0756",
+        "patches\\0004-gpu-diagnostics-interp-settle.patch": "52DACC9C96F298022BFF02AD9BF10A164DCCC676659F6E2E88101A5D8B565834",
+        "patches\\0005-diagnostics-dispatcher-call-trail.patch": "1DD24145A1759F371B57781B9DDAFBF1038D062E7713A7670A44E51F5DDA5098",
+        "patches\\0006-diagnostics-crash-call-path.patch": "E0A1307B4FBA5652038CD6B33179577D29D48EA3BA5B9E4BEBB626D6E3FEDB98",
+        "patches\\0007-runtime-controlled-stop-and-passive-observers.patch": "3043185B05C3E312F74F0063507D17D8A2AFC23FAD8B0FCA6200600FEA115BF0",
+        "patches\\0008-gpu-synchronous-guest-readback.patch": "026EF45573C1DC29F56E2A6DB39ADE46A95BB266EBF1F49C42AC912A8E0D8932",
+        "patches\\0009-input-retain-short-keyboard-presses.patch": "BF0F90A78D73E878B5FBBE1DED9CE91BF53356171CE0B41243555DDBC1F92507",
+        "patches\\0010-coverage-function-entries-and-disc-reads.patch": "AB3A3B8287944000F2C653630D7BBC8F3F69AE9BF16573E821B1109CB1441F7F",
+        "patches\\0011-runtime-propagate-guest-thread-failures.patch": "16E5EE1B940CA298046DB88B7CDF5A9D8CE23A284D39DC66F55E06BDCB20F149",
+        "patches\\0012-recompiler-discover-cross-image-gap-targets.patch": "0E0F31912A20CF267C7EB16DB448BF0191BDDB79DCFE4BDB3E45CD81ED35032C",
+        "port\\config\\bio2nov96.json": "4A37936811915F4D7C81EE577FDBACE0FC061F42F9E24D5B3AB742A4FD8A223B",
+        "port\\config\\funcmaps\\main.json": "CCB9CB0B97D0BF5F515FFD97691F09E109BB25DDDC52F60790FF024227DB0B7F",
+        "port\\config\\funcmaps\\stage1.json": "9AF6FBD969088CF25F41F165CB42B7A2A8BC32003119D6E9D3E0852584F5F132",
+        "port\\config\\funcmaps\\stage2.json": "B42F92C75CE4B930BD84092126AF131A16F231CB377E13779718B466CC1EC6FB",
+        "port\\config\\funcmaps\\stage3.json": "58B0F2FB9E732D4CA32ACAE51743E2C7155FFB10476C1C9AAD65040BFF49F9BF",
+        "port\\config\\funcmaps\\stage4.json": "015CB5E81587EEB52219236005DC2CD2626EB1DD6F00D9ED1C98268778B0A375",
+        "port\\config\\funcmaps\\stage5.json": "AE002D0E213010FBAADA005A9843F933E9AD8306E27BA85928ABAFBCB54B7D93",
+        "port\\config\\funcmaps\\stage6.json": "C9E6AC0AC07422C1AB3C0F0CF009060AC938F819BD107BD6A824D5EBAADEC979",
+        "port\\config\\funcmaps\\title.json": "712A49FDFD1C5EC302B239F3B3F1AF0D1207532BD89A98D0C95318FD9943A5DF",
+        "settings.json": "EF6761882408B55674B3EBE7EF03C03F25557CA1500EDD4E8C4AF1A2ADA5DE5E",
+        "interface.ini": "9BAEE2CBD58EEA6C4F0124CA164E74851E8FD90A3D216701A11992555B32C10E"
+      },
+      "functions": [
+        {
+          "overlay": "main",
+          "registered": 2177,
+          "entered": 608,
+          "unentered": 1569
+        },
+        {
+          "overlay": "stage1",
+          "registered": 668,
+          "entered": 25,
+          "unentered": 643
+        },
+        {
+          "overlay": "stage2",
+          "registered": 520,
+          "entered": 0,
+          "unentered": 520
+        },
+        {
+          "overlay": "stage3",
+          "registered": 626,
+          "entered": 0,
+          "unentered": 626
+        },
+        {
+          "overlay": "stage4",
+          "registered": 492,
+          "entered": 0,
+          "unentered": 492
+        },
+        {
+          "overlay": "stage5",
+          "registered": 628,
+          "entered": 0,
+          "unentered": 628
+        },
+        {
+          "overlay": "stage6",
+          "registered": 43,
+          "entered": 0,
+          "unentered": 43
+        },
+        {
+          "overlay": "title",
+          "registered": 38,
+          "entered": 32,
+          "unentered": 6
+        }
+      ]
     }
   ],
   "files": [
@@ -397,6 +563,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -411,6 +579,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -470,6 +640,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -511,6 +683,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -525,6 +699,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -692,6 +868,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -715,6 +893,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -729,6 +909,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -743,6 +925,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -757,6 +941,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -810,6 +996,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -833,6 +1021,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -856,6 +1046,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -870,6 +1062,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -911,6 +1105,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1096,6 +1292,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1146,6 +1344,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1185,6 +1385,8 @@
       "size": 29392,
       "status": "partial",
       "evidence": [
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1436,6 +1638,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1449,6 +1653,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1515,6 +1721,8 @@
       "size": 3152,
       "status": "partial",
       "evidence": [
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1527,6 +1735,8 @@
       "size": 35648,
       "status": "partial",
       "evidence": [
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1778,6 +1988,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1791,6 +2003,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1813,6 +2027,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -1988,6 +2204,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -2129,6 +2347,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -2151,6 +2371,8 @@
       "status": "partial",
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
@@ -3532,6 +3754,8 @@
       "evidence": [
         "out/gates/elza-thread-safe/route/coverage.json",
         "out/gates/leon-thread-safe/route/coverage.json",
+        "out/runs/elza-damage-pool/coverage.json",
+        "out/runs/elza-damage-replay/coverage.json",
         "out/runs/elza-shotgun-gap-fixed/coverage.json",
         "out/runs/inventory-equip-second/coverage.json"
       ],
