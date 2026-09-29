@@ -78,6 +78,30 @@ exists so a freshly generated one can be compared against the committed one, whi
 what `tools/New-DiscManifest.ps1 -Check` does.
 
 
+Released binaries
+-----------------
+
+GitHub releases of this project attach a Windows x64 build so a player does not have
+to compile anything. That archive is the one place where a binary derived from the
+disc is published, and it is worth stating exactly what it is and is not.
+
+It contains the host application, the RecompOne runtime, the .NET runtime, and the
+recompiled guest - a transcription of the disc's executable - compiled together. It
+does **not** contain the disc image, any art or audio lifted from the disc, or a
+BIOS. The disc is still required and still supplied by the player, which is why the
+archive's README opens by saying so.
+
+That is a deliberate departure from the rule that game-derived binaries are never
+distributed, made so the port is actually playable by someone who does not have a
+toolchain. The recompiled guest is the same material that `/generated/` and `/dist/`
+hold locally, so anyone who objects to it in a release should object to it there too.
+If a rights holder asks for the release to be withdrawn, it will be withdrawn.
+
+The archive is produced by `tools/New-ReleasePackage.ps1`, which republishes from
+source and then excludes the disc image by name - so a release cannot silently start
+shipping the disc along with the code.
+
+
 If you are a rights holder
 --------------------------
 

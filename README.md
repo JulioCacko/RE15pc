@@ -14,6 +14,7 @@
   <a href="#product-tour">Screens</a> ·
   <a href="#what-works-today">Status</a> ·
   <a href="#controllers">Controllers</a> ·
+  <a href="#resolution-and-display">Resolution</a> ·
   <a href="#verification">Verification</a> ·
   <a href="docs/phases.md">Phases</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
@@ -167,13 +168,18 @@ dotnet run --project port/RE15pc -c Release -- --cue .\Bio2Nov96.cue
 
 ## Build the executable
 
-To produce a `RE15pc.exe` you can double-click on a machine with no .NET installed:
+**You do not have to build anything.** [Releases](https://github.com/JulioCacko/RE15pc/releases) attach a Windows x64 build that carries its own .NET runtime — unzip it, put your `Bio2Nov96.bin` and `Bio2Nov96.cue` next to `RE15pc.exe`, and run it. The archive never contains the disc.
+
+To produce one yourself:
 
 ```powershell
-pwsh -File tools/Publish-Exe.ps1
+pwsh -File tools/Publish-Exe.ps1          # self-contained build into dist/
+pwsh -File tools/New-ReleasePackage.ps1   # republish and zip into release/
 ```
 
-This writes a self-contained Windows x64 build to `dist/`, carrying the runtime, the RecompOne runtime, the compiled guest and every native dependency. It also copies your disc, cue sheet, `settings.json` and `interface.ini` in, so `dist/` is directly runnable, and it verifies afterwards that the icon resource landed and that `cimgui.dll`, `glfw3.dll`, `SDL2.dll` and `soft_oal.dll` are actually present.
+`Publish-Exe.ps1` writes a self-contained Windows x64 build to `dist/`, carrying the runtime, the RecompOne runtime, the compiled guest and every native dependency. It also copies your disc, cue sheet, `settings.json` and `interface.ini` in, so `dist/` is directly runnable, and it verifies afterwards that the icon resource landed and that `cimgui.dll`, `glfw3.dll`, `SDL2.dll` and `soft_oal.dll` are actually present.
+
+`New-ReleasePackage.ps1` republishes from source and then packages it, **excluding the disc image by name** so a release cannot silently start shipping the game alongside the code. It writes a `README.txt` explaining that the player must supply the disc, which is the one thing a downloader has to know.
 
 ### Why a folder and not one file
 
@@ -206,6 +212,42 @@ pwsh -File tools/Test-GamepadBackend.ps1 -VirtualPad
 The tool answers three separate questions instead of asserting one: it scans the bundled `SDL2.dll` for the XInput backend markers (`SDL_XINPUT_ENABLED` and the built-in `xinput,*,a:b0,…` mapping, both present in SDL 2.30.8), reproduces the runtime's exact hint and init sequence and reports which driver won, and exercises button-plus-axis polling. The polling check attaches an SDL **virtual** controller, so it proves the data path with nothing plugged in — and it is ordered before any physical pad is touched, because polling a real pad first stops a subsequently attached virtual one from reporting state at all (reproduced directly; an SDL virtual-device quirk, not a port defect).
 
 Bluetooth and non-XInput pads fall back to SDL's HIDAPI backend, which is also compiled in. Two pads are supported, in digital or analog mode, with per-device binding selection and rumble.
+
+---
+
+## Resolution and display
+
+The port does not assume a resolution. Window geometry is **derived from the monitor** at launch instead of hard-coded, so the same build behaves sensibly on a 1024×600 netbook, an ultrawide, and a 4K panel at 150% scaling.
+
+| How you launch it | What you get |
+|---|---|
+| Default, and no size saved yet | A window at **90% of the monitor's work area**, centred |
+| `--resolution 1920x1080` | Exactly that, or scaled down if the screen cannot hold it |
+| `--window-mode borderless` | Fills the monitor's work area, no title bar, **no resolution change** |
+| `--window-mode fullscreen` | Exclusive fullscreen, driven by the driver |
+| `--window-mode windowed` | A normal resizable window |
+
+**Borderless is the mode that works everywhere**, because it never asks the driver to change display mode — it cannot pick a mode the monitor does not support, and it leaves the desktop compositor in charge so alt-tab, overlays and multi-monitor keep working. Exclusive fullscreen is still there for anyone who wants it, and the three modes are switchable from **Settings → Display** without restarting.
+
+The game image is then **aspect-fitted** into whatever space the Output panel occupies, so 4:3 content letterboxes correctly inside 16:9, ultrawide or a pivoted portrait display rather than stretching. The guest's native framebuffer is scaled internally by **Render Scale** (Settings → Display, 1×–8×), independent of the window size.
+
+### What was verified
+
+Measured on a 3840×2160 panel at 150% scaling, work area 3840×2088:
+
+| Case | Result |
+|---|---|
+| First run, no saved settings | 3456×1879, centred at (181,59), on-screen, layout correct |
+| `--resolution 800x600` | Exactly 800×600 |
+| `--resolution 4000x3000` | Clamped to 2560×1920 — **on-screen instead of hanging off the right and bottom edges** |
+| `--window-mode borderless` | 3840×2088 at (0,0), no title bar, whole frame usable |
+| `--resolution 19200x1080` | Refused with exit code 2 and an explanatory message, not silently clamped |
+| Window resize, 700×560 → 2560×1440 and back | Identical output at identical sizes; the frame is a pure function of window size |
+
+The old fixed 1280×720 window opened **partly off-screen on any display narrower than that**, and a window whose title bar is off the desktop cannot be dragged back. That is the failure this replaces.
+
+> [!NOTE]
+> Geometry is resolved *before* the window is created, not resized afterwards. That ordering is load-bearing: the ImGui dock layout is built against the viewport that exists when the first frame runs, so a window that grows after that keeps a layout sized for the old one and leaves most of itself as bare dockspace background. This was hit, diagnosed and fixed during development, and the reason is recorded next to the code.
 
 ---
 
@@ -264,6 +306,7 @@ docs/screenshots/     the framebuffer captures shown above
 bootstrap.ps1         restores the pinned toolchain, idempotently
 generated/            recompiled C# — built locally from your disc, never committed
 dist/                 published build — never committed
+release/              release archive staging — never committed
 ```
 
 ---
@@ -272,7 +315,9 @@ dist/                 published build — never committed
 
 All commits follow [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/), enforced by a tracked `commit-msg` hook and by the workflow in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-**Never commit the disc, `generated/`, `out/`, `dist/`, saves, or the separate `RecompOne/` clone.** Recompiled code and game-derived binaries are produced on your machine from your own disc; `dist/` in particular is a ~154 MB folder with a transcription of the disc's executable compiled into it (plus your own disc image, if it copies one in). Runtime and recompiler changes are delivered as patches against the pinned upstream, never as edits to generated game code.
+**Never commit the disc, `generated/`, `out/`, `dist/`, `release/`, saves, or the separate `RecompOne/` clone.** Recompiled code and game-derived binaries are produced on your machine from your own disc; `dist/` in particular is a ~154 MB folder with a transcription of the disc's executable compiled into it (plus your own disc image, if it copies one in). Runtime and recompiler changes are delivered as patches against the pinned upstream, never as edits to generated game code.
+
+Published releases are the one place a game-derived binary is distributed, and only reachable because the player supplies the disc the code was generated from. That exception is written down in [NOTICE](NOTICE) rather than left implicit.
 
 ---
 
