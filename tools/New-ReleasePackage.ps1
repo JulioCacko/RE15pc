@@ -70,12 +70,22 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 # Never ship the disc. Named rather than pattern-matched so the exclusion is
 # obvious to a reader of this script and to anyone auditing the archive.
 $excluded = @('Bio2Nov96.bin')
+
+# Debug symbols are dropped too: RE15pc.pdb alone is ~14 MB of the archive, it is
+# useless without the exact source revision, and it carries symbol names for the
+# recompiled guest. A release does not need it.
+$excludedExtensions = @('.pdb')
+
 $copied = 0
 $bytes = 0L
 foreach ($item in Get-ChildItem -LiteralPath $DistDirectory -Recurse -File) {
     $relative = [IO.Path]::GetRelativePath($DistDirectory, $item.FullName)
     if ($excluded -contains $item.Name) {
         Write-Host "  excluding $relative (disc image, not redistributed)"
+        continue
+    }
+    if ($excludedExtensions -contains $item.Extension) {
+        Write-Host "  excluding $relative (debug symbols)"
         continue
     }
     $target = Join-Path $stage $relative
