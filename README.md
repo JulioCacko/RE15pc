@@ -15,6 +15,7 @@
   <a href="#what-works-today">Status</a> ·
   <a href="#controllers">Controllers</a> ·
   <a href="#resolution-and-display">Resolution</a> ·
+  <a href="#run-it-like-an-installed-game-not-an-emulator">No disc needed</a> ·
   <a href="#verification">Verification</a> ·
   <a href="docs/phases.md">Phases</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
@@ -251,6 +252,45 @@ The old fixed 1280×720 window opened **partly off-screen on any display narrowe
 
 ---
 
+## Run it like an installed game, not an emulator
+
+The port does not need a disc image at runtime. Convert your disc **once**, and from then on it boots from a native data file with no `.cue`, `.bin` or `.chd` anywhere:
+
+```powershell
+pwsh -File tools/Import-Disc.ps1 -Disc .\Bio2Nov96.cue
+```
+
+That writes `data/re15pc.disc` — a single compressed file holding the disc's track table and its raw 2352-byte sectors. The port finds it automatically, so afterwards you just run `RE15pc.exe`:
+
+```
+dist/RE15pc.exe --frames 180        # boots from data/, no disc image needed
+```
+
+`data/re15pc.disc` is **41 MB against a 124 MB disc**, and there is no CD emulation left: no container parsing, no cue sheet to point at, no image to keep on disk. A normal game folder, with its data beside the executable. `--data <path>` overrides the location, and `--cue` still wins if you name a disc explicitly.
+
+### Why the store keeps raw sectors
+
+The CD layer is addressed in raw 2352-byte sectors, because that is how the guest streams XA audio and MDEC video — `ReadRawSector` has to return the sync, header, subheader and EDC/ECC bytes exactly as they sit on the disc. A store built from extracted ISO9660 files cannot work: the bytes outside each file's data area would have to be reconstructed, and nothing in a file listing records them. So the container changes and the data does not.
+
+### The import proves itself
+
+Every import re-opens the store it just wrote and compares **every raw sector and every track entry** against the source disc:
+
+```
+[RE15pc] verified: all 52,849 raw sectors and every track entry match the disc
+```
+
+The store also records the SHA-256 of the sector stream it was built from, so validation afterwards is stronger than the cue path, not weaker: an imported installation proves it came from the right disc without the disc being present, where a `.cue` build only checks the hash when the image is still on disk. A store built from a different image is refused with a message saying so.
+
+> [!IMPORTANT]
+> `data/` contains the game and is gitignored for that reason. The import is a one-way conversion — the store cannot be turned back into a disc image — and it is for your own use. Keep your disc if you want to re-import.
+
+### The equivalence claim, stated honestly
+
+The store is **byte-exact at the data level**: all 52,849 raw sectors and all track entries match. That is a stronger statement than "the game boots", and it is the one worth making, because the port is **not** run-to-run deterministic in guest RAM — two runs of the *same* disc already differ in their RAM and VRAM dumps, so an end-to-end comparison cannot distinguish a store defect from that noise. What the store guarantees is that the guest receives the same sectors, byte for byte. A 2100-frame scripted run reaching STAGE1 was also measured against both sources and produced byte-identical framebuffer readbacks.
+
+---
+
 ## Verification
 
 Nothing here is asserted without a command that can fail.
@@ -303,6 +343,7 @@ tests/RE15pc.Checks/  the 166 focused checks
 docs/                 acceptance evidence, phase gates, per-subsystem findings
 assets/               wordmark, key art, app icon, social card
 docs/screenshots/     the framebuffer captures shown above
+data/                 imported disc store — the game's own sectors, never committed
 bootstrap.ps1         restores the pinned toolchain, idempotently
 generated/            recompiled C# — built locally from your disc, never committed
 dist/                 published build — never committed

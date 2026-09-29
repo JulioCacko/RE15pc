@@ -47,23 +47,34 @@ for a reader to discover. Nothing else binary is tracked.
     can show what the port does instead of asserting it. They are decoded game
     art, and the maintainer will remove them on request without argument.
 
-Explicitly not present, and excluded by named rules rather than by convention:
+Explicitly not present, and excluded by named rules rather than by convention - the
+rules are in .gitignore, and the list below names them rather than pointing at line
+numbers that drift:
 
-    the disc image           *.bin *.iso *.img *.chd *.mdf *.toc   .gitignore:13-19
-    recompiled C# output     /generated/                           .gitignore:25
-    VRAM, RAM and frames     /out/                                 .gitignore:28
-    the upstream engine      /RecompOne/                           .gitignore:22
-    published build output   /dist/                                .gitignore:32
+    the disc image           *.bin *.iso *.img *.chd *.mdf *.toc
+    recompiled C# output     /generated/
+    VRAM, RAM and frames     /out/
+    the upstream engine      /RecompOne/
+    published build output   /dist/  /release/
+    the imported disc store  /data/
 
-Those last three matter and are worth stating plainly. `/out/` holds the port's
+Those last four matter and are worth stating plainly. `/out/` holds the port's
 own diagnostic dumps - raw video memory, a machine's RAM, and frame captures -
 and those would contain decoded game art and overlay code if they were committed.
 They are excluded for precisely that reason. `/generated/` is a transcription of
-the disc's executable, and `/dist/` is that transcription compiled into a
-self-contained build (about 154 MB plus whatever disc image was copied beside
-it); both are excluded for the same reason. All are produced on the user's
-machine from the user's own disc, and none is distributed. Every rule can be
-verified directly:
+the disc's executable, and `/dist/` and `/release/` are that transcription compiled
+into a self-contained build (about 154 MB, or 61 MB compressed, plus whatever disc
+image was copied beside it); they are excluded for the same reason.
+
+`/data/` is the imported disc store described below. It is the disc's own sector
+data, compressed to about 35% - which is to say, it is the entire game in one file.
+It exists so the port does not need a disc image at runtime, and it is generated
+locally from the user's own disc by `RE15pc --import-disc`. Committing it, or
+shipping it in a release, would be redistributing the game outright, so it is
+excluded by name and the release packaging script excludes it again on the way out.
+
+All of these are produced on the user's machine from the user's own disc, and none
+is distributed. Every rule can be verified directly:
 
     git check-ignore -v Bio2Nov96.bin generated/ out/ RecompOne/ dist/
 
