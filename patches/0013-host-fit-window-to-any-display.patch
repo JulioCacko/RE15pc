@@ -1,0 +1,430 @@
+diff --git a/RecompOne.Runtime/Config/ViewConfig.cs b/RecompOne.Runtime/Config/ViewConfig.cs
+index 3c65dea..967cfb7 100644
+--- a/RecompOne.Runtime/Config/ViewConfig.cs
++++ b/RecompOne.Runtime/Config/ViewConfig.cs
+@@ -107,6 +107,55 @@ public class ViewConfig
+         set => SetBool("Fullscreen", value);
+     }
+ 
++    /// <summary>
++    /// How the window presents itself. Stored as a string so an older
++    /// <c>interface.ini</c> that only knows the boolean <c>Fullscreen</c> key still
++    /// loads with the meaning it had.
++    /// </summary>
++    public WindowMode DisplayMode
++    {
++        get
++        {
++            var raw = GetString("WindowMode");
++            if (raw.Length == 0) return Fullscreen ? WindowMode.Fullscreen : WindowMode.Windowed;
++            return raw.ToLowerInvariant() switch
++            {
++                "borderless" => WindowMode.Borderless,
++                "fullscreen" => WindowMode.Fullscreen,
++                _ => WindowMode.Windowed
++            };
++        }
++        set
++        {
++            SetString("WindowMode", value.ToString().ToLowerInvariant());
++            // Keep the legacy key consistent so older builds reading this file
++            // agree with the new one about whether the window is fullscreen.
++            Fullscreen = value == WindowMode.Fullscreen;
++        }
++    }
++
++    /// <summary>Windowed-mode width, before the monitor fit is applied.</summary>
++    public int WindowWidth
++    {
++        get
++        {
++            var v = GetInt("WindowWidth", 1280);
++            return v < 320 ? 320 : v;
++        }
++        set => SetInt("WindowWidth", value < 320 ? 320 : value);
++    }
++
++    /// <summary>Windowed-mode height, before the monitor fit is applied.</summary>
++    public int WindowHeight
++    {
++        get
++        {
++            var v = GetInt("WindowHeight", 720);
++            return v < 240 ? 240 : v;
++        }
++        set => SetInt("WindowHeight", value < 240 ? 240 : value);
++    }
++
+     public int RenderScale
+     {
+         get
+diff --git a/RecompOne.Runtime/Config/WindowRequest.cs b/RecompOne.Runtime/Config/WindowRequest.cs
+new file mode 100644
+index 0000000..0eaffe2
+--- /dev/null
++++ b/RecompOne.Runtime/Config/WindowRequest.cs
+@@ -0,0 +1,56 @@
++namespace RecompOne.Runtime.Config;
++
++/// <summary>
++/// How the host window presents itself on the desktop.
++/// </summary>
++public enum WindowMode
++{
++    /// <summary>A normal resizable window.</summary>
++    Windowed,
++
++    /// <summary>
++    /// An undecorated window covering the monitor's work area.
++    /// </summary>
++    /// <remarks>
++    /// This is the mode that behaves identically on every display. It performs no
++    /// mode switch, so it cannot pick a resolution the monitor does not support,
++    /// it leaves the desktop compositor in charge (so alt-tab, overlays and
++    /// multi-monitor still work), and it fills ultrawide and HiDPI screens exactly
++    /// as it fills a 1080p one. Exclusive fullscreen asks the driver to change
++    /// display mode instead, which is where "it broke on my monitor" usually
++    /// comes from.
++    /// </remarks>
++    Borderless,
++
++    /// <summary>Exclusive fullscreen, driven by the windowing backend.</summary>
++    Fullscreen
++}
++
++/// <summary>
++/// One-launch window geometry asked for by the host application.
++/// </summary>
++/// <remarks>
++/// This exists because <see cref="ConfigManager.View"/> is re-read from
++/// <c>interface.ini</c> inside <c>HostWindow.Initialize</c>, which would discard a
++/// value the host set in memory beforehand. These are process-level statics rather
++/// than persisted settings on purpose: a command-line override should apply to the
++/// launch it was given on and not silently become the player's saved preference.
++/// </remarks>
++public static class WindowRequest
++{
++    /// <summary>Mode to use for this launch, or null to use the saved setting.</summary>
++    public static WindowMode? Mode { get; set; }
++
++    /// <summary>Requested window width, or null to derive one from the monitor.</summary>
++    public static int? Width { get; set; }
++
++    /// <summary>Requested window height, or null to derive one from the monitor.</summary>
++    public static int? Height { get; set; }
++
++    public static void Clear()
++    {
++        Mode = null;
++        Width = null;
++        Height = null;
++    }
++}
+diff --git a/RecompOne.Runtime/Host/Window/HostWindow.cs b/RecompOne.Runtime/Host/Window/HostWindow.cs
+index 672ec6c..e78ffeb 100644
+--- a/RecompOne.Runtime/Host/Window/HostWindow.cs
++++ b/RecompOne.Runtime/Host/Window/HostWindow.cs
+@@ -114,17 +114,36 @@ public static class HostWindow
+         Pgxp.Pgxp.Load();
+         Interp.Interp.Load();
+ 
++        // Geometry is resolved before the window exists, not resized afterwards.
++        //
++        // That ordering is deliberate and was arrived at the hard way: resizing in
++        // OnLoad works, but the ImGui dock layout is built against the viewport that
++        // existed when the first frame ran, and a window that grows after that keeps
++        // a layout sized for the old, smaller viewport - leaving most of the window
++        // as bare dockspace background. Creating the window at its final size means
++        // the layout is right the first time, exactly as it was when the size was a
++        // constant.
++        var wantedMode = WindowRequest.Mode ?? ConfigManager.View.DisplayMode;
++        var savedSize = ConfigManager.View.Has("WindowWidth") && ConfigManager.View.Has("WindowHeight");
++        var requestedWidth = WindowRequest.Width ?? (savedSize ? ConfigManager.View.WindowWidth : (int?)null);
++        var requestedHeight = WindowRequest.Height ?? (savedSize ? ConfigManager.View.WindowHeight : (int?)null);
++        var area = QueryWorkArea();
++        var (startSize, startPosition) = ResolveStartGeometry(
++            wantedMode, requestedWidth, requestedHeight, area);
++
+         foreach (var api in ApiChain())
+             try
+             {
+                 var options = WindowOptions.Default with
+                 {
+-                    Size = new Vector2D<int>(1280, 720),
++                    Size = startSize,
++                    Position = startPosition,
+                     Title = title,
+                     VSync = ConfigManager.View.VSync,
+                     UpdatesPerSecond = 0,
+                     FramesPerSecond = 0,
+-                    WindowState = ConfigManager.View.Fullscreen ? WindowState.Fullscreen : WindowState.Normal,
++                    WindowState = wantedMode == WindowMode.Fullscreen ? WindowState.Fullscreen : WindowState.Normal,
++                    WindowBorder = wantedMode == WindowMode.Borderless ? WindowBorder.Hidden : WindowBorder.Resizable,
+                     API = api
+                 };
+                 _window = Silk.NET.Windowing.Window.Create(options);
+@@ -397,9 +416,203 @@ public static class HostWindow
+ 
+     public static void SetFullscreen(bool on)
+     {
+-        if (_window == null) return;
+-        _window.WindowState = on ? WindowState.Fullscreen : WindowState.Normal;
+-        if (on) SetAutoIconify(false);
++        SetDisplayMode(on ? WindowMode.Fullscreen : WindowMode.Windowed);
++    }
++
++    /// <summary>The mode the window is currently presenting in.</summary>
++    public static WindowMode DisplayMode { get; private set; } = WindowMode.Windowed;
++
++    private readonly record struct WorkArea(int X, int Y, int Width, int Height);
++
++    /// <summary>
++    /// Work area read before the window exists.
++    /// </summary>
++    /// <remarks>
++    /// The windowing backend has not initialised glfw yet at this point, so this
++    /// initialises it directly. glfwInit is reference counted and returns true when
++    /// already initialised, so the backend's own call afterwards is a no-op; this
++    /// must therefore never call glfwTerminate, which would tear the shared instance
++    /// out from under the backend.
++    /// </remarks>
++    private static unsafe WorkArea? QueryWorkArea()
++    {
++        try
++        {
++            var glfw = Silk.NET.GLFW.Glfw.GetApi();
++            if (!glfw.Init()) return null;
++            var monitor = glfw.GetPrimaryMonitor();
++            if (monitor == null) return null;
++            glfw.GetMonitorWorkarea(monitor, out var x, out var y, out var w, out var h);
++            if (w <= 0 || h <= 0) return null;
++            return new WorkArea(x, y, w, h);
++        }
++        catch (Exception e)
++        {
++            Console.WriteLine($"[Host] monitor work area unavailable: {e.Message}");
++            return null;
++        }
++    }
++
++    /// <summary>
++    /// The size and position a window should be created with.
++    /// </summary>
++    /// <remarks>
++    /// Precedence is: this launch's command line, then a size the player chose
++    /// before, then the monitor. "Then the monitor" is what makes a first run correct
++    /// on a display the port has never seen - the old fixed 1280x720 opened
++    /// partly off-screen on anything narrower, and a window whose title bar is off
++    /// the desktop cannot be dragged back. A saved size is honoured but still
++    /// clamped, so a window saved on a 4K panel cannot open off-screen on a laptop.
++    /// </remarks>
++    private static (Vector2D<int> Size, Vector2D<int> Position) ResolveStartGeometry(
++        WindowMode mode, int? requestedWidth, int? requestedHeight, WorkArea? area)
++    {
++        // Exclusive fullscreen decides its own bounds; anything else is a suggestion
++        // the backend would fight with.
++        if (mode == WindowMode.Fullscreen) return (new Vector2D<int>(1280, 720), new Vector2D<int>(0, 0));
++
++        if (mode == WindowMode.Borderless)
++        {
++            // Filling the work area is the whole point of the mode, so any requested
++            // size is ignored here rather than silently producing a smaller
++            // "borderless" window.
++            if (area is { } borderless)
++                return (new Vector2D<int>(borderless.Width, borderless.Height),
++                        new Vector2D<int>(borderless.X, borderless.Y));
++            var fallback = requestedWidth is { } fw && requestedHeight is { } fh
++                ? new Vector2D<int>(fw, fh)
++                : new Vector2D<int>(1280, 720);
++            return (fallback, new Vector2D<int>(0, 0));
++        }
++
++        var size = requestedWidth is { } w && requestedHeight is { } h
++            ? FitToWorkArea(w, h, area)
++            : FillWorkArea(area);
++
++        var position = area is { } a
++            ? new Vector2D<int>(
++                a.X + Math.Max(0, (a.Width - size.X) / 2),
++                a.Y + Math.Max(0, (a.Height - size.Y) / 2))
++            : new Vector2D<int>(0, 0);
++
++        return (size, position);
++    }
++
++    /// <summary>
++    /// Switches the live window to another display mode.
++    /// </summary>
++    /// <remarks>
++    /// Used for runtime mode changes from the settings UI. Launch geometry does not
++    /// come through here - it is resolved before the window is created, because a
++    /// window that grows after the first frame leaves the ImGui dock layout sized for
++    /// the old viewport. See the comment in <c>Initialize</c>.
++    /// </remarks>
++    public static void SetDisplayMode(WindowMode mode, int? width = null, int? height = null)
++    {
++        if (_headless || _window == null) return;
++
++        var area = QueryWorkArea();
++        var requestedWidth = width ?? WindowRequest.Width;
++        var requestedHeight = height ?? WindowRequest.Height;
++
++        switch (mode)
++        {
++            case WindowMode.Borderless:
++                // Leave fullscreen before touching the border: asking a fullscreen
++                // window to go hidden-border is backend-dependent and can leave it
++                // stuck covering the monitor with no way back.
++                if (_window.WindowState != WindowState.Normal) _window.WindowState = WindowState.Normal;
++                _window.WindowBorder = WindowBorder.Hidden;
++                SetAutoIconify(false);
++                if (area is { } borderless)
++                {
++                    _window.Position = new Vector2D<int>(borderless.X, borderless.Y);
++                    _window.Size = new Vector2D<int>(borderless.Width, borderless.Height);
++                }
++                else
++                {
++                    _window.Size = requestedWidth is { } bw && requestedHeight is { } bh
++                        ? FitToWorkArea(bw, bh, null)
++                        : new Vector2D<int>(1280, 720);
++                    CenterOnWorkArea(null, _window.Size);
++                }
++
++                break;
++
++            case WindowMode.Fullscreen:
++                _window.WindowBorder = WindowBorder.Resizable;
++                _window.WindowState = WindowState.Fullscreen;
++                SetAutoIconify(false);
++                break;
++
++            default:
++                _window.WindowState = WindowState.Normal;
++                _window.WindowBorder = WindowBorder.Resizable;
++                // Coming back from fullscreen or borderless the window has no usable
++                // size of its own, so one is derived rather than restored.
++                var fit = requestedWidth is { } fw && requestedHeight is { } fh
++                    ? FitToWorkArea(fw, fh, area)
++                    : FillWorkArea(area);
++                _window.Size = fit;
++                CenterOnWorkArea(area, fit);
++                break;
++        }
++
++        DisplayMode = mode;
++        ConfigManager.View.DisplayMode = mode;
++        RequestLayout();
++        Console.WriteLine($"[Host] display mode: {mode} ({_window.Size.X}x{_window.Size.Y})");
++    }
++
++    /// <summary>
++    /// Shrinks a requested size until it fits inside the work area.
++    /// </summary>
++    /// <remarks>
++    /// The 92% margin is what keeps the title bar reachable and stops a window from
++    /// opening underneath the taskbar. A window larger than the screen is the
++    /// failure this replaces: at 1280x720 the port opened partly off-screen on any
++    /// display narrower than that, and a hidden title bar cannot be dragged back.
++    /// </remarks>
++    private static Vector2D<int> FitToWorkArea(int width, int height, WorkArea? area)
++    {
++        if (area is not { } a) return new Vector2D<int>(width, height);
++
++        var maxWidth = Math.Max(320, (int)(a.Width * 0.92));
++        var maxHeight = Math.Max(240, (int)(a.Height * 0.92));
++        var scale = Math.Min(1.0, Math.Min((double)maxWidth / width, (double)maxHeight / height));
++        return new Vector2D<int>(
++            Math.Max(320, (int)Math.Round(width * scale)),
++            Math.Max(240, (int)Math.Round(height * scale)));
++    }
++
++    /// <summary>
++    /// A sensible windowed size for a display nobody has told us about yet.
++    /// </summary>
++    /// <remarks>
++    /// 90% of the work area, so the window is clearly a window rather than a
++    /// borderless screen, while still using most of whatever the display offers -
++    /// a phone-sized netbook and a 4K panel both get something proportionate. The
++    /// 1280x720 fallback only applies when the work area could not be read at all.
++    /// </remarks>
++    private static Vector2D<int> FillWorkArea(WorkArea? area)
++    {
++        if (area is not { } a) return new Vector2D<int>(1280, 720);
++
++        return new Vector2D<int>(
++            Math.Max(320, (int)Math.Round(a.Width * 0.90)),
++            Math.Max(240, (int)Math.Round(a.Height * 0.90)));
++    }
++
++    private static void CenterOnWorkArea(WorkArea? area, Vector2D<int> size)
++    {
++        // Position is non-nullable on the window interface, so an unknown work area
++        // means leaving the position alone rather than clearing it; the backend
++        // centres the window itself in that case.
++        if (_window == null || area is not { } a) return;
++
++        _window.Position = new Vector2D<int>(
++            a.X + Math.Max(0, (a.Width - size.X) / 2),
++            a.Y + Math.Max(0, (a.Height - size.Y) / 2));
+     }
+ 
+     private static unsafe void SetAutoIconify(bool on)
+@@ -557,7 +770,8 @@ public static class HostWindow
+         if (ConfigManager.ApplyImGuiLayout())
+             _layoutPending = false;
+ 
+-        if (ConfigManager.View.Fullscreen) SetAutoIconify(false);
++        DisplayMode = WindowRequest.Mode ?? ConfigManager.View.DisplayMode;
++        if (DisplayMode == WindowMode.Fullscreen) SetAutoIconify(false);
+     }
+ 
+     public static void SetVSync(bool on)
+diff --git a/RecompOne.Runtime/Host/Window/Settings/Sections/DisplaySettingsSection.cs b/RecompOne.Runtime/Host/Window/Settings/Sections/DisplaySettingsSection.cs
+index 46b44f8..653cc18 100644
+--- a/RecompOne.Runtime/Host/Window/Settings/Sections/DisplaySettingsSection.cs
++++ b/RecompOne.Runtime/Host/Window/Settings/Sections/DisplaySettingsSection.cs
+@@ -11,16 +11,39 @@ internal sealed class DisplaySettingsSection : ISettingsSection
+ 
+     private static readonly string[] Backends = ["auto", "gl45", "gl33", "gl21"];
+ 
++    // Labels are literals rather than localization keys: the language tables are
++    // keyed per language, and adding three entries to every table is a larger
++    // change than a display-mode control warrants. The backend combo below sets
++    // the same precedent.
++    private static readonly string[] WindowModes = ["Windowed", "Borderless fullscreen", "Exclusive fullscreen"];
++
+     public void Draw()
+     {
+-        var fullscreen = ConfigManager.View.Fullscreen;
+-        if (ImGui.Checkbox(Localization.T("settings.display.fullscreen"), ref fullscreen))
++        // Windowed first, and borderless second: borderless is the mode that works
++        // on any display because it never asks the driver to change resolution.
++        var mode = ConfigManager.View.DisplayMode;
++        var modeIndex = mode switch
++        {
++            WindowMode.Borderless => 1,
++            WindowMode.Fullscreen => 2,
++            _ => 0
++        };
++
++        if (ImGui.Combo(Localization.T("settings.display.fullscreen"), ref modeIndex, WindowModes, WindowModes.Length))
+         {
+-            ConfigManager.View.Fullscreen = fullscreen;
+-            HostWindow.SetFullscreen(fullscreen);
++            var chosen = modeIndex switch
++            {
++                1 => WindowMode.Borderless,
++                2 => WindowMode.Fullscreen,
++                _ => WindowMode.Windowed
++            };
++            HostWindow.SetDisplayMode(chosen);
+             ConfigManager.SaveView(PanelManager.Panels);
+         }
+ 
++        if (ImGui.IsItemHovered())
++            ImGui.SetTooltip("Borderless fills any monitor without changing its resolution.");
++
+         var vsync = ConfigManager.View.VSync;
+         if (ImGui.Checkbox(Localization.T("settings.display.vsync"), ref vsync))
+         {
