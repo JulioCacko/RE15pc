@@ -15,8 +15,8 @@ if ($OpenReport.requested.Input -ne $Prefix -or $ClosedReport.requested.Input -n
 }
 $Opened = [IO.File]::ReadAllBytes((Join-Path $OpenRun 'ram-full.bin'))
 $Closed = [IO.File]::ReadAllBytes((Join-Path $ClosedRun 'ram-full.bin'))
-if (([BitConverter]::ToUInt32($Opened, 0xACA3C) -band 0x40) -eq 0) { throw 'inventory did not open' }
-if (([BitConverter]::ToUInt32($Closed, 0xACA3C) -band 0x40) -ne 0) { throw 'inventory did not close' }
+if ($Opened[0xB5359] -lt 1 -or $Opened[0xB5359] -gt 5) { throw 'inventory did not open' }
+if ($Closed[0xB5359] -ne 0) { throw 'inventory did not close' }
 for ($i = 0; $i -lt 40; $i++) {
     if ($Opened[0xB10AC + $i] -ne $Closed[0xB10AC + $i]) { throw 'menu open/close changed inventory slots' }
 }
@@ -26,4 +26,4 @@ foreach ($Offset in @(0xACA88,0xACA8C,0xACA90)) {
     }
 }
 Write-Host 'INVENTORY OPEN/CLOSE PASS: native runs, menu flag, ten unchanged slots, unchanged position'
-Write-Host 'Item selection, equipment, use and combination are separate gates and remain unverified.'
+Write-Host 'Item selection, equipment, use and combination require separate acceptance scenarios.'

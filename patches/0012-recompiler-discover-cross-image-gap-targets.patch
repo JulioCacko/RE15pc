@@ -1,0 +1,59 @@
+diff --git a/RecompOne.Recompiler/Analysis/FunctionDetector.cs b/RecompOne.Recompiler/Analysis/FunctionDetector.cs
+index dfdfaaf..cc17f96 100644
+--- a/RecompOne.Recompiler/Analysis/FunctionDetector.cs
++++ b/RecompOne.Recompiler/Analysis/FunctionDetector.cs
+@@ -579,7 +579,7 @@ public static class FunctionDetector
+     }
+ 
+ 
+-    private static bool IsKnownInstruction(MipsInstruction i)
++    internal static bool IsKnownInstruction(MipsInstruction i)
+     {
+         if (!i.IsValid || !i.IsImplemented) return false;
+ 
+@@ -852,4 +852,4 @@ public static class FunctionDetector
+         if (vram < base0) return -1;
+         return (int)((vram - base0) / 4);
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/RecompOne.Recompiler/Analysis/FunctionPipeline.cs b/RecompOne.Recompiler/Analysis/FunctionPipeline.cs
+index 3f959da..1933e70 100644
+--- a/RecompOne.Recompiler/Analysis/FunctionPipeline.cs
++++ b/RecompOne.Recompiler/Analysis/FunctionPipeline.cs
+@@ -39,7 +39,6 @@ public static class FunctionPipeline
+             var lo = owner.Instructions[0].Vram;
+             var hi = owner.Instructions[^1].Vram + 4;
+             var starts = new HashSet<uint>(owner.Functions.Select(f => f.Start));
+-            var bodies = owner.Functions.Where(f => f.End > f.Start).ToList();
+             var targets = new SortedSet<uint>();
+ 
+             foreach (var other in images)
+@@ -57,7 +56,8 @@ public static class FunctionPipeline
+ 
+                     var t = instr.JumpTarget;
+                     if (t < lo || t >= hi || starts.Contains(t) || targets.Contains(t)) continue;
+-                    if (!bodies.Any(f => t > f.Start && t < f.End)) continue;
++                    // A direct cross-image call can name an omitted function in
++                    // a gap, not just a secondary entry inside a known body.
+ 
+                     targets.Add(t);
+                 }
+@@ -66,7 +66,8 @@ public static class FunctionPipeline
+             if (targets.Count == 0) continue;
+ 
+             var extras = FunctionDetector.DetectFromAddresses(owner.Instructions,
+-                targets.Select(t => (t, (string?)null)), owner.Functions, owner.Name);
++                targets.Select(t => (t, (string?)null)), owner.Functions, owner.Name)
++                .Where(f => f.Instructions.All(FunctionDetector.IsKnownInstruction)).ToList();
+             owner.Functions.AddRange(extras);
+             Console.WriteLine($"[Recompiler] cross-image scan found {extras.Count} entry point(s) in {owner.Name}");
+         }
+@@ -229,4 +230,4 @@ public static class FunctionPipeline
+ 
+         funcs.RemoveAll(f => f.Name == "__ignored__");
+     }
+-}
+\ No newline at end of file
++}

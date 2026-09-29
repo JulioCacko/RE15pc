@@ -76,6 +76,8 @@ Check(Dispatcher.ActiveNames.SequenceEqual(new[] { "main", "stage1" }), "synthet
 GpuReadbackChecks.Run(Check);
 CoverageChecks.Run(Check);
 DecoderCopyChecks.Run(Check);
+FileMenuChecks.Run(Check);
+CrossImageChecks.Run(Check);
 var keys = new RecompOne.Runtime.Host.KeyPulseLatch();
 Check(!keys.IsPressed(257, 10), "keyboard pulse initially released");
 keys.Press(257, 10);

@@ -14,7 +14,7 @@ boot investigation. A smoke pass does not complete a gameplay gate.
 ## Phase 1 evidence
 
 See [acceptance.md](acceptance.md). The local native suite passed at
-`out/gates/harness-v2`; the focused suite now has 159 passing checks.
+`out/gates/harness-v2`; the focused suite now has 166 passing checks.
 Recompilation compared all ten generated files byte-for-byte successfully.
 The tracked patch series reconstructs the upstream changes. The GPU readback
 repair also passes the native harness at `out/gates/readback-fixed`.
@@ -56,7 +56,7 @@ unverified and now fail acceptance instead of being swallowed; see
 ## Phase 3 checkpoint
 
 Generated-entry and disc-sector tracing now expose unentered functions and
-unread file extents. The 334-file ledger has 37 partial observations and 297
+unread file extents. The 334-file ledger has 40 partial observations and 294
 unverified entries; branch and packed-member coverage remain open.
 
 Elza reaches ROOM1031.RDT after recovery of one STAGE1 callback and four
@@ -67,6 +67,10 @@ See [content-coverage.md](content-coverage.md) for commands, evidence and limits
 
 Model structure now accounts for 102 blocks in all 54 EMS/PLD/PLW files, with
 semantic and animation coverage still open. Inventory open/close passes a
-state-preservation gate; item-panel navigation has an unresolved rendering
-issue. See [model-inventory.md](model-inventory.md) and
+state-preservation gate; item selection and a weapon-equipment change are verified. The blank view
+was the original FILE handler, not a demonstrated item-panel rendering defect. See [model-inventory.md](model-inventory.md) and
 [inventory-status.md](inventory-status.md).
+
+Aimed firing passes a two-shot ammunition/control gate after the cross-image
+scanner repair. Damage, kills and full weapon coverage remain open; see
+[weapon-fire.md](weapon-fire.md).

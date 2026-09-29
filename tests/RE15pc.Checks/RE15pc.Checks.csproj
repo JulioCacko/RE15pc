@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../port/RE15pc/RE15pc.csproj" />
+    <ProjectReference Include="../../RecompOne/RecompOne.Recompiler/RecompOne.Recompiler.csproj" />
   </ItemGroup>
 </Project>

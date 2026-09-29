@@ -81,7 +81,7 @@ Do not use that artifact as accepted coverage.
 
 The fresh runs at `out/gates/leon-thread-safe` and
 `out/gates/elza-thread-safe` pass their scenario gates with the corrected
-failure policy. Together they partially observe 37 files; 297 files remain
+failure policy. Together they partially observe 40 files; 294 files remain
 unverified. Stages 2–6 have zero entered functions. No file is marked fully
 verified merely because it was read.
 
@@ -93,7 +93,7 @@ rest of the header must match with relocation. A corrupted-header negative
 control is rejected. `-VerifyOnly` rechecks saved evidence without rerunning
 the native process.
 
-The focused suite now passes 159 checks. Both runtime patches and curated
+The focused suite now passes 166 checks. Both runtime patches and curated
 function maps reproduce the generated code deterministically. Raw game-derived
 artifacts remain local and ignored.
 

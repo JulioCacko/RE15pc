@@ -8,7 +8,7 @@ MIPS executable and seven overlays with [RecompOne](https://github.com/BlackLabe
 The native host boots, renders the rooftop, turns and moves Leon, respects the
 railing collision, and deliberately exits from room 117 into room 116.
 The destination room data and player spawn are checked against the actual disc.
-The full-disc ledger has 37 partially observed files and 297 unverified files.
+The full-disc ledger has 40 partially observed files and 294 unverified files.
 See [coverage and remaining scope](docs/content-coverage.md),
 [first-room acceptance](docs/first-room.md), the
 [background repair](docs/background-readback.md), and
@@ -42,7 +42,7 @@ pwsh -File tools/Test-RecompileDeterminism.ps1
 pwsh -File tools/New-DiscManifest.ps1 -Check
 ```
 
-The 159 focused checks and native gates cover exact frame counts, failure propagation, all 49
+The 166 focused checks and native gates cover exact frame counts, failure propagation, all 49
 ordered overlay replacements, input holds/releases, log rollover, timeouts, and
 isolated output. Recompilation currently produces ten byte-identical files.
 
@@ -78,7 +78,9 @@ relevant gate. Emulator setup is not required.
 
 Synthetic dispatch success, nonzero audio, pixel counts, and a clean smoke run
 do not establish playability. Movement, collision and one intentional exit are verified in the first-room
-gate. Inventory open/close is verified, while item-panel rendering remains under investigation.
+gate. Inventory open/close and a weapon-equipment change are verified. The earlier
+blank-panel diagnosis was corrected: Right selected the original FILE handler.
+An aimed two-shot firing gate now passes; see [weapon-fire.md](docs/weapon-fire.md).
 Full-room/scenario coverage, remaining interactions and combat, inventory operations,
 save/load, full native-input certification and the stability gate remain open.
 GitHub Actions is currently blocked from starting by account billing/spending

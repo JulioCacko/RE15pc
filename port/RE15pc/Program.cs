@@ -90,7 +90,9 @@ public static class Program
                         weapon = memory.ReadU8(0x800ACA5D),
                         health = memory.ReadU16(0x800ACAEE) },
                     camera = memory.ReadU16(0x800B0FE4),
-                    inventory = new { open = (memory.ReadU32(0x800ACA3C) & 0x40) != 0,
+                    inventory = new { open = memory.ReadU8(0x800B5359) is >= 1 and <= 5,
+                        mode = memory.ReadU8(0x800B5359),
+                        controlBlocked = (memory.ReadU32(0x800ACA3C) & 0x40) != 0,
                         panel = memory.ReadU8(0x800B25BC), selection = memory.ReadU8(0x800B25C8),
                         state = memory.ReadU32(0x800B25C0),
                         slots = Enumerable.Range(0, 10).Select(i => new {

@@ -18,27 +18,35 @@ The shared route prefix is:
 The close run adds `2100:cross`.
 
 Read-only state observations now include:
-- menu-open bit 0x40 at 0x800ACA3C;
+- menu mode 1–5 at 0x800B5359 (zero is gameplay);
+- control-blocked bit 0x40 at 0x800ACA3C, which is also used while aiming and is not sufficient to identify an open menu;
 - panel, state and selection at 0x800B25BC/25C0/25C8;
 - ten slots at 0x800B10AC, four bytes per slot.
 
 The slot count follows the original draw loop at 0x80049B20, which compares
 against ten. Tracing does not change these values.
 
-## Open rendering issue
+## Corrected FILE diagnosis
 
-Reproduction:
-`90:start,240:cross,300:cross,600:right,1250:cross,1800:start,2100:right,2160:square`,
-stopped at frame 2500.
+The earlier route with Right then Square selected FILE, not ITEM. A separate
+Right-only capture shows FILE highlighted. The original routine at 0x8004C374
+slides all panels out in 25 steps, waits for Cross/R1, then restores them.
+A regression executes that generated routine and verifies the exact movement,
+wait and restoration. The observed positions match it. No port rendering
+defect has been established for that behavior.
 
-Evidence: `out/runs/elza-inventory-selection`.
+The actual ITEM route uses Square with ITEM still selected. It renders the
+item cursor and SIG P228 description correctly at
+`out/runs/inventory-item-command`. Equipment, use and combination are still
+being verified. FILE content completeness remains a separate question.
 
-The guest changes panel from 0 to 3, keeps the inventory open, and leaves the
-selected slot and quantities unchanged. Visually, most menu content moves out
-of view, leaving the frame and a clipped strip on the left. The native runtime
-reports no exception or unmapped call. A smoke pass therefore does not close
-this UI issue.
+## Equipment change
 
-The cause has not yet been attributed to the port or original prototype.
-Item selection, equipping, using, combining, and persistence are not accepted.
-Do not classify the rendering issue as an original limitation without evidence.
+The route at `out/runs/inventory-equip-second` selects slot 1 and equips
+weapon 8 in place of weapon 4. The ten slot IDs/quantities, health and XYZ
+remain unchanged, the new weapon model and sound bank are read, and the game
+returns to the room. `tools/Test-InventoryEquip.ps1` passes on that evidence
+and rejects a negative copy in which the equipped weapon does not change.
+
+Aimed firing subsequently exposed a missing direct cross-image call target
+at 0x80066A1C. The recompiler repair and firing replay now pass; see [weapon-fire.md](weapon-fire.md).
