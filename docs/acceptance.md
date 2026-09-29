@@ -74,10 +74,28 @@ Computer Use inspection of the native 2100-frame scripted run showed the
 described as a playable room do not identify a controllable gameplay state.
 The STAGE1 background has since been repaired and verified in the native
 window; see [background-readback.md](background-readback.md). The movement/collision/door gate now passes; see [first-room.md](first-room.md).
-Inventory, combat, full content coverage and save/load remain unverified.
+Inventory open/close, equipment, aimed firing and one enemy damage/removal
+scenario now have passing gates; see [inventory-status.md](inventory-status.md)
+and [weapon-fire.md](weapon-fire.md). Full content coverage and save/load remain open.
 
 GitHub Actions currently cannot start because of the account billing/spending
 limit. Local checks do not substitute for a passing required remote release check.
+
+The installed `act` 0.2.89 can run the commit workflow locally without Docker
+using its Windows host runner. The workflow explicitly selects Bash so its
+shell script is not interpreted as PowerShell. Use an isolated clean checkout
+without disc data or saves, prepend Git for Windows' `bin` and `usr/bin` to
+PATH, and provide a push event JSON containing the real `before`, `after`,
+`ref`, and repository identity:
+
+```powershell
+act push -j conventional -P ubuntu-latest=-self-hosted -e out/act-event.json --use-gitignore --action-offline-mode
+```
+
+This executed checkout and commit validation successfully for
+`e475732..f1c457b`. The initial attempt reproduced a PowerShell parse failure;
+explicit `shell: bash` repaired it. This is Windows local workflow evidence,
+not Linux/container certification, hosted check publication, or billing repair.
 
 Caught host event failures are now also authoritative in the runtime check;
 see [keyboard-input.md](keyboard-input.md) for the positive and negative controls.
@@ -85,5 +103,5 @@ see [keyboard-input.md](keyboard-input.md) for the positive and negative control
 BIOS thread failures are now also authoritative and trigger cooperative stop.
 A real Elza failure formerly hidden by the surviving VSync thread now fails at
 frame 1537. The decoder and callback repairs are covered by the 159-check
-focused suite and both character-entry gates. Coverage imports require this
+focused suite (now 166 checks) and both character-entry gates. Coverage imports require this
 failure policy and reject legacy or fault-bearing reports.

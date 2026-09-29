@@ -27,6 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate commit messages
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
