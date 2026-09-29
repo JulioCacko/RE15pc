@@ -32,6 +32,11 @@ Bio2Nov96.bin
 /dist/
 /release/
 
+# --- imported disc store: the disc's own sector data, compressed ---
+# This is the entire game. It is generated locally from the user's own disc by
+# `RE15pc --import-disc`, and redistributing it would be redistributing the game.
+/data/
+
 # --- .NET build output ---
 bin/
 obj/
