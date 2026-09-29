@@ -366,6 +366,7 @@ Published releases are the one place a game-derived binary is distributed, and o
 
 | Document | Contents |
 |---|---|
+| [`docs/gold-status.md`](docs/gold-status.md) | **Every open issue standing between here and gold**, by gate, with sources |
 | [`docs/acceptance.md`](docs/acceptance.md) | What the acceptance harness proves, and the limits of that proof |
 | [`docs/phases.md`](docs/phases.md) | The five phase gates and where the project actually stands |
 | [`docs/first-room.md`](docs/first-room.md) | Leon's first-room gate, in detail |
