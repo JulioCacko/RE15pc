@@ -70,6 +70,19 @@ only from unverified to partial. It cannot mark a file verified.
   It is not yet proof: a scripted transition, an event that opens the door, or a second
   level reached some other way would all overturn it, and none has been ruled out.
 
+  A third measurement closes the most likely of those explanations. The rectangle spans
+  x 5040..6280, and the two walks above had approached -Z at x around 4500, which is
+  outside it - so it was still possible that the boundary was further out at the
+  rectangle's own x. Aiming precisely at that x using the measured turn law (a hold of
+  D frames rotates exactly 96*(D-1) units), the character was walked to x=5697 and then
+  straight down -Z. The wall there is at **z=-5204**, i.e. *nearer* than the -6000
+  found at x=4500, and the character then slid in +X out past x=6280 rather than passing
+  through. So the boundary slopes inward toward the rectangle's x range and never
+  reaches z<=-6480 from either approach. Both remaining explanations for reaching this
+  door by walking are now excluded, leaving only mechanisms that were never tested: a
+  scripted transition that fires without the player entering the rectangle, or a level
+  change reached by some route the room's two door records do not describe.
+
 Structural inspection found 25 sector-aligned model blocks in each CDEMD
 container. Their relative section directories and padded extents account for
 each complete file. Semantic identities, animation coverage and member-level
