@@ -24,6 +24,8 @@ public static class Program
             return 2;
         }
         if (options.Help) { Options.PrintUsage(); return 0; }
+        // Bounded runs produce acceptance evidence; interactive runs just play.
+        var bounded = options.Frames is not null || options.SmokeSeconds is not null;
         var sourceRoot = Directory.GetCurrentDirectory();
         var cue = Path.GetFullPath(options.Cue);
         var output = Path.GetFullPath(options.OutDir);
@@ -35,18 +37,31 @@ public static class Program
         { Console.Error.WriteLine(rejection); return 2; }
 
         Directory.CreateDirectory(output);
-        var revision = Git(sourceRoot, "rev-parse", "HEAD");
-        var dirty = Git(sourceRoot, "status", "--porcelain");
-        var configFiles = Directory.GetFiles(Path.Combine(sourceRoot, "port", "config"), "*", SearchOption.AllDirectories)
-            .Concat(Directory.GetFiles(Path.Combine(sourceRoot, "patches"), "*.patch"));
-        var hashes = configFiles.Order().ToDictionary(p => Path.GetRelativePath(sourceRoot, p), Hash);
-        foreach (var name in new[] { "settings.json", "interface.ini" })
-            if (File.Exists(Path.Combine(sourceRoot, name))) hashes[name] = Hash(Path.Combine(sourceRoot, name));
+        var (revision, dirty, hashes, provenanceError) = SourceProvenance(sourceRoot);
+        if (provenanceError is not null)
+        {
+            // A gate run must be able to name the revision and configuration behind
+            // its result, so it refuses to run without them. The published
+            // single-file build is the case this is written for: double-clicking it
+            // is an interactive run and proceeds, while asking it for a bounded run
+            // says why that cannot work here instead of failing on a missing path.
+            if (bounded)
+            {
+                Console.Error.WriteLine(
+                    $"a bounded run must record its revision and configuration, and '{sourceRoot}' " +
+                    $"is not a repository checkout with port/config and patches: {provenanceError}");
+                Console.Error.WriteLine(
+                    "Run bounded gates from the repository root, or launch the published exe without " +
+                    "--frames/--smoke to play interactively.");
+                return 2;
+            }
+            Console.Error.WriteLine(
+                $"[RE15pc] no source provenance in '{sourceRoot}' ({provenanceError}); recording unknown");
+        }
         // Acceptance runs must not modify the player's settings or memory cards.
         foreach (var name in new[] { "settings.json", "interface.ini", "carda.sav", "cardb.sav" })
             if (File.Exists(Path.Combine(sourceRoot, name)))
                 File.Copy(Path.Combine(sourceRoot, name), Path.Combine(output, name));
-        var bounded = options.Frames is not null || options.SmokeSeconds is not null;
         if (bounded) Directory.SetCurrentDirectory(output);
         ConsoleMirror.Install();
         using var accumulator = new RunAccumulator();
@@ -228,6 +243,44 @@ public static class Program
     }
 
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+
+    /// <summary>
+    /// Records the revision and configuration that produced a run.
+    ///
+    /// A bounded run is acceptance evidence, so provenance is mandatory: a run
+    /// that cannot name its revision must fail rather than pass with a gap in the
+    /// record. An interactive launch has no such duty, and the published
+    /// single-file build runs with no repository, no port/config tree and no
+    /// patches directory around it. Aborting there would make the distributed
+    /// executable unusable, so that case records an explicit unknown marker
+    /// instead. The two are never conflated: "unknown" is unreachable for a
+    /// bounded run.
+    ///
+    /// The failure is returned rather than thrown, because the caller can say
+    /// something useful about it. Letting the raw exception escape reported only
+    /// "Could not find a part of the path ...port\config", which reads as a bug in
+    /// the port instead of "you launched a gate run from the wrong directory".
+    /// </summary>
+    private static (string Revision, string Dirty, Dictionary<string, string> Hashes, string? Error) SourceProvenance(
+        string sourceRoot)
+    {
+        try
+        {
+            var revision = Git(sourceRoot, "rev-parse", "HEAD");
+            var dirty = Git(sourceRoot, "status", "--porcelain");
+            var configFiles = Directory.GetFiles(Path.Combine(sourceRoot, "port", "config"), "*", SearchOption.AllDirectories)
+                .Concat(Directory.GetFiles(Path.Combine(sourceRoot, "patches"), "*.patch"));
+            var hashes = configFiles.Order().ToDictionary(p => Path.GetRelativePath(sourceRoot, p), Hash);
+            foreach (var name in new[] { "settings.json", "interface.ini" })
+                if (File.Exists(Path.Combine(sourceRoot, name))) hashes[name] = Hash(Path.Combine(sourceRoot, name));
+            return (revision, dirty, hashes, null);
+        }
+        catch (Exception ex)
+        {
+            return ("unknown", "unknown", [], $"{ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
     private static string Git(string directory, params string[] args)
     {
         var start = new ProcessStartInfo("git") { WorkingDirectory = directory, RedirectStandardOutput = true,
