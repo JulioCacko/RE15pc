@@ -22,6 +22,24 @@
     <RootNamespace>RE15pc</RootNamespace>
 
     <!--
+      Windows shell identity. ApplicationIcon embeds assets/icon.ico's frame
+      ladder into the apphost's RT_GROUP_ICON resource, which is what Explorer,
+      the taskbar and Alt-Tab read; the managed bitmap in the window itself is
+      unaffected. Regenerate the .ico with tools/New-AppIcon.ps1 rather than
+      editing it.
+
+      The remaining properties populate the exe's Properties > Details tab so a
+      published build is identifiable without inspecting it.
+    -->
+    <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
+    <AssemblyTitle>Biohazard 1.5 (Nov 6, 1996) preservation port</AssemblyTitle>
+    <Product>RE15pc</Product>
+    <Description>Native Windows host for the statically recompiled Biohazard 2 November 6, 1996 prototype.</Description>
+    <Company>RE15pc preservation project</Company>
+    <Copyright>Unofficial preservation project. Resident Evil and Biohazard are Capcom trademarks.</Copyright>
+    <Version>0.3.0</Version>
+
+    <!--
       Culture must stay invariant-sensitive: RecompOne formats diagnostics with
       culture-aware numeric formats, and a comma decimal separator makes them
       harder to compare against the project's own documentation.
