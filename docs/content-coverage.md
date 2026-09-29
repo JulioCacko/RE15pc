@@ -58,6 +58,18 @@ only from unverified to partial. It cannot mark a file verified.
   Settling which is the next step, and it is exactly the kind of claim the graph
   tool exists to make checkable.
 
+  An independent measurement argues the door really is unreachable. A walk from the
+  same start at yaw 1192 travelled 17712 units with no clamping on the way, crossing
+  x=0 and z=0, and still only reached z=-2942; a walk at yaw 1000 advanced in z until
+  -6000 and then slid along that wall instead of stopping. Both put the room's -Z
+  boundary well short of the -6480 the rectangle needs. On the current evidence the
+  prototype cannot progress past the rooftop area at all: not because the port fails,
+  but because the only door out of it - and the only live entry to room 10B, and so to
+  stage 2 - sits outside the walkable region. That is the shape of an original
+  limitation, which stage 3 accepts *with* evidence, and the evidence is now recorded.
+  It is not yet proof: a scripted transition, an event that opens the door, or a second
+  level reached some other way would all overturn it, and none has been ruled out.
+
 Structural inspection found 25 sector-aligned model blocks in each CDEMD
 container. Their relative section directories and padded extents account for
 each complete file. Semantic identities, animation coverage and member-level
