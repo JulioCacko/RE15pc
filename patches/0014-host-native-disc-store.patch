@@ -1,0 +1,529 @@
+diff --git a/RecompOne.Runtime/Cdrom/Disc/DiscImage.cs b/RecompOne.Runtime/Cdrom/Disc/DiscImage.cs
+index ab0744a..611a51b 100644
+--- a/RecompOne.Runtime/Cdrom/Disc/DiscImage.cs
++++ b/RecompOne.Runtime/Cdrom/Disc/DiscImage.cs
+@@ -15,13 +15,19 @@ public static class DiscImage
+         {
+             DiscFormat.Chd => ChdImage.Open(path),
+             DiscFormat.CueBin => CueBinImage.Open(path),
++            DiscFormat.Pack => DiscPackImage.Open(path),
+             _ => throw new NotSupportedException($"unsupported disc format: {path}")
+         };
+     }
+ 
+     public static DiscFormat Detect(string path)
+     {
++        // Magic is checked before the extension, so a store renamed to something
++        // else still opens and a stray file that merely ends in .disc does not.
++        if (DiscPackImage.HasMagic(path)) return DiscFormat.Pack;
++
+         var ext = Path.GetExtension(path);
++        if (ext.Equals(DiscPackImage.FileExtension, StringComparison.OrdinalIgnoreCase)) return DiscFormat.Pack;
+         if (ext.Equals(".chd", StringComparison.OrdinalIgnoreCase)) return DiscFormat.Chd;
+         if (ext.Equals(".cue", StringComparison.OrdinalIgnoreCase)) return DiscFormat.CueBin;
+         return HasChdMagic(path) ? DiscFormat.Chd : DiscFormat.Unknown;
+@@ -46,5 +52,8 @@ public enum DiscFormat
+ {
+     Unknown,
+     CueBin,
+-    Chd
++    Chd,
++
++    /// <summary>A native sector store built by <see cref="DiscPack"/>. No disc image at runtime.</summary>
++    Pack
+ }
+\ No newline at end of file
+diff --git a/RecompOne.Runtime/Cdrom/Disc/DiscPackImage.cs b/RecompOne.Runtime/Cdrom/Disc/DiscPackImage.cs
+new file mode 100644
+index 0000000..54a4f96
+--- /dev/null
++++ b/RecompOne.Runtime/Cdrom/Disc/DiscPackImage.cs
+@@ -0,0 +1,488 @@
++using System.Buffers.Binary;
++using System.IO.Compression;
++using System.Security.Cryptography;
++
++namespace RecompOne.Runtime.Cdrom;
++
++/// <summary>
++/// A disc stored as a native, sector-addressable asset file rather than as a disc
++/// image.
++/// </summary>
++/// <remarks>
++/// <para>
++/// The port talks to the CD layer in raw 2352-byte sectors, because that is how the
++/// guest streams XA audio and MDEC video: <see cref="ReadRawSector"/> has to return
++/// the sync, header, subheader and EDC/ECC bytes exactly as they sit on the disc.
++/// A store built from extracted ISO9660 files therefore cannot work - the sectors
++/// outside a file's data area would have to be reconstructed, and nothing in the
++/// file listing records them.
++/// </para>
++/// <para>
++/// So this keeps the raw sectors and changes only the container. The disc becomes
++/// one compressed file with its track table inside it, which means a player no
++/// longer needs a .cue, a .bin or a .chd at runtime: the port reads this and
++/// nothing else. Blocks are compressed independently and indexed, so a seek costs
++/// one block decompression rather than a scan.
++/// </para>
++/// <para>
++/// The store also records the SHA-256 of the raw sector stream it was built from,
++/// which for a single MODE2/2352 track is byte-for-byte the SHA-256 of the original
++/// .bin. Validation can therefore prove a store came from the right disc without
++/// the original being present - strictly stronger than the cue path, where the hash
++/// is only checked when the image is still on disk.
++/// </para>
++/// </remarks>
++public sealed class DiscPackImage : IDiscImage
++{
++    /// <summary>Marks the file. Chosen to be recognisable in a hex dump.</summary>
++    public static readonly byte[] Magic = "RE15DISC"u8.ToArray();
++
++    public const uint Version = 1;
++    public const int HeaderSize = 96;
++    public const int TrackEntrySize = 16;
++    public const int RawSectorSize = 2352;
++
++    /// <summary>
++    /// Sectors per compressed block.
++    /// </summary>
++    /// <remarks>
++    /// 64 sectors is 147 KB uncompressed. Large enough that sequential streaming
++    /// pays one decompression per 64 sectors, small enough that a random seek does
++    /// not decompress megabytes. The block cache then makes streaming effectively
++    /// free.
++    /// </remarks>
++    public const int DefaultBlockSectors = 64;
++
++    public const string FileExtension = ".disc";
++
++    public const string DefaultFileName = "re15pc.disc";
++
++    private readonly FileStream _stream;
++    private readonly object _ioGate = new();
++    private readonly long[] _blockOffsets;
++
++    // Small LRU: enough that sequential reads across a streaming file almost never
++    // miss, small enough to stay irrelevant to memory use.
++    private const int CacheCapacity = 16;
++    private readonly Dictionary<int, byte[]> _cache = [];
++    private readonly LinkedList<int> _cacheOrder = [];
++
++    private DiscPackImage(FileStream stream, DiscPackHeader header, List<DiscTrack> tracks,
++        long[] blockOffsets)
++    {
++        _stream = stream;
++        Header = header;
++        Tracks = tracks;
++        _blockOffsets = blockOffsets;
++    }
++
++    public readonly record struct DiscPackHeader(
++        uint Version,
++        int SectorSize,
++        int SectorCount,
++        int LeadoutLba,
++        int BlockSectors,
++        int BlockCount,
++        long IndexOffset,
++        long SourceLength,
++        byte[] SourceSha256);
++
++    public DiscPackHeader Header { get; }
++
++    public string Format => "re15disc";
++
++    public IReadOnlyList<DiscTrack> Tracks { get; }
++
++    public int FirstTrack => Tracks.Count > 0 ? Tracks.Min(t => t.Number) : 1;
++
++    public int LastTrack => Tracks.Count > 0 ? Tracks.Max(t => t.Number) : 1;
++
++    public bool HasTracks => Tracks.Count > 0;
++
++    public int LeadoutLba => Header.LeadoutLba;
++
++    public int DataSectors
++    {
++        get
++        {
++            var data = DataTrack();
++            var next = int.MaxValue;
++            foreach (var t in Tracks)
++                if (t.StartLba > data.StartLba && t.StartLba < next) next = t.StartLba;
++
++            var end = next != int.MaxValue ? next : Header.SectorCount;
++            return Math.Max(0, Math.Min(end - data.StartLba, Header.SectorCount - data.StartLba));
++        }
++    }
++
++    public bool TrackStartLba(int track, out int lba)
++    {
++        foreach (var t in Tracks)
++        {
++            if (t.Number != track) continue;
++            lba = t.StartLba;
++            return true;
++        }
++
++        lba = 0;
++        return false;
++    }
++
++    private DiscTrack DataTrack()
++    {
++        foreach (var t in Tracks)
++            if (t.Kind == DiscTrackKind.Data)
++                return t;
++
++        throw new InvalidOperationException("disc store contains no data track");
++    }
++
++    public byte[] ReadRawSector(int lba)
++    {
++        var buf = new byte[RawSectorSize];
++        if (lba < 0 || lba >= Header.SectorCount) return buf;
++
++        var block = lba / Header.BlockSectors;
++        var within = (lba % Header.BlockSectors) * RawSectorSize;
++        var data = Block(block);
++        if (data.Length <= within) return buf;
++
++        var count = Math.Min(RawSectorSize, data.Length - within);
++        Array.Copy(data, within, buf, 0, count);
++        return buf;
++    }
++
++    /// <summary>
++    /// Reads user data out of a raw sector.
++    /// </summary>
++    /// <remarks>
++    /// The offset rule mirrors <c>CueBinImage</c> exactly rather than being derived
++    /// again here: the CD controller asks for 2048, 2329, 2340 or 2352 bytes
++    /// depending on the transfer mode, and each one starts at a different place in
++    /// the frame. Getting this wrong returns plausible-looking garbage, so it is
++    /// copied from the implementation the rest of the port is already verified
++    /// against.
++    /// </remarks>
++    public byte[] ReadSectorData(int lba, int size)
++    {
++        var buf = new byte[Math.Max(0, size)];
++        if (size <= 0 || lba < 0 || lba >= Header.SectorCount) return buf;
++
++        var offset = size switch
++        {
++            >= 2340 => 12,
++            >= 2329 => 16,
++            _ => 24
++        };
++
++        var raw = ReadRawSector(lba);
++        var want = Math.Min(size, RawSectorSize - offset);
++        if (want > 0) Array.Copy(raw, offset, buf, 0, want);
++        return buf;
++    }
++
++    private byte[] Block(int index)
++    {
++        lock (_ioGate)
++        {
++            if (_cache.TryGetValue(index, out var cached))
++            {
++                _cacheOrder.Remove(index);
++                _cacheOrder.AddFirst(index);
++                return cached;
++            }
++
++            if (index < 0 || index >= _blockOffsets.Length)
++                throw new InvalidDataException($"disc store block {index} is out of range");
++
++            _stream.Seek(_blockOffsets[index], SeekOrigin.Begin);
++
++            Span<byte> lengths = stackalloc byte[8];
++            _stream.ReadExactly(lengths);
++            var uncompressed = (int)BinaryPrimitives.ReadUInt32LittleEndian(lengths);
++            var compressed = (int)BinaryPrimitives.ReadUInt32LittleEndian(lengths[4..]);
++
++            if (uncompressed <= 0 || uncompressed > Header.BlockSectors * RawSectorSize)
++                throw new InvalidDataException($"disc store block {index} declares {uncompressed} bytes");
++            if (compressed <= 0 || compressed > uncompressed)
++                throw new InvalidDataException($"disc store block {index} declares {compressed} compressed bytes");
++
++            var payload = new byte[compressed];
++            _stream.ReadExactly(payload);
++
++            var block = new byte[uncompressed];
++            using (var brotli = new BrotliStream(new MemoryStream(payload, writable: false), CompressionMode.Decompress))
++            {
++                var read = 0;
++                while (read < uncompressed)
++                {
++                    var n = brotli.Read(block, read, uncompressed - read);
++                    if (n <= 0) break;
++                    read += n;
++                }
++
++                if (read != uncompressed)
++                    throw new InvalidDataException(
++                        $"disc store block {index} decompressed to {read} bytes, expected {uncompressed}");
++            }
++
++            _cache[index] = block;
++            _cacheOrder.AddFirst(index);
++            while (_cacheOrder.Count > CacheCapacity)
++            {
++                var victim = _cacheOrder.Last!.Value;
++                _cacheOrder.RemoveLast();
++                _cache.Remove(victim);
++            }
++
++            return block;
++        }
++    }
++
++    public static bool HasMagic(string path)
++    {
++        try
++        {
++            using var s = File.OpenRead(path);
++            Span<byte> magic = stackalloc byte[8];
++            return s.Read(magic) == 8 && magic.SequenceEqual(Magic);
++        }
++        catch
++        {
++            return false;
++        }
++    }
++
++    public static DiscPackImage Open(string path)
++    {
++        var stream = File.OpenRead(path);
++        try
++        {
++            Span<byte> header = stackalloc byte[HeaderSize];
++            if (stream.Read(header) != HeaderSize) throw new InvalidDataException("disc store is truncated");
++            if (!header[..8].SequenceEqual(Magic)) throw new InvalidDataException("not a disc store");
++
++            var version = BinaryPrimitives.ReadUInt32LittleEndian(header[8..]);
++            if (version != Version)
++                throw new InvalidDataException($"disc store version {version} is not supported by this build");
++
++            var parsed = new DiscPackHeader(
++                version,
++                (int)BinaryPrimitives.ReadUInt32LittleEndian(header[16..]),
++                (int)BinaryPrimitives.ReadUInt32LittleEndian(header[20..]),
++                (int)BinaryPrimitives.ReadUInt32LittleEndian(header[24..]),
++                (int)BinaryPrimitives.ReadUInt32LittleEndian(header[32..]),
++                (int)BinaryPrimitives.ReadUInt32LittleEndian(header[36..]),
++                (long)BinaryPrimitives.ReadUInt64LittleEndian(header[40..]),
++                (long)BinaryPrimitives.ReadUInt64LittleEndian(header[48..]),
++                header[56..88].ToArray());
++
++            if (parsed.SectorSize != RawSectorSize)
++                throw new InvalidDataException($"disc store sector size {parsed.SectorSize} is not 2352");
++            if (parsed.BlockSectors <= 0 || parsed.BlockCount <= 0 || parsed.SectorCount <= 0)
++                throw new InvalidDataException("disc store header is not self-consistent");
++
++            var trackCount = (int)BinaryPrimitives.ReadUInt32LittleEndian(header[28..]);
++            if (trackCount <= 0 || trackCount > 100) throw new InvalidDataException("disc store track table is invalid");
++
++            var tracks = new List<DiscTrack>(trackCount);
++            Span<byte> entry = stackalloc byte[TrackEntrySize];
++            for (var i = 0; i < trackCount; i++)
++            {
++                if (stream.Read(entry) != TrackEntrySize)
++                    throw new InvalidDataException("disc store track table is truncated");
++
++                tracks.Add(new DiscTrack(
++                    (int)BinaryPrimitives.ReadUInt32LittleEndian(entry),
++                    BinaryPrimitives.ReadUInt32LittleEndian(entry[4..]) == 1 ? DiscTrackKind.Audio : DiscTrackKind.Data,
++                    (int)BinaryPrimitives.ReadUInt32LittleEndian(entry[8..]),
++                    (int)BinaryPrimitives.ReadUInt32LittleEndian(entry[12..]),
++                    0));
++            }
++
++            stream.Seek(parsed.IndexOffset, SeekOrigin.Begin);
++            var blockOffsets = new long[parsed.BlockCount];
++            Span<byte> offsetBytes = stackalloc byte[8];
++            for (var i = 0; i < parsed.BlockCount; i++)
++            {
++                if (stream.Read(offsetBytes) != 8)
++                    throw new InvalidDataException("disc store block index is truncated");
++                blockOffsets[i] = (long)BinaryPrimitives.ReadUInt64LittleEndian(offsetBytes);
++            }
++
++            return new DiscPackImage(stream, parsed, tracks, blockOffsets);
++        }
++        catch
++        {
++            stream.Dispose();
++            throw;
++        }
++    }
++
++    public void Dispose() => _stream.Dispose();
++}
++
++/// <summary>
++/// Builds a <see cref="DiscPackImage"/> from a disc image.
++/// </summary>
++public static class DiscPack
++{
++    /// <summary>
++    /// Writes <paramref name="source"/> to <paramref name="destination"/> as a
++    /// compressed sector store.
++    /// </summary>
++    /// <remarks>
++    /// Only raw-2352 sources are accepted. A MODE1/2048 or MODE2/2336 track does not
++    /// retain the sync, header and EDC/ECC bytes the guest can ask for through
++    /// <see cref="IDiscImage.ReadRawSector"/>, so packing one would produce a store
++    /// that silently returns zero-filled sectors where the game expects real ones.
++    /// Refusing is the honest outcome.
++    /// </remarks>
++    public static DiscPackImage.DiscPackHeader Write(IDiscImage source, string destination,
++        Action<string>? log = null, int blockSectors = DiscPackImage.DefaultBlockSectors)
++    {
++        var tracks = source.Tracks;
++        if (tracks.Count == 0)
++            throw new NotSupportedException("this disc image reports no tracks, so it cannot be packed");
++
++        foreach (var track in tracks)
++            if (track.SectorSize != DiscPackImage.RawSectorSize)
++                throw new NotSupportedException(
++                    $"track {track.Number} has {track.SectorSize}-byte sectors; packing requires 2352-byte " +
++                    "sectors because raw sector reads cannot be reconstructed from a smaller form");
++
++        if (blockSectors <= 0) blockSectors = DiscPackImage.DefaultBlockSectors;
++
++        var sectorCount = source.LeadoutLba;
++        if (sectorCount <= 0)
++            throw new NotSupportedException("this disc image reports no sectors");
++
++        var blockCount = (sectorCount + blockSectors - 1) / blockSectors;
++        var full = Path.GetFullPath(destination);
++        var directory = Path.GetDirectoryName(full);
++        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
++
++        // Written to a temporary file and renamed on success. An import takes a
++        // minute on a 124 MB disc, and an interrupted run must not leave behind
++        // something that looks like a valid store but is not.
++        var temporary = full + ".tmp";
++        var offsets = new long[blockCount];
++        var buffer = new byte[blockSectors * DiscPackImage.RawSectorSize];
++
++        try
++        {
++            using (var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
++            using (var output = File.Create(temporary))
++            {
++                // Layout: header, track table, blocks, then the block index. The
++                // index goes last so blocks can stream straight out without their
++                // offsets being known in advance.
++                output.Write(new byte[DiscPackImage.HeaderSize]);
++                foreach (var track in tracks)
++                {
++                    Span<byte> entry = stackalloc byte[DiscPackImage.TrackEntrySize];
++                    BinaryPrimitives.WriteUInt32LittleEndian(entry, (uint)track.Number);
++                    BinaryPrimitives.WriteUInt32LittleEndian(entry[4..], track.Kind == DiscTrackKind.Audio ? 1u : 0u);
++                    BinaryPrimitives.WriteUInt32LittleEndian(entry[8..], (uint)track.StartLba);
++                    BinaryPrimitives.WriteUInt32LittleEndian(entry[12..], (uint)track.SectorSize);
++                    output.Write(entry);
++                }
++
++                for (var block = 0; block < blockCount; block++)
++                {
++                    var first = block * blockSectors;
++                    var count = Math.Min(blockSectors, sectorCount - first);
++                    var length = count * DiscPackImage.RawSectorSize;
++
++                    for (var i = 0; i < count; i++)
++                    {
++                        var raw = source.ReadRawSector(first + i);
++                        Array.Copy(raw, 0, buffer, i * DiscPackImage.RawSectorSize, DiscPackImage.RawSectorSize);
++                    }
++
++                    // Hashed over the raw sector stream, so for a single MODE2/2352
++                    // track this is the original .bin's SHA-256 exactly.
++                    hash.AppendData(buffer, 0, length);
++
++                    var compressed = Compress(buffer, length);
++                    offsets[block] = output.Position;
++
++                    Span<byte> lengths = stackalloc byte[8];
++                    BinaryPrimitives.WriteUInt32LittleEndian(lengths, (uint)length);
++                    BinaryPrimitives.WriteUInt32LittleEndian(lengths[4..], (uint)compressed.Length);
++                    output.Write(lengths);
++                    output.Write(compressed, 0, compressed.Length);
++
++                    if (log != null && (block % 64 == 0 || block == blockCount - 1))
++                        log($"  block {block + 1}/{blockCount} ({(block + 1) * 100L / blockCount}%)");
++                }
++
++                var indexOffset = output.Position;
++                Span<byte> offsetBytes = stackalloc byte[8];
++                foreach (var offset in offsets)
++                {
++                    BinaryPrimitives.WriteUInt64LittleEndian(offsetBytes, (ulong)offset);
++                    output.Write(offsetBytes);
++                }
++
++                var sha = hash.GetHashAndReset();
++                var sourceLength = (long)sectorCount * DiscPackImage.RawSectorSize;
++
++                output.Seek(0, SeekOrigin.Begin);
++                Span<byte> headerBytes = stackalloc byte[DiscPackImage.HeaderSize];
++                DiscPackImage.Magic.CopyTo(headerBytes);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[8..], DiscPackImage.Version);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[12..], DiscPackImage.HeaderSize);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[16..], DiscPackImage.RawSectorSize);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[20..], (uint)sectorCount);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[24..], (uint)sectorCount);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[28..], (uint)tracks.Count);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[32..], (uint)blockSectors);
++                BinaryPrimitives.WriteUInt32LittleEndian(headerBytes[36..], (uint)blockCount);
++                BinaryPrimitives.WriteUInt64LittleEndian(headerBytes[40..], (ulong)indexOffset);
++                BinaryPrimitives.WriteUInt64LittleEndian(headerBytes[48..], (ulong)sourceLength);
++                sha.CopyTo(headerBytes[56..]);
++                output.Write(headerBytes);
++                output.Flush();
++
++                var header = new DiscPackImage.DiscPackHeader(
++                    DiscPackImage.Version,
++                    DiscPackImage.RawSectorSize,
++                    sectorCount,
++                    sectorCount,
++                    blockSectors,
++                    blockCount,
++                    indexOffset,
++                    sourceLength,
++                    sha);
++
++                output.Close();
++                if (File.Exists(full)) File.Delete(full);
++                File.Move(temporary, full);
++                return header;
++            }
++        }
++        catch
++        {
++            if (File.Exists(temporary)) File.Delete(temporary);
++            throw;
++        }
++    }
++
++    /// <summary>Opens <paramref name="sourcePath"/> and packs it.</summary>
++    public static DiscPackImage.DiscPackHeader Write(string sourcePath, string destination,
++        Action<string>? log = null, int blockSectors = DiscPackImage.DefaultBlockSectors)
++    {
++        using var image = DiscImage.Open(sourcePath);
++        return Write(image, destination, log, blockSectors);
++    }
++
++    private static byte[] Compress(byte[] buffer, int length)
++    {
++        using var output = new MemoryStream(Math.Max(1024, length / 2));
++        using (var brotli = new BrotliStream(output, CompressionLevel.Optimal, leaveOpen: true))
++            brotli.Write(buffer, 0, length);
++
++        return output.ToArray();
++    }
++}
