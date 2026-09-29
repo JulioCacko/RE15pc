@@ -7,6 +7,17 @@ public sealed class Options
     public string Cue { get; private init; } = "Bio2Nov96.cue";
 
     /// <summary>
+    /// True when the user named a disc explicitly with <c>--cue</c>.
+    /// </summary>
+    /// <remarks>
+    /// Needed to decide between the disc and an imported store: an explicit
+    /// <c>--cue</c> always wins, whereas the built-in default must not override a
+    /// store that is sitting in <c>data/</c>. Without this the port would keep
+    /// asking for a disc that the user has already imported and thrown away.
+    /// </remarks>
+    public bool CueExplicit { get; private init; }
+
+    /// <summary>
     /// When set, stop after this many seconds, write diagnostics and exit with a
     /// pass/fail code instead of running until the game thread ends.
     /// </summary>
@@ -86,9 +97,27 @@ public sealed class Options
     public int? WindowWidth { get; private init; }
     public int? WindowHeight { get; private init; }
 
+    /// <summary>
+    /// Disc to import into a native sector store, then exit. One-time setup.
+    /// </summary>
+    public string? ImportDisc { get; private init; }
+
+    /// <summary>
+    /// Where the import writes, or where the store is read from. Defaults to
+    /// <c>data/re15pc.disc</c> beside the working directory.
+    /// </summary>
+    public string? DataPath { get; private init; }
+
+    /// <summary>
+    /// Skip the post-import sector-by-sector comparison. Only for a quick
+    /// throughput test; the comparison is what makes the store trustworthy.
+    /// </summary>
+    public bool NoVerifyStore { get; private init; }
+
     public static bool TryParse(string[] args, out Options options, out string error)
     {
         var cue = "Bio2Nov96.cue";
+        var cueExplicit = false;
         double? smoke = null;
         long? frames = null;
         double timeout = 300;
@@ -109,6 +138,9 @@ public sealed class Options
         RecompOne.Runtime.Config.WindowMode? windowMode = null;
         int? windowWidth = null;
         int? windowHeight = null;
+        string? importDisc = null;
+        string? dataPath = null;
+        var noVerifyStore = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -134,6 +166,7 @@ public sealed class Options
                 case "--cue":
                     if (++i >= args.Length) { error = "--cue needs a path"; options = new Options(); return false; }
                     cue = args[i];
+                    cueExplicit = true;
                     break;
 
                 case "--smoke":
@@ -237,6 +270,21 @@ public sealed class Options
                     windowHeight = rh;
                     break;
 
+                case "--import-disc":
+                    if (++i >= args.Length)
+                    { error = "--import-disc needs a path to your .cue or .chd"; options = new Options(); return false; }
+                    importDisc = args[i];
+                    break;
+
+                case "--data":
+                    if (++i >= args.Length) { error = "--data needs a path"; options = new Options(); return false; }
+                    dataPath = args[i];
+                    break;
+
+                case "--no-verify-store":
+                    noVerifyStore = true;
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -256,6 +304,7 @@ public sealed class Options
         options = new Options
         {
             Cue = cue,
+            CueExplicit = cueExplicit,
             SmokeSeconds = smoke,
             Frames = frames,
             TimeoutSeconds = timeout,
@@ -275,7 +324,10 @@ public sealed class Options
             Help = help,
             WindowMode = windowMode,
             WindowWidth = windowWidth,
-            WindowHeight = windowHeight
+            WindowHeight = windowHeight,
+            ImportDisc = importDisc,
+            DataPath = dataPath,
+            NoVerifyStore = noVerifyStore
         };
         error = "";
         return true;
@@ -380,6 +432,11 @@ public sealed class Options
         Console.WriteLine("                      behaves the same on every display");
         Console.WriteLine("  --resolution <WxH>  window size for this launch, e.g. 1920x1080.");
         Console.WriteLine("                      Still fitted to the monitor if the screen is smaller");
+        Console.WriteLine("  --import-disc <p>   convert your .cue/.chd into a native sector store");
+        Console.WriteLine("                      (data/re15pc.disc) and exit. After this the port no");
+        Console.WriteLine("                      longer needs a disc image at all");
+        Console.WriteLine("  --data <path>       sector store to read, or to write when importing");
+        Console.WriteLine("                      (default data/re15pc.disc)");
         Console.WriteLine("  --help              show this message");
         Console.WriteLine();
         Console.WriteLine("Run from the repository root so settings.json and out/ land predictably.");

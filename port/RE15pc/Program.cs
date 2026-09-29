@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using RecompOne.Runtime;
+using RecompOne.Runtime.Cdrom;
 using RecompOne.Runtime.Config;
 using RecompOne.Runtime.Diagnostics;
 using RecompOne.Runtime.Dispatch;
@@ -24,12 +25,32 @@ public static class Program
             return 2;
         }
         if (options.Help) { Options.PrintUsage(); return 0; }
+
+        // Importing never boots the guest: it reads the disc once, writes a native
+        // sector store, and exits. One-time setup, then the disc is not needed.
+        if (options.ImportDisc is { } importSource)
+            return ImportDisc(importSource, options.DataPath, options.NoVerifyStore);
+
         // Bounded runs produce acceptance evidence; interactive runs just play.
         var bounded = options.Frames is not null || options.SmokeSeconds is not null;
         var sourceRoot = Directory.GetCurrentDirectory();
-        var cue = Path.GetFullPath(options.Cue);
+
+        // An explicit --cue always means the disc. Otherwise an imported store wins
+        // over the default cue name, which is what lets an imported installation
+        // boot with no disc image present at all.
+        var cue = ResolveDiscSource(options, out var usingStore);
         var output = Path.GetFullPath(options.OutDir);
-        if (!File.Exists(cue)) { Console.Error.WriteLine($"disc cue not found: {cue}"); return 2; }
+        if (!File.Exists(cue))
+        {
+            Console.Error.WriteLine(usingStore
+                ? $"disc store not found: {cue}"
+                : $"disc not found: {cue}");
+            Console.Error.WriteLine(
+                "Supply your own disc image, or convert it once into a native store so the port " +
+                "never needs it again:");
+            Console.Error.WriteLine("    RE15pc --import-disc path\\to\\Bio2Nov96.cue");
+            return 2;
+        }
         if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
         { Console.Error.WriteLine($"--out must be empty: {output}"); return 2; }
         Runtime.DiscValidator = DiscIdentity.CreateValidator(options.FullHash || options.Frames is not null);
@@ -249,6 +270,170 @@ public static class Program
     }
 
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
+
+    /// <summary>Default location of the native sector store, relative to the port.</summary>
+    private static string DefaultDataPath => Path.Combine("data", DiscPackImage.DefaultFileName);
+
+    /// <summary>
+    /// Resolves the store path from <c>--data</c>, accepting a directory as well as
+    /// a file so <c>--data data</c> and <c>--data data/re15pc.disc</c> both work.
+    /// </summary>
+    /// <remarks>
+    /// A path with no extension is treated as a directory. Testing only for an
+    /// existing directory is not enough: on the very first import the directory does
+    /// not exist yet, so <c>--data data</c> would silently create a FILE called
+    /// "data" instead of "data/re15pc.disc" - and then the port would not find its
+    /// own store on the next run.
+    /// </remarks>
+    private static string ResolveDataPath(string? dataPath)
+    {
+        var path = string.IsNullOrWhiteSpace(dataPath) ? DefaultDataPath : dataPath;
+        var full = Path.GetFullPath(path);
+
+        if (Directory.Exists(full) || string.IsNullOrEmpty(Path.GetExtension(full)))
+            full = Path.Combine(full, DiscPackImage.DefaultFileName);
+
+        return full;
+    }
+
+    /// <summary>
+    /// Picks the disc the port should read: an explicit <c>--cue</c>, then
+    /// <c>--data</c>, then an auto-detected store, then the default cue name.
+    /// </summary>
+    private static string ResolveDiscSource(Options options, out bool usingStore)
+    {
+        if (options.CueExplicit)
+        {
+            usingStore = DiscPackImage.HasMagic(Path.GetFullPath(options.Cue));
+            return Path.GetFullPath(options.Cue);
+        }
+
+        if (options.DataPath is not null)
+        {
+            var explicitData = ResolveDataPath(options.DataPath);
+            usingStore = true;
+            return explicitData;
+        }
+
+        var auto = Path.GetFullPath(DefaultDataPath);
+        if (File.Exists(auto))
+        {
+            Console.WriteLine($"[RE15pc] using the imported disc store at {auto} (no disc image needed)");
+            usingStore = true;
+            return auto;
+        }
+
+        usingStore = false;
+        return Path.GetFullPath(options.Cue);
+    }
+
+    /// <summary>
+    /// Converts a disc image into a native sector store.
+    /// </summary>
+    /// <remarks>
+    /// This is the one command that still needs the disc. Everything afterwards
+    /// reads the store, which is a single compressed file containing the track table
+    /// and the raw sectors the CD layer asks for - so an installed copy of the port
+    /// needs no .cue, .bin or .chd, and behaves like a normal PC game folder rather
+    /// than an emulator pointed at an image.
+    /// </remarks>
+    private static int ImportDisc(string source, string? dataPath, bool skipVerify)
+    {
+        var sourcePath = Path.GetFullPath(source);
+        var destination = ResolveDataPath(dataPath);
+
+        if (!File.Exists(sourcePath))
+        {
+            Console.Error.WriteLine($"disc image not found: {sourcePath}");
+            Console.Error.WriteLine("Pass the .cue or .chd of your own copy of the prototype:");
+            Console.Error.WriteLine("    RE15pc --import-disc path\\to\\Bio2Nov96.cue");
+            return 2;
+        }
+
+        Console.WriteLine($"[RE15pc] importing {sourcePath}");
+        Console.WriteLine($"[RE15pc] reading the disc once and writing {destination}");
+
+        try
+        {
+            var started = Stopwatch.StartNew();
+            var header = DiscPack.Write(sourcePath, destination, message => Console.WriteLine(message));
+            started.Stop();
+
+            var size = new FileInfo(destination).Length;
+            Console.WriteLine();
+            Console.WriteLine($"[RE15pc] wrote {destination}");
+            Console.WriteLine($"  sectors  {header.SectorCount}");
+            Console.WriteLine($"  source   {header.SourceLength:N0} bytes, sha256 {Convert.ToHexString(header.SourceSha256)}");
+            Console.WriteLine($"  store    {size:N0} bytes ({100.0 * size / Math.Max(1, header.SourceLength):0.0}% of the disc)");
+            Console.WriteLine($"  elapsed  {started.Elapsed.TotalSeconds:0.0}s");
+
+            if (!skipVerify && VerifyStore(sourcePath, destination) is { } failure)
+            {
+                Console.Error.WriteLine();
+                Console.Error.WriteLine($"[RE15pc] the store does NOT reproduce the disc: {failure}");
+                Console.Error.WriteLine("Do not use it. Re-run the import; if it fails again, the disc may be damaged.");
+                return 1;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("The port now reads this store instead of the disc image. You can move the");
+            Console.WriteLine(".cue and .bin away and it will still boot. Keep them if you want to");
+            Console.WriteLine("re-import, because the store cannot be converted back into a disc image.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[RE15pc] import failed: {ex.Message}");
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Proves a freshly written store reproduces its source, sector for sector.
+    /// </summary>
+    /// <remarks>
+    /// This runs at import time, while the disc is still present, because it is the
+    /// only moment the comparison is possible. It is deliberately a data-level check
+    /// rather than "the game boots": if all 52,849 raw sectors match then the store
+    /// cannot cause a behavioural difference, whereas running the game twice proves
+    /// much less - the guest is not run-to-run deterministic in RAM, so two runs of
+    /// the *same* source already differ in their RAM and VRAM dumps. A boot test
+    /// therefore cannot distinguish a store defect from that noise; this can.
+    /// </remarks>
+    private static string? VerifyStore(string sourcePath, string storePath)
+    {
+        using var sourceImage = DiscImage.Open(sourcePath);
+        using var store = DiscPackImage.Open(storePath);
+
+        if (sourceImage.Tracks.Count != store.Tracks.Count)
+            return $"track count {store.Tracks.Count} != {sourceImage.Tracks.Count}";
+        for (var i = 0; i < sourceImage.Tracks.Count; i++)
+        {
+            var a = sourceImage.Tracks[i];
+            var b = store.Tracks[i];
+            if (a.Number != b.Number || a.Kind != b.Kind || a.StartLba != b.StartLba || a.SectorSize != b.SectorSize)
+                return $"track {i} differs: {b} != {a}";
+        }
+
+        var sectors = Math.Min(sourceImage.LeadoutLba, store.Header.SectorCount);
+        if (sectors <= 0) return "the disc reports no sectors";
+
+        var mismatches = 0;
+        var firstMismatch = -1;
+        for (var lba = 0; lba < sectors; lba++)
+        {
+            if (sourceImage.ReadRawSector(lba).AsSpan().SequenceEqual(store.ReadRawSector(lba))) continue;
+            mismatches++;
+            if (firstMismatch < 0) firstMismatch = lba;
+        }
+
+        if (mismatches != 0)
+            return $"{mismatches} of {sectors} raw sectors differ, first at lba {firstMismatch}";
+
+        Console.WriteLine();
+        Console.WriteLine($"[RE15pc] verified: all {sectors:N0} raw sectors and every track entry match the disc");
+        return null;
+    }
 
     /// <summary>
     /// Records the revision and configuration that produced a run.

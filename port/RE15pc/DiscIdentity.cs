@@ -103,6 +103,12 @@ public static class DiscIdentity
     {
         if (!File.Exists(path)) return $"disc image not found: {path}";
 
+        // A native sector store proves what it was built from by itself, so it is
+        // validated from its own header rather than from a disc that is no longer
+        // present. This is the whole point of the store: after importing, the disc
+        // image is gone and validation still has to be real.
+        if (DiscPackImage.HasMagic(path)) return InspectPack(path);
+
         // The path handed in is the cue sheet: a few dozen bytes of text. The file
         // whose size and hash matter is the binary that cue references, so resolve
         // it first. Comparing the cue's own length against the expected image
@@ -130,6 +136,56 @@ public static class DiscIdentity
                 return $"disc sha256 {hash} does not match the recorded {ExpectedSha256}.";
         }
 
+        if (CheckContents(path) is { } contentError) return contentError;
+        return null;
+    }
+
+    /// <summary>
+    /// Validates a native sector store.
+    /// </summary>
+    /// <remarks>
+    /// The hash is always checked here, even when <c>--full-hash</c> was not asked
+    /// for. It costs nothing - the store records it in its header, so no disc has to
+    /// be read - and without it a store could be any image at all with the right
+    /// sector count.
+    /// </remarks>
+    private static string? InspectPack(string path)
+    {
+        DiscPackImage pack;
+        try
+        {
+            pack = DiscPackImage.Open(path);
+        }
+        catch (Exception ex)
+        {
+            return $"disc store {Path.GetFileName(path)} could not be read: {ex.Message}";
+        }
+
+        using (pack)
+        {
+            var header = pack.Header;
+
+            if (header.SourceLength != ExpectedLength)
+                return $"disc store was built from {header.SourceLength} bytes, expected {ExpectedLength}. " +
+                       "This port requires the Biohazard 1.5 (November 6, 1996) prototype.";
+
+            var hash = Convert.ToHexString(header.SourceSha256);
+            if (!string.Equals(hash, ExpectedSha256, StringComparison.OrdinalIgnoreCase))
+                return $"disc store was built from sha256 {hash}, which does not match the recorded " +
+                       $"{ExpectedSha256}. Re-import your own disc with tools/Import-Disc.ps1.";
+
+            if (CheckContents(path) is { } contentError) return contentError;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks the disc's contents through <see cref="DiscFs"/>, the reader the game
+    /// itself uses.
+    /// </summary>
+    private static string? CheckContents(string path)
+    {
         using var fs = DiscFs.Open(path);
 
         // The boot executable must carry a PS-X EXE header at the offset the
