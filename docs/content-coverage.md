@@ -45,11 +45,18 @@ only from unverified to partial. It cannot mark a file verified.
 - Mapped functions may include unused library routines or heuristic candidates.
   Unentered is not synonymous with unreachable; each exclusion needs evidence.
 - Runs from different configurations must not be combined into a release verdict.
-- Stages 2–6 still need native execution and gameplay evidence. They are not
-  unreachable content: `docs/room-graph.md`, built from the disc's own door records
-  by `tools/New-RoomGraph.ps1`, shows stage 2 two doors from the rooftop start and
-  stages 3–5 reachable behind it. What is missing is a route that walks through
-  them, not the rooms themselves.
+- Stages 2–6 still need native execution and gameplay evidence. `docs/room-graph.md`,
+  built from the disc's own door records by `tools/New-RoomGraph.ps1`, shows stage 2
+  two doors from the rooftop start and stages 3–5 behind it. That is a graph
+  result about connectivity, not a proven walkable route, and one measurement now
+  argues against the first step of it: driving the rooftop with scripted input pins
+  the player at z = -6000 against a collision boundary, while room 117's door 1 -
+  the only door in the graph leading to room 10B, and therefore the only entry to
+  stage 2 on this path - has an exit rectangle at z = -9400..-6480, beyond that
+  boundary. Either the room has a second level reachable some other way, or that
+  door is not walkable and the graph's reachability of stages 2-5 is optimistic.
+  Settling which is the next step, and it is exactly the kind of claim the graph
+  tool exists to make checkable.
 
 Structural inspection found 25 sector-aligned model blocks in each CDEMD
 container. Their relative section directories and padded extents account for
