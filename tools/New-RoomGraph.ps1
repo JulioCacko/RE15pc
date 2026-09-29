@@ -99,8 +99,14 @@ foreach ($entry in $manifest.files) {
     $stage = [int]$Matches[1]
     if ([int]$Matches[2] -ne $stage) { continue }   # the room's own stage digit must agree
     $key = '{0}:{1}' -f $stage, $Matches[3]
-    if (-not $roomIndex.ContainsKey($key)) { $roomIndex[$key] = $entry }
-    $roomPath[$key] = $entry.path
+    # Both maps must be first-wins. $roomPath was last-wins while $roomIndex was
+    # first-wins, so the tool parsed variant 0 and then printed variant 1's path. The
+    # engine loads variant 0 - tools/Test-FirstRoom.ps1 builds ROOM...0.RDT and proves
+    # the resident RDT header matches it.
+    if (-not $roomIndex.ContainsKey($key)) {
+        $roomIndex[$key] = $entry
+        $roomPath[$key] = $entry.path
+    }
 }
 Write-Host ("rooms indexed from the manifest: {0}" -f $roomIndex.Count)
 
@@ -126,6 +132,13 @@ try {
     $rooms = [System.Collections.Generic.List[object]]::new()
     $rejected = 0
     $noDoorTable = 0
+    $malformedRecords = 0
+    $truncatedRecords = 0
+    $degenerateDoors = 0
+    # Rooms that cannot be parsed are named rather than dropped. Silently skipping them
+    # is why the summary reported 17 stage-1 rooms when 19 stage-1 RDTs exist, leaving a
+    # reader unable to tell which rooms were missing.
+    $skippedRooms = [System.Collections.Generic.List[object]]::new()
 
     foreach ($key in ($roomIndex.Keys | Sort-Object)) {
         $entry = $roomIndex[$key]
@@ -136,10 +149,18 @@ try {
         # An RDT is small (the largest here is ~154 KB), so reading it whole removes a
         # whole class of bounds bug in exchange for nothing measurable.
         $bytes = Read-Range -Entry $entry -Offset 0 -Count ([int]$entry.size)
-        if ($bytes.Length -lt 0x44) { $noDoorTable++; continue }
+        if ($bytes.Length -lt 0x44) {
+            $skippedRooms.Add([pscustomobject]@{ key = $key; path = $entry.path; size = $entry.size
+                reason = "file is only $($bytes.Length) bytes; too small to hold an RDT header" })
+            continue
+        }
 
         $init = [BitConverter]::ToUInt32($bytes, 0x40)
-        if ($init -le 0 -or ($init + 4) -ge $bytes.Length) { $noDoorTable++; continue }
+        if ($init -le 0 -or ($init + 4) -ge $bytes.Length) {
+            $skippedRooms.Add([pscustomobject]@{ key = $key; path = $entry.path; size = $entry.size
+                reason = "init pointer at +0x40 is $init, which does not address a door table" })
+            continue
+        }
 
         # The table is a u16 at `init` giving the offset, from `init`, of the first
         # record. tools/Test-FirstRoom.ps1 relies on the same indirection for room 117.
@@ -147,22 +168,37 @@ try {
         $cursor = [int]$init + $first
         $doors = [System.Collections.Generic.List[object]]::new()
 
-        while ($cursor + 32 -le $bytes.Length) {
+        # 0x3B records are a family discriminated by the byte at +3, and the two subtypes
+        # are different lengths. Advancing a fixed 32 bytes walks into the middle of a
+        # 40-byte record and reads its destination Y, stage, room, camera and floor bytes
+        # as a rectangle - which produces a well-formed-looking door pointing at a stage
+        # that cannot exist. A disc-wide census found 91 of subtype 0x31 and exactly two
+        # of subtype 0xB1, both in room 4:03.
+        while ($cursor + 4 -le $bytes.Length) {
             if ($bytes[$cursor] -ne 0x3B) { break }
+
+            $subtype = $bytes[$cursor + 3]
+            if ($subtype -eq 0xB1) { $recordLength = 40; $destinationAt = 22 }
+            elseif ($subtype -eq 0x31) { $recordLength = 32; $destinationAt = 14 }
+            else { $malformedRecords++; break }
+
+            if (($cursor + $recordLength) -gt $bytes.Length) { $truncatedRecords++; break }
 
             $index = $bytes[$cursor + 1]
             $exitX = [BitConverter]::ToInt16($bytes, $cursor + 6)
             $exitZ = [BitConverter]::ToInt16($bytes, $cursor + 8)
             $exitW = [BitConverter]::ToUInt16($bytes, $cursor + 10)
             $exitH = [BitConverter]::ToUInt16($bytes, $cursor + 12)
-            $destX = [BitConverter]::ToInt16($bytes, $cursor + 14)
-            $destY = [BitConverter]::ToInt16($bytes, $cursor + 16)
-            $destZ = [BitConverter]::ToInt16($bytes, $cursor + 18)
-            $destYaw = [BitConverter]::ToUInt16($bytes, $cursor + 20) -band 0xfff
-            $destStage = [int]$bytes[$cursor + 22] + 1
-            $destRoom = $bytes[$cursor + 23].ToString('X2')
-            $destCamera = $bytes[$cursor + 24]
-            $destFloor = $bytes[$cursor + 25]
+            # The destination block sits after an extra corner-pair rectangle on 0xB1.
+            $destX = [BitConverter]::ToInt16($bytes, $cursor + $destinationAt)
+            $destY = [BitConverter]::ToInt16($bytes, $cursor + $destinationAt + 2)
+            $destZ = [BitConverter]::ToInt16($bytes, $cursor + $destinationAt + 4)
+            $destYaw = [BitConverter]::ToUInt16($bytes, $cursor + $destinationAt + 6) -band 0xfff
+            $destStage = [int]$bytes[$cursor + $destinationAt + 8] + 1
+            $destRoom = $bytes[$cursor + $destinationAt + 9].ToString('X2')
+            $destCamera = $bytes[$cursor + $destinationAt + 10]
+            $destFloor = $bytes[$cursor + $destinationAt + 11]
+            $degenerate = ($exitW -eq 0 -or $exitH -eq 0)
 
             $destKey = '{0}:{1}' -f $destStage, $destRoom
             $resolved = $roomIndex.ContainsKey($destKey)
@@ -189,10 +225,13 @@ try {
                     yaw    = $destYaw
                 }
                 resolved   = $resolved
+                degenerate = $degenerate
+                subtype    = ('0x{0:X2}' -f $subtype)
+                length     = $recordLength
                 destinationPath = if ($resolved) { $roomPath[$destKey] } else { $null }
             })
 
-            $cursor += 32
+            $cursor += $recordLength
         }
 
         if ($doors.Count -eq 0) { $noDoorTable++ }
@@ -216,7 +255,10 @@ try {
     $adjacency = @{}
     foreach ($r in $rooms) {
         $targets = @()
-        foreach ($d in $r.doors) { if ($d.resolved) { $targets += $d.destination.key } }
+        foreach ($d in $r.doors) {
+            if ($d.degenerate) { $degenerateDoors++; continue }
+            if ($d.resolved) { $targets += $d.destination.key }
+        }
         $adjacency[$r.key] = $targets
     }
 
@@ -269,8 +311,13 @@ try {
             doors                  = ($rooms | Measure-Object -Property doorCount -Sum).Sum
             unresolvedDestinations = $rejected
             roomsWithoutDoorTable  = $noDoorTable
+            roomsSkipped           = $skippedRooms.Count
+            degenerateDoors        = $degenerateDoors
+            malformedRecords       = $malformedRecords
+            truncatedRecords       = $truncatedRecords
             reachableFromStart     = $seen.Count
         }
+        skippedRooms    = $skippedRooms
         roomsPerStage          = (ConvertTo-Object $stageTotals)
         reachablePerStage      = (ConvertTo-Object $reachableByStage)
         rooms           = $rooms
@@ -304,6 +351,33 @@ try {
         $null = $md.AppendLine(('| {0} | {1} | {2} |' -f $stage, $stageTotals[$stage], $have))
     }
     $null = $md.AppendLine()
+
+    if ($skippedRooms.Count -gt 0) {
+        $null = $md.AppendLine('## Rooms that could not be parsed')
+        $null = $md.AppendLine()
+        $null = $md.AppendLine('These RDT files are on the disc but carry no usable door table, so they are absent')
+        $null = $md.AppendLine('from the graph. They are named rather than dropped, because a room silently')
+        $null = $md.AppendLine('missing from a connectivity document is indistinguishable from a room with no')
+        $null = $md.AppendLine('doors.')
+        $null = $md.AppendLine()
+        foreach ($s in $skippedRooms) { $null = $md.AppendLine(('- `{0}` ({1}, {2} bytes): {3}' -f $s.key, $s.path, $s.size, $s.reason)) }
+        $null = $md.AppendLine()
+    }
+
+    if ($degenerateDoors -gt 0) {
+        $null = $md.AppendLine('## Door records with an empty rectangle')
+        $null = $md.AppendLine()
+        $null = $md.AppendLine(('{0} record(s) parse as doors but have a zero-area rectangle, so they can never' -f $degenerateDoors))
+        $null = $md.AppendLine('be stood in. They are counted and excluded from the graph rather than being')
+        $null = $md.AppendLine('walked as if they were doors:')
+        $null = $md.AppendLine()
+        foreach ($room in $rooms) {
+            foreach ($d in $room.doors) {
+                if ($d.degenerate) { $null = $md.AppendLine(('- {0} door {1}' -f $room.key, $d.index)) }
+            }
+        }
+        $null = $md.AppendLine()
+    }
 
     # Shortest door chain from the start room to the first reachable room in a later
     # stage, which is what turns "unreachable" into a route.

@@ -88,6 +88,30 @@ The old `out/runs/elza-entry-coverage` report is invalid despite its historical
 PASS text. The importer rejects legacy failure tracking and fault-bearing logs.
 Do not use that artifact as accepted coverage.
 
+## Rooms the disc names but never shipped a script for
+
+Six door records point at room identifiers that have a background container on the
+disc but no RDT room script:
+
+| Door | Points at | Background container present |
+|---|---|---|
+| `1:21` door 2 | room `1:23` | `PSX/STAGE1/ROOM123.BSS` |
+| `1:21` door 3 | room `1:24` | `PSX/STAGE1/ROOM124.BSS` |
+| `1:21` door 4 | room `1:25` | `PSX/STAGE1/ROOM125.BSS` |
+| `1:21` door 5 | room `1:26` | `PSX/STAGE1/ROOM126.BSS` |
+| `2:00` door 1 | room `2:01` | `PSX/STAGE2/ROOM201.BSS` |
+| `2:0B` door 1 | room `2:01` | `PSX/STAGE2/ROOM201.BSS` |
+
+A door record alone would be weak evidence. A door record *plus* a room-scoped
+background container for that exact room id, with no script anywhere on the disc,
+is the shape of content that was planned, had art built for it, and was cut before
+the room script existed. Four further records (`->2:02`, `->4:06`, `->5:13`) leave no
+trace on the disc at all and are recorded as unresolved references rather than cut
+content, because absence of evidence is not evidence of a cut room.
+
+This is the kind of accounting stage 3 asks for: an entry is either verified or
+evidenced as a limitation of the build, and "the room is referenced, has art, and has
+no script" is evidence.
 ## Current accepted observations
 
 The fresh runs at `out/gates/leon-thread-safe` and
