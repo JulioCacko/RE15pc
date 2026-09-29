@@ -27,6 +27,10 @@ Bio2Nov96.bin
 # --- scratch: probe JSON, RAM/VRAM dumps, logs, smoke artifacts ---
 /out/
 
+# --- published build: ~154 MB, with the recompiled guest compiled in ---
+# Contains a transcription of the disc's executable, exactly like /generated/.
+/dist/
+
 # --- .NET build output ---
 bin/
 obj/

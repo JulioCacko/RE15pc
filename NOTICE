@@ -14,15 +14,38 @@ redistributed.
 What this repository contains, verifiably
 -----------------------------------------
 
-Every file tracked here is plain text. That is not an assurance to be taken on
-trust; it is a property anyone can check in one command:
+Almost every file tracked here is plain text. That is not an assurance to be
+taken on trust; it is a property anyone can check in one command:
 
     git ls-files | ForEach-Object { [IO.Path]::GetExtension($_) } | Sort-Object -Unique
 
-The complete set of extensions is .cs .csproj .cue .editorconfig .gitattributes
-.gitignore .json .md .patch .ps1 .sh .sln .yml - source code, configuration and
-prose, and nothing else. The largest tracked file is a 125 KB function map, which
-records addresses and symbol names rather than instructions or assets.
+The plain-text set is .cs .csproj .cue .editorconfig .gitattributes .gitignore
+.json .md .patch .ps1 .sh .sln .yml - source code, configuration and prose. The
+largest of them is a 125 KB function map, which records addresses and symbol
+names rather than instructions or assets.
+
+There are also image files, and they are listed here in full rather than left
+for a reader to discover. Nothing else binary is tracked.
+
+    assets/logo.png, assets/banner.jpg, assets/icon.png
+    assets/icon.ico, assets/social-preview.png
+        Cover art supplied by the maintainer from SteamGridDB, a community
+        artwork host. These are fan/community renderings of the game's identity
+        used to identify the repository and to give the published executable a
+        Windows icon. They are not extracted from the disc and are not official
+        Capcom assets. Regenerate icon.ico and social-preview.png with
+        tools/New-AppIcon.ps1 and tools/New-SocialPreview.ps1.
+
+    docs/screenshots/*.png
+        Five framebuffer captures, 320x240, produced by this port's own readback
+        diagnostics while running the maintainer's own disc, and taken only from
+        runs whose recorded verdict is PASS. They are documentation of what the
+        port currently renders.
+
+    The screenshots are the one place where game-derived imagery is committed.
+    That is a deliberate, narrow exception to the rule below, made so the README
+    can show what the port does instead of asserting it. They are decoded game
+    art, and the maintainer will remove them on request without argument.
 
 Explicitly not present, and excluded by named rules rather than by convention:
 
@@ -30,16 +53,19 @@ Explicitly not present, and excluded by named rules rather than by convention:
     recompiled C# output     /generated/                           .gitignore:25
     VRAM, RAM and frames     /out/                                 .gitignore:28
     the upstream engine      /RecompOne/                           .gitignore:22
+    published build output   /dist/                                .gitignore:32
 
-Those last two matter and are worth stating plainly. `/out/` holds the port's own
-diagnostic dumps - raw video memory, a machine's RAM, and frame captures - and
-those would contain decoded game art and overlay code if they were committed. They
-are excluded for precisely that reason. The recompiled output under `/generated/`
-is a transcription of the disc's executable and is excluded for the same reason.
-Both are produced on the user's machine from the user's own disc, and neither is
-distributed. All four rules can be verified directly:
+Those last three matter and are worth stating plainly. `/out/` holds the port's
+own diagnostic dumps - raw video memory, a machine's RAM, and frame captures -
+and those would contain decoded game art and overlay code if they were committed.
+They are excluded for precisely that reason. `/generated/` is a transcription of
+the disc's executable, and `/dist/` is that transcription compiled into a
+self-contained build (about 154 MB plus whatever disc image was copied beside
+it); both are excluded for the same reason. All are produced on the user's
+machine from the user's own disc, and none is distributed. Every rule can be
+verified directly:
 
-    git check-ignore -v Bio2Nov96.bin generated/ out/ RecompOne/
+    git check-ignore -v Bio2Nov96.bin generated/ out/ RecompOne/ dist/
 
 One file describes the disc and is worth being precise about, because precision here
 is the point. `disc-manifest.json` records the image's size, SHA-256 and sector
@@ -55,15 +81,21 @@ what `tools/New-DiscManifest.ps1 -Check` does.
 If you are a rights holder
 --------------------------
 
-This project has no connection to Capcom, and it contains no game data. A takedown
-notice needs to identify the material it concerns, and there is no such material in
-this repository to identify - which the three commands above demonstrate rather
-than merely assert.
+This project has no connection to Capcom. It contains no Capcom code, audio, disc
+image or BIOS, and none of the recompiled output derived from the disc is
+distributed here. What it does contain, as set out above, is a small set of
+screenshots captured from the prototype and some community cover art.
 
-If you believe something here is nevertheless a problem, please open an issue or
-contact the repository owner. Concerns about this repository will be addressed
-promptly, and the project's default position is to remove anything a rights holder
-objects to rather than to argue about it.
+A takedown notice has to identify the material it concerns, and for the game data
+itself there is nothing here to identify - which the commands above demonstrate
+rather than merely assert. The images are the exception: they are named
+individually above, and they are the part of this repository most likely to be a
+legitimate concern.
+
+If you believe something here is a problem, please open an issue or contact the
+repository owner. Concerns about this repository will be addressed promptly, and
+the project's default position is to remove anything a rights holder objects to
+rather than to argue about it.
 
 Nothing in this file is legal advice, and it does not claim to be a defence against
 any particular claim. It describes what the repository contains and how that can be
