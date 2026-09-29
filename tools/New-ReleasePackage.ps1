@@ -41,7 +41,7 @@
 param(
     [string]$DistDirectory,
     [string]$OutputDirectory,
-    [string]$Version = '0.3.0',
+    [string]$Version,
     [switch]$SkipPublish
 )
 
@@ -51,6 +51,16 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $DistDirectory) { $DistDirectory = Join-Path $root 'dist' }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $root 'release' }
+
+# Version comes from the project file rather than a default here, so a release cannot
+# be labelled with a stale number that disagrees with the binary's own metadata.
+if (-not $Version) {
+    $project = Join-Path $root 'port/RE15pc/RE15pc.csproj'
+    $match = Select-String -Path $project -Pattern '<Version>([^<]+)</Version>'
+    if (-not $match) { throw "no <Version> in $project; pass -Version explicitly" }
+    $Version = $match.Matches[0].Groups[1].Value.Trim()
+    Write-Host "version $Version (from RE15pc.csproj)"
+}
 
 if (-not $SkipPublish) {
     Write-Host 'publishing a fresh build first'

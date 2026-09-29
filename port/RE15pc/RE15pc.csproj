@@ -37,7 +37,7 @@
     <Description>Native Windows host for the statically recompiled Biohazard 2 November 6, 1996 prototype.</Description>
     <Company>RE15pc preservation project</Company>
     <Copyright>Unofficial preservation project. Resident Evil and Biohazard are Capcom trademarks.</Copyright>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
 
     <!--
       Culture must stay invariant-sensitive: RecompOne formats diagnostics with
