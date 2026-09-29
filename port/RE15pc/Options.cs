@@ -74,6 +74,18 @@ public sealed class Options
 
     public bool Help { get; private init; }
 
+    /// <summary>
+    /// Display mode to force for this launch, or null to use the saved setting.
+    /// See <see cref="RecompOne.Runtime.Config.WindowMode"/>.
+    /// </summary>
+    public RecompOne.Runtime.Config.WindowMode? WindowMode { get; private init; }
+
+    /// <summary>
+    /// Window size to force for this launch, or null to derive one from the monitor.
+    /// </summary>
+    public int? WindowWidth { get; private init; }
+    public int? WindowHeight { get; private init; }
+
     public static bool TryParse(string[] args, out Options options, out string error)
     {
         var cue = "Bio2Nov96.cue";
@@ -94,6 +106,9 @@ public sealed class Options
         var verifyOverlays = false;
         var verifyAudio = false;
         var help = false;
+        RecompOne.Runtime.Config.WindowMode? windowMode = null;
+        int? windowWidth = null;
+        int? windowHeight = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -196,6 +211,32 @@ public sealed class Options
                     verifyAudio = true;
                     break;
 
+                case "--window-mode":
+                    if (++i >= args.Length)
+                    { error = "--window-mode needs windowed, borderless or fullscreen"; options = new Options(); return false; }
+                    windowMode = args[i].ToLowerInvariant() switch
+                    {
+                        "windowed" or "window" => RecompOne.Runtime.Config.WindowMode.Windowed,
+                        "borderless" or "borderless-fullscreen" => RecompOne.Runtime.Config.WindowMode.Borderless,
+                        "fullscreen" or "exclusive" => RecompOne.Runtime.Config.WindowMode.Fullscreen,
+                        _ => null
+                    };
+                    if (windowMode is null)
+                    {
+                        error = $"--window-mode expects windowed, borderless or fullscreen; got '{args[i]}'";
+                        options = new Options();
+                        return false;
+                    }
+                    break;
+
+                case "--resolution":
+                    if (++i >= args.Length) { error = "--resolution needs WxH, e.g. 1920x1080"; options = new Options(); return false; }
+                    var sizeError = TryParseResolution(args[i], out var rw, out var rh);
+                    if (sizeError is not null) { error = sizeError; options = new Options(); return false; }
+                    windowWidth = rw;
+                    windowHeight = rh;
+                    break;
+
                 case "--help":
                 case "-h":
                     help = true;
@@ -231,10 +272,35 @@ public sealed class Options
             NeutralModulation = neutralModulation,
             VerifyOverlays = verifyOverlays,
             VerifyAudio = verifyAudio,
-            Help = help
+            Help = help,
+            WindowMode = windowMode,
+            WindowWidth = windowWidth,
+            WindowHeight = windowHeight
         };
         error = "";
         return true;
+    }
+
+    /// <summary>
+    /// Parses a <c>WxH</c> size such as <c>1920x1080</c>.
+    /// </summary>
+    /// <remarks>
+    /// Bounds are enforced rather than clamped silently: a typo like 19200x1080
+    /// should say so instead of quietly producing a 1280x720 window the user then
+    /// has to debug.
+    /// </remarks>
+    public static string? TryParseResolution(string text, out int width, out int height)
+    {
+        width = height = 0;
+        var parts = text.Split('x', 'X');
+        if (parts.Length != 2 ||
+            !int.TryParse(parts[0], out width) || !int.TryParse(parts[1], out height))
+            return $"--resolution expects WxH, e.g. 1920x1080; got '{text}'";
+
+        if (width < 320 || width > 16384 || height < 240 || height > 16384)
+            return $"--resolution must be within 320x240 and 16384x16384; got {width}x{height}";
+
+        return null;
     }
 
     /// <summary>
@@ -308,6 +374,12 @@ public sealed class Options
         Console.WriteLine("                      frame:buttons[:duration], default 12; none releases; latest step wins");
         Console.WriteLine("  --software-gpu      disable the GPU HLE so the software rasteriser draws into");
         Console.WriteLine("                      shadow VRAM; a diagnostic for isolating the GL path");
+        Console.WriteLine("  --window-mode <m>   windowed | borderless | fullscreen for this launch.");
+        Console.WriteLine("                      borderless fills the monitor's work area without");
+        Console.WriteLine("                      changing its resolution, which is the mode that");
+        Console.WriteLine("                      behaves the same on every display");
+        Console.WriteLine("  --resolution <WxH>  window size for this launch, e.g. 1920x1080.");
+        Console.WriteLine("                      Still fitted to the monitor if the screen is smaller");
         Console.WriteLine("  --help              show this message");
         Console.WriteLine();
         Console.WriteLine("Run from the repository root so settings.json and out/ land predictably.");

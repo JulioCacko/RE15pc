@@ -79,6 +79,12 @@ public static class Program
         }
         ConfigManager.SaveGame();
         OverlayPolicy.Attach();
+        // Hand the launch's display request to the host window before it is created.
+        // These are process-level statics precisely so the config reload inside
+        // HostWindow.Initialize cannot discard them; see WindowRequest.
+        WindowRequest.Mode = options.WindowMode;
+        WindowRequest.Width = options.WindowWidth;
+        WindowRequest.Height = options.WindowHeight;
         Dispatcher.Tolerant = options.Tolerant;
         var unknown = options.ApplyLogFlags();
         if (unknown.Count > 0) checks.Add(new("log-options", false, string.Join(", ", unknown)));
